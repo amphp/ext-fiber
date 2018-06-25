@@ -1,0 +1,7 @@
+ARG_ENABLE('task', 'task support', 'yes');
+
+if (PHP_TASK != 'no') {
+	AC_DEFINE('HAVE_TASK', 1, 'task support enabled');
+
+	EXTENSION('task', 'src/php_task.c src/fiber.c src/fiber_winfib.c', null, '/DZEND_ENABLE_STATIC_TSRMLS_CACHE=1');
+}
