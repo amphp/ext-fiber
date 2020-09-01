@@ -324,22 +324,22 @@ ZEND_METHOD(Fiber, resume)
 ZEND_METHOD(Fiber, throw)
 {
 	zend_fiber *fiber;
-	zval *error;
+	zval *exception;
 
 	ZEND_PARSE_PARAMETERS_START_EX(ZEND_PARSE_PARAMS_THROW, 1, 1)
-		Z_PARAM_ZVAL(error)
+		Z_PARAM_ZVAL(exception)
 	ZEND_PARSE_PARAMETERS_END();
 
 	fiber = (zend_fiber *) Z_OBJ_P(getThis());
 
 	if (fiber->status != ZEND_FIBER_STATUS_SUSPENDED) {
-		zend_throw_exception_object(error);
+        zend_throw_error(NULL, "Non-suspended Fiber cannot throw exception");
 		return;
 	}
 
-	Z_ADDREF_P(error);
+	Z_ADDREF_P(exception);
 
-	FIBER_G(error) = error;
+	FIBER_G(error) = exception;
 
 	fiber->status = ZEND_FIBER_STATUS_RUNNING;
 	fiber->value = USED_RET() ? return_value : NULL;
@@ -443,7 +443,7 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_fiber_resume, 0, 0, 1)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO(arginfo_fiber_throw, 0)
-	 ZEND_ARG_OBJ_INFO(0, error, Throwable, 0)
+	 ZEND_ARG_OBJ_INFO(0, exception, Throwable, 0)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO(arginfo_fiber_void, 0)
