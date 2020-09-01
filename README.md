@@ -1,3 +1,3 @@
-# Concurrent Task Extension
+# Fiber Extension
 
-Provides concurrent task execution using native C fibers in PHP.
+Fiber implementation for PHP using native C fibers.
