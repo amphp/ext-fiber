@@ -12,5 +12,5 @@ final class Fiber
     
     public function throw(\Throwable $e) { }
     
-    public static function yield($val = null) { }
+    public static function suspend($val = null) { }
 }
