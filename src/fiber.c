@@ -1,19 +1,14 @@
 /*
-  +----------------------------------------------------------------------+
-  | PHP Version 7                                                        |
-  +----------------------------------------------------------------------+
-  | Copyright (c) 1997-2018 The PHP Group                                |
-  +----------------------------------------------------------------------+
-  | This source file is subject to version 3.01 of the PHP license,      |
-  | that is bundled with this package in the file LICENSE, and is        |
-  | available through the world-wide-web at the following url:           |
-  | http://www.php.net/license/3_01.txt                                  |
-  | If you did not receive a copy of the PHP license and are unable to   |
-  | obtain it through the world-wide-web, please send a note to          |
-  | license@php.net so we can mail you a copy immediately.               |
-  +----------------------------------------------------------------------+
-  | Authors: Martin Schröder <m.schroeder2007@gmail.com>                 |
-  +----------------------------------------------------------------------+
+  +--------------------------------------------------------------------+
+  | ext-fiber                                                          |
+  +--------------------------------------------------------------------+
+  | Redistribution and use in source and binary forms, with or without |
+  | modification, are permitted provided that the conditions mentioned |
+  | in the accompanying LICENSE file are met.                          |
+  +--------------------------------------------------------------------+
+  | Authors: Martin Schröder <m.schroeder2007@gmail.com>               |
+  |          Aaron Piotrowski <aaron@trowski.com>                      |
+  +--------------------------------------------------------------------+
 */
 
 #include "php.h"
@@ -24,7 +19,7 @@
 #include "zend_exceptions.h"
 #include "zend_closures.h"
 
-#include "php_task.h"
+#include "php_fiber.h"
 #include "fiber.h"
 
 #ifndef ZEND_PARSE_PARAMETERS_NONE
@@ -62,7 +57,7 @@ static zend_bool zend_fiber_switch_to(zend_fiber *fiber)
 {
 	zend_fiber_context root;
 
-	root = TASK_G(root);
+	root = FIBER_G(root);
 
 	if (root == NULL) {
 		root = zend_fiber_create_root_context();
@@ -71,7 +66,7 @@ static zend_bool zend_fiber_switch_to(zend_fiber *fiber)
 			return 0;
 		}
 
-		TASK_G(root) = root;
+		FIBER_G(root) = root;
 	}
 
 	zend_fiber *prev;
@@ -82,12 +77,12 @@ static zend_bool zend_fiber_switch_to(zend_fiber *fiber)
 
 	ZEND_FIBER_BACKUP_EG(stack, stack_page_size, exec);
 
-	prev = TASK_G(current_fiber);
-	TASK_G(current_fiber) = fiber;
+	prev = FIBER_G(current_fiber);
+	FIBER_G(current_fiber) = fiber;
 
 	result = zend_fiber_switch_context((prev == NULL) ? root : prev->context, fiber->context);
 
-	TASK_G(current_fiber) = prev;
+	FIBER_G(current_fiber) = prev;
 
 	ZEND_FIBER_RESTORE_EG(stack, stack_page_size, exec);
 
@@ -99,7 +94,7 @@ static void zend_fiber_run()
 {
 	zend_fiber *fiber;
 
-	fiber = TASK_G(current_fiber);
+	fiber = FIBER_G(current_fiber);
 	ZEND_ASSERT(fiber != NULL);
 
 	EG(vm_stack) = fiber->stack;
@@ -127,7 +122,7 @@ static void zend_fiber_run()
 	fiber->stack = NULL;
 	fiber->exec = NULL;
 
-	zend_fiber_yield(fiber->context);
+	zend_fiber_suspend(fiber->context);
 
 	abort();
 }
@@ -138,7 +133,7 @@ static int fiber_run_opcode_handler(zend_execute_data *exec)
 	zend_fiber *fiber;
 	zval retval;
 
-	fiber = TASK_G(current_fiber);
+	fiber = FIBER_G(current_fiber);
 	ZEND_ASSERT(fiber != NULL);
 
 	fiber->status = ZEND_FIBER_STATUS_RUNNING;
@@ -207,7 +202,7 @@ ZEND_METHOD(Fiber, __construct)
 	zend_long stack_size;
 
 	fiber = (zend_fiber *) Z_OBJ_P(getThis());
-	stack_size = TASK_G(stack_size);
+	stack_size = FIBER_G(stack_size);
 
 	ZEND_PARSE_PARAMETERS_START_EX(ZEND_PARSE_PARAMS_THROW, 1, 2)
 		Z_PARAM_FUNC_EX(fiber->fci, fiber->fci_cache, 1, 0)
@@ -342,7 +337,7 @@ ZEND_METHOD(Fiber, throw)
 
 	Z_ADDREF_P(error);
 
-	TASK_G(error) = error;
+	FIBER_G(error) = error;
 
 	fiber->status = ZEND_FIBER_STATUS_RUNNING;
 	fiber->value = USED_RET() ? return_value : NULL;
@@ -354,8 +349,8 @@ ZEND_METHOD(Fiber, throw)
 /* }}} */
 
 
-/* {{{ proto mixed Fiber::yield([$value]) */
-ZEND_METHOD(Fiber, yield)
+/* {{{ proto mixed Fiber::suspend([$value]) */
+ZEND_METHOD(Fiber, suspend)
 {
 	zend_fiber *fiber;
 	zend_execute_data *exec;
@@ -363,15 +358,15 @@ ZEND_METHOD(Fiber, yield)
 	zval *val;
 	zval *error;
 
-	fiber = TASK_G(current_fiber);
+	fiber = FIBER_G(current_fiber);
 
 	if (UNEXPECTED(fiber == NULL)) {
-		zend_throw_error(NULL, "Cannot yield from outside a fiber");
+		zend_throw_error(NULL, "Cannot suspend from outside a fiber");
 		return;
 	}
 
 	if (fiber->status != ZEND_FIBER_STATUS_RUNNING) {
-		zend_throw_error(NULL, "Cannot yield from a fiber that is not running");
+		zend_throw_error(NULL, "Cannot suspend from a fiber that is not running");
 		return;
 	}
 
@@ -392,7 +387,7 @@ ZEND_METHOD(Fiber, yield)
 
 	ZEND_FIBER_BACKUP_EG(fiber->stack, stack_page_size, fiber->exec);
 
-	zend_fiber_yield(fiber->context);
+	zend_fiber_suspend(fiber->context);
 
 	ZEND_FIBER_RESTORE_EG(fiber->stack, stack_page_size, fiber->exec);
 
@@ -401,10 +396,10 @@ ZEND_METHOD(Fiber, yield)
 		return;
 	}
 
-	error = TASK_G(error);
+	error = FIBER_G(error);
 
 	if (error != NULL) {
-		TASK_G(error) = NULL;
+		FIBER_G(error) = NULL;
 		exec = EG(current_execute_data);
 
 		exec->opline--;
@@ -452,7 +447,7 @@ ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_INFO(arginfo_fiber_void, 0)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_INFO(arginfo_fiber_yield, 0)
+ZEND_BEGIN_ARG_INFO(arginfo_fiber_suspend, 0)
 	ZEND_ARG_INFO(0, value)
 ZEND_END_ARG_INFO()
 
@@ -462,7 +457,7 @@ static const zend_function_entry fiber_functions[] = {
 	ZEND_ME(Fiber, start, arginfo_fiber_start, ZEND_ACC_PUBLIC)
 	ZEND_ME(Fiber, resume, arginfo_fiber_resume, ZEND_ACC_PUBLIC)
 	ZEND_ME(Fiber, throw, arginfo_fiber_throw, ZEND_ACC_PUBLIC)
-	ZEND_ME(Fiber, yield, arginfo_fiber_yield, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+	ZEND_ME(Fiber, suspend, arginfo_fiber_suspend, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
 	ZEND_ME(Fiber, __wakeup, arginfo_fiber_void, ZEND_ACC_PUBLIC)
 	ZEND_FE_END
 };
@@ -526,9 +521,9 @@ void zend_fiber_ce_unregister()
 void zend_fiber_shutdown()
 {
 	zend_fiber_context root;
-	root = TASK_G(root);
+	root = FIBER_G(root);
 
-	TASK_G(root) = NULL;
+	FIBER_G(root) = NULL;
 
 	zend_fiber_destroy(root);
 }

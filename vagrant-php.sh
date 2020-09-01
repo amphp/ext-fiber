@@ -44,7 +44,7 @@ sudo phpize
 sudo ./configure
 sudo make install
 
-sudo echo "extension=\"task.so\"" >> /usr/local/php/cli/php.ini
+sudo echo "extension=\"fiber.so\"" >> /usr/local/php/cli/php.ini
 
 php -v
 php -m
