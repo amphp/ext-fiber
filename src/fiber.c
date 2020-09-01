@@ -27,8 +27,6 @@
 #include "php_task.h"
 #include "fiber.h"
 
-ZEND_DECLARE_MODULE_GLOBALS(task)
-
 #ifndef ZEND_PARSE_PARAMETERS_NONE
 #define ZEND_PARSE_PARAMETERS_NONE() zend_parse_parameters_none()
 #endif
@@ -111,7 +109,7 @@ static void zend_fiber_run()
 
 	fiber->exec = (zend_execute_data *) EG(vm_stack_top);
 	EG(vm_stack_top) = (zval *) fiber->exec + ZEND_CALL_FRAME_SLOT;
-	zend_vm_init_call_frame(fiber->exec, ZEND_CALL_TOP_FUNCTION, (zend_function *) &fiber_run_func, 0, NULL, NULL);
+	zend_vm_init_call_frame(fiber->exec, ZEND_CALL_TOP_FUNCTION, (zend_function *) &fiber_run_func, 0, NULL);
 	fiber->exec->opline = fiber_run_op;
 	fiber->exec->call = NULL;
 	fiber->exec->return_value = NULL;
@@ -495,13 +493,13 @@ void zend_fiber_ce_register()
 
 	ZEND_SECURE_ZERO(&fiber_run_func, sizeof(fiber_run_func));
 	fiber_run_func.type = ZEND_USER_FUNCTION;
-	fiber_run_func.function_name = zend_string_init("Concurrent\\Fiber::run", sizeof("Concurrent\\Fiber::run") - 1, 1);
+	fiber_run_func.function_name = zend_string_init("Fiber::run", sizeof("Fiber::run") - 1, 1);
 	fiber_run_func.filename = ZSTR_EMPTY_ALLOC();
 	fiber_run_func.opcodes = fiber_run_op;
 	fiber_run_func.last_try_catch = 1;
 	fiber_run_func.try_catch_array = &fiber_terminate_try_catch_array;
 
-	INIT_CLASS_ENTRY(ce, "Concurrent\\Fiber", fiber_functions);
+	INIT_CLASS_ENTRY(ce, "Fiber", fiber_functions);
 	zend_ce_fiber = zend_register_internal_class(&ce);
 	zend_ce_fiber->ce_flags |= ZEND_ACC_FINAL;
 	zend_ce_fiber->create_object = zend_fiber_object_create;

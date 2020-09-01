@@ -1,7 +1,5 @@
 <?php
 
-namespace Concurrent;
-
 final class Fiber
 {
     public function __construct(callable $callback, ?int $stack_size = null) { }

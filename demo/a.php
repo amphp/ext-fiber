@@ -1,7 +1,5 @@
 <?php
 
-use Concurrent\Fiber;
-
 $f = new Fiber(function ($a) {
     return $a + Fiber::yield();
 });
