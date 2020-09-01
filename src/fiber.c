@@ -255,7 +255,9 @@ ZEND_METHOD(Fiber, start)
 
 	fiber->fci.params = params;
 	fiber->fci.param_count = param_count;
+#if PHP_VERSION_ID < 80000
 	fiber->fci.no_separation = 1;
+#endif
 
 	fiber->context = zend_fiber_create_context();
 

@@ -17,6 +17,7 @@
 #include "fiber.h"
 
 extern zend_module_entry fiber_module_entry;
+#define phpext_fiber_ptr &fiber_module_entry
 
 #define PHP_FIBER_VERSION "0.1.0"
 
