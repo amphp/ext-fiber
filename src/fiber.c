@@ -320,14 +320,14 @@ ZEND_METHOD(Fiber, resume)
 /* }}} */
 
 
-/* {{{ proto mixed Fiber::throw(Throwable $error) */
+/* {{{ proto mixed Fiber::throw(Throwable $exception) */
 ZEND_METHOD(Fiber, throw)
 {
 	zend_fiber *fiber;
 	zval *exception;
 
 	ZEND_PARSE_PARAMETERS_START_EX(ZEND_PARSE_PARAMS_THROW, 1, 1)
-		Z_PARAM_ZVAL(exception)
+		Z_PARAM_OBJECT_OF_CLASS(exception, zend_ce_throwable)
 	ZEND_PARSE_PARAMETERS_END();
 
 	fiber = (zend_fiber *) Z_OBJ_P(getThis());
@@ -405,7 +405,7 @@ ZEND_METHOD(Fiber, suspend)
 		exec = EG(current_execute_data);
 
 		exec->opline--;
-		zend_throw_exception_internal(error);
+		zend_throw_exception_object(error);
 		exec->opline++;
 	}
 }
