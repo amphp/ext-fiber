@@ -271,7 +271,7 @@ ZEND_METHOD(Fiber, start)
 	fiber->stack->end = (zval *) ((char *) fiber->stack + ZEND_FIBER_VM_STACK_SIZE);
 	fiber->stack->prev = NULL;
 
-	fiber->value = USED_RET() ? return_value : NULL;
+    fiber->value = return_value;
 
 	if (!zend_fiber_switch_to(fiber)) {
 		zend_throw_error(NULL, "Failed switching to fiber");
@@ -302,11 +302,10 @@ ZEND_METHOD(Fiber, resume)
 
 	if (val != NULL && fiber->value != NULL) {
 		ZVAL_COPY(fiber->value, val);
-		fiber->value = NULL;
 	}
 
 	fiber->status = ZEND_FIBER_STATUS_RUNNING;
-	fiber->value = USED_RET() ? return_value : NULL;
+    fiber->value = return_value;
 
 	if (!zend_fiber_switch_to(fiber)) {
 		zend_throw_error(NULL, "Failed switching to fiber");
@@ -337,7 +336,7 @@ ZEND_METHOD(Fiber, throw)
 	FIBER_G(error) = exception;
 
 	fiber->status = ZEND_FIBER_STATUS_RUNNING;
-	fiber->value = USED_RET() ? return_value : NULL;
+	fiber->value = return_value;
 
 	if (!zend_fiber_switch_to(fiber)) {
 		zend_throw_error(NULL, "Failed switching to fiber");
@@ -394,11 +393,10 @@ ZEND_METHOD(Fiber, suspend)
 
 	if (val != NULL && fiber->value != NULL) {
 		ZVAL_COPY(fiber->value, val);
-		fiber->value = NULL;
 	}
 
 	fiber->status = ZEND_FIBER_STATUS_SUSPENDED;
-	fiber->value = USED_RET() ? return_value : NULL;
+	fiber->value = return_value;
 
 	ZEND_FIBER_BACKUP_EG(fiber->stack, stack_page_size, fiber->exec);
 
