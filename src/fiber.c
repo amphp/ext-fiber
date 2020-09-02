@@ -195,27 +195,19 @@ static void zend_fiber_object_destroy(zend_object *object)
 }
 
 
-/* {{{ proto Fiber::__construct(callable $callback, int stack_size) */
+/* {{{ proto Fiber::__construct(callable $callback) */
 ZEND_METHOD(Fiber, __construct)
 {
 	zend_fiber *fiber;
-	zend_long stack_size;
 
 	fiber = (zend_fiber *) Z_OBJ_P(getThis());
-	stack_size = FIBER_G(stack_size);
 
-	ZEND_PARSE_PARAMETERS_START_EX(ZEND_PARSE_PARAMS_THROW, 1, 2)
+	ZEND_PARSE_PARAMETERS_START_EX(ZEND_PARSE_PARAMS_THROW, 1, 1)
 		Z_PARAM_FUNC_EX(fiber->fci, fiber->fci_cache, 1, 0)
-		Z_PARAM_OPTIONAL
-		Z_PARAM_LONG(stack_size)
 	ZEND_PARSE_PARAMETERS_END();
 
-	if (stack_size == 0) {
-		stack_size = 4096 * (((sizeof(void *)) < 8) ? 16 : 128);
-	}
-
 	fiber->status = ZEND_FIBER_STATUS_INIT;
-	fiber->stack_size = stack_size;
+	fiber->stack_size = ZEND_FIBER_VM_STACK_SIZE * (((sizeof(void *)) < 8) ? 16 : 128);
 
 	// Keep a reference to closures or callable objects as long as the fiber lives.
 	Z_TRY_ADDREF_P(&fiber->fci.function_name);

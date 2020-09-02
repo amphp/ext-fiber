@@ -9,10 +9,9 @@ final class Fiber
     public const STATUS_DEAD = 4;
 
     /**
-     * @param callable $callback Function to invoke when creating the Fiber.
-     * @param int|null $stack_size Maximum call stack depth.
+     * @param callable $callback Function to invoke when starting the Fiber.
      */
-    public function __construct(callable $callback, ?int $stack_size = null) { }
+    public function __construct(callable $callback) { }
 
     /**
      * @return int One of the Fiber status constants.
