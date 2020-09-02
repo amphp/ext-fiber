@@ -23,8 +23,7 @@ final class Fiber
      *
      * @param mixed ...$args
      *
-     * @return mixed Value given to next {@see Fiber::suspend()} call or function return value if the fiber completes
-     *               execution.
+     * @return mixed Value given to next {@see Fiber::suspend()} call or NULL.
      *
      * @throws Throwable If the fiber throws, the exception will be thrown from this call.
      */
@@ -33,8 +32,7 @@ final class Fiber
     /**
      * @param mixed $value Value to return from {@see Fiber::suspend()}.
      *
-     * @return mixed Value given to next {@see Fiber::suspend()} call or function return value if the fiber completes
-     *               execution.
+     * @return mixed Value given to next {@see Fiber::suspend()} call or NULL.
      *
      * @throws Throwable If the fiber throws, the exception will be thrown from this call.
      */
@@ -43,12 +41,18 @@ final class Fiber
     /**
      * @param Throwable $exception Exception to throw from {@see Fiber::suspend()}.
      *
-     * @return mixed Value given to next {@see Fiber::suspend()} call or function return value if the fiber completes
-     *               execution.
+     * @return mixed Value given to next {@see Fiber::suspend()} call or NULL.
      *
      * @throws Throwable If the fiber throws, the exception will be thrown from this call.
      */
     public function throw(\Throwable $exception) { }
+
+    /**
+     * @return mixed Fiber return value.
+     *
+     * @throws Error If the fiber has not finished.
+     */
+    public function getReturn() { }
 
     /**
      * @param mixed $value

@@ -117,6 +117,7 @@ static void zend_fiber_run()
 	fiber->value = NULL;
 
 	zval_ptr_dtor(&fiber->fci.function_name);
+    zval_ptr_dtor(&fiber->result);
 
 	zend_vm_stack_destroy();
 	fiber->stack = NULL;
@@ -140,8 +141,8 @@ static int fiber_run_opcode_handler(zend_execute_data *exec)
 	fiber->fci.retval = &retval;
 
 	if (zend_call_function(&fiber->fci, &fiber->fci_cache) == SUCCESS) {
-		if (fiber->value != NULL && !EG(exception)) {
-			ZVAL_ZVAL(fiber->value, &retval, 0, 1);
+        if (!EG(exception)) {
+			ZVAL_COPY_VALUE(&fiber->result, &retval);
 		}
 	}
 
@@ -169,6 +170,8 @@ static zend_object *zend_fiber_object_create(zend_class_entry *ce)
 	zend_object_std_init(&fiber->std, ce);
 	fiber->std.handlers = &zend_fiber_handlers;
 
+    ZVAL_UNDEF(&fiber->result);
+    
 	return &fiber->std;
 }
 
@@ -293,7 +296,7 @@ ZEND_METHOD(Fiber, resume)
 	fiber = (zend_fiber *) Z_OBJ_P(getThis());
 
 	if (fiber->status != ZEND_FIBER_STATUS_SUSPENDED) {
-		zend_throw_error(NULL, "Non-suspended Fiber cannot be resumed");
+		zend_throw_error(NULL, "Non-suspended fiber cannot be resumed");
 		return;
 	}
 
@@ -325,7 +328,7 @@ ZEND_METHOD(Fiber, throw)
 	fiber = (zend_fiber *) Z_OBJ_P(getThis());
 
 	if (fiber->status != ZEND_FIBER_STATUS_SUSPENDED) {
-        zend_throw_error(NULL, "Non-suspended Fiber cannot throw exception");
+        zend_throw_error(NULL, "Non-suspended fiber cannot throw exception");
 		return;
 	}
 
@@ -341,6 +344,24 @@ ZEND_METHOD(Fiber, throw)
 	}
 }
 /* }}} */
+
+
+/* {{{ proto mixed Fiber::getReturn() */
+ZEND_METHOD(Fiber, getReturn)
+{
+    zend_fiber *fiber;
+    
+    ZEND_PARSE_PARAMETERS_NONE();
+    
+    fiber = (zend_fiber *) Z_OBJ_P(getThis());
+    
+    if (fiber->status != ZEND_FIBER_STATUS_FINISHED) {
+        zend_throw_error(NULL, "Cannot get return value of unfinished fiber");
+        return;
+    }
+    
+    ZVAL_COPY(return_value, &fiber->result);
+}
 
 
 /* {{{ proto mixed Fiber::suspend([$value]) */
@@ -451,6 +472,7 @@ static const zend_function_entry fiber_functions[] = {
 	ZEND_ME(Fiber, start, arginfo_fiber_start, ZEND_ACC_PUBLIC)
 	ZEND_ME(Fiber, resume, arginfo_fiber_resume, ZEND_ACC_PUBLIC)
 	ZEND_ME(Fiber, throw, arginfo_fiber_throw, ZEND_ACC_PUBLIC)
+    ZEND_ME(Fiber, getReturn, arginfo_fiber_void, ZEND_ACC_PUBLIC)
 	ZEND_ME(Fiber, suspend, arginfo_fiber_suspend, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
 	ZEND_ME(Fiber, __wakeup, arginfo_fiber_void, ZEND_ACC_PUBLIC)
 	ZEND_FE_END
