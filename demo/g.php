@@ -13,4 +13,4 @@ try {
     echo $exception->getMessage(), PHP_EOL;
 }
 
-var_dump($f->status());
+var_dump($f->getStatus());

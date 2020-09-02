@@ -12,4 +12,4 @@ $f->start([1, 2, 3]);
 $f->resume(4);
 $f->resume(5);
 
-var_dump($f->resume(6), $f->status(), $f->getReturn());
+var_dump($f->resume(6), $f->getStatus(), $f->getReturn());

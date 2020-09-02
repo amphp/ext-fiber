@@ -218,8 +218,8 @@ ZEND_METHOD(Fiber, __construct)
 /* }}} */
 
 
-/* {{{ proto int Fiber::status() */
-ZEND_METHOD(Fiber, status)
+/* {{{ proto int Fiber::getStatus() */
+ZEND_METHOD(Fiber, getStatus)
 {
 	ZEND_PARSE_PARAMETERS_NONE();
 
@@ -442,7 +442,7 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_fiber_create, 0, 0, 1)
 	ZEND_ARG_TYPE_INFO(0, stack_size, IS_LONG, 0)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_fiber_status, 0, 0, IS_LONG, 0)
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_fiber_getStatus, 0, 0, IS_LONG, 0)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO(arginfo_fiber_start, 0)
@@ -466,7 +466,7 @@ ZEND_END_ARG_INFO()
 
 static const zend_function_entry fiber_functions[] = {
 	ZEND_ME(Fiber, __construct, arginfo_fiber_create, ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
-	ZEND_ME(Fiber, status, arginfo_fiber_status, ZEND_ACC_PUBLIC)
+	ZEND_ME(Fiber, getStatus, arginfo_fiber_getStatus, ZEND_ACC_PUBLIC)
 	ZEND_ME(Fiber, start, arginfo_fiber_start, ZEND_ACC_PUBLIC)
 	ZEND_ME(Fiber, resume, arginfo_fiber_resume, ZEND_ACC_PUBLIC)
 	ZEND_ME(Fiber, throw, arginfo_fiber_throw, ZEND_ACC_PUBLIC)

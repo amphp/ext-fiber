@@ -14,8 +14,12 @@ $f = new Fiber(function (int $a): int {
 
 $exception = new Exception('Thrown into fiber');
 
-$f->start(1);
-$f->resume(2);
-$f->throw($exception);
+$results = [];
+$results[] = $f->start(1);
+$results[] = $f->resume(2);
+$results[] = $f->throw($exception);
+$results[] = $f->resume(3);
 
-var_dump($f->resume(3), $f->status());
+var_dump($results);
+
+var_dump($f->getReturn(), $f->getStatus());

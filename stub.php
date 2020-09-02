@@ -16,7 +16,7 @@ final class Fiber
     /**
      * @return int One of the Fiber status constants.
      */
-    public function status(): int { }
+    public function getStatus(): int { }
 
     /**
      * Start the Fiber by invoking the callback given to the constructor with the given arguments.

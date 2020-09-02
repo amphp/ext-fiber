@@ -16,4 +16,4 @@ try {
     var_dump($exception === $caught);
 }
 
-var_dump($f->status());
+var_dump($f->getStatus());
