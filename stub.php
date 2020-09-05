@@ -23,43 +23,45 @@ final class Fiber
      *
      * @param mixed ...$args
      *
-     * @return mixed Value given to next {@see Fiber::suspend()} call or NULL.
+     * @return mixed Value given to next {@see Fiber::suspend()} call or NULL (finishes).
      *
      * @throws Throwable If the fiber throws, the exception will be thrown from this call.
      */
-    public function start(...$args) { }
+    public function start(mixed ...$args): mixed { }
 
     /**
      * @param mixed $value Value to return from {@see Fiber::suspend()}.
      *
-     * @return mixed Value given to next {@see Fiber::suspend()} call or NULL.
+     * @return mixed Value given to next {@see Fiber::suspend()} call or NULL if the fiber returns (finishes).
      *
      * @throws Throwable If the fiber throws, the exception will be thrown from this call.
      */
-    public function resume($value = null) { }
+    public function resume(mixed $value = null): mixed { }
 
     /**
      * @param Throwable $exception Exception to throw from {@see Fiber::suspend()}.
      *
-     * @return mixed Value given to next {@see Fiber::suspend()} call or NULL.
+     * @return mixed Value given to next {@see Fiber::suspend()} call or NULL if the fiber returns (finishes).
      *
      * @throws Throwable If the fiber throws, the exception will be thrown from this call.
      */
-    public function throw(\Throwable $exception) { }
+    public function throw(\Throwable $exception): mixed { }
 
     /**
      * @return mixed Fiber return value.
      *
      * @throws Error If the fiber has not finished.
      */
-    public function getReturn() { }
+    public function getReturn(): mixed { }
 
     /**
-     * @param mixed $value
+     * @param mixed $value Suspension value, which is then returned from {@see Fiber::resume()} or
+     *                     {@see Fiber::throw()}.
      *
      * @return mixed Value given to {@see Fiber::resume()} when resuming the fiber.
      *
+     * @throws Throwable Exception given to {@see Fiber::throw()}.
      * @throws Error Thrown if not within a Fiber context.
      */
-    public static function suspend($value = null) { }
+    public static function suspend(mixed $value = null): mixed { }
 }
