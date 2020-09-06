@@ -71,8 +71,7 @@ PHP_MSHUTDOWN_FUNCTION(fiber)
 static PHP_MINFO_FUNCTION(fiber)
 {
 	php_info_print_table_start();
-	php_info_print_table_row(2, "Fiber backend", "asm");
-	php_info_print_table_row(2, "Boost Context version", "1.67");
+	php_info_print_table_row(2, "Fiber backend", zend_fiber_backend_info());
 	php_info_print_table_end();
 
 	DISPLAY_INI_ENTRIES();

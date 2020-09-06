@@ -64,6 +64,8 @@ static const zend_uchar ZEND_FIBER_STATUS_DEAD = 4;
 
 typedef void (* zend_fiber_func)();
 
+char *zend_fiber_backend_info();
+
 zend_fiber_context zend_fiber_create_root_context();
 zend_fiber_context zend_fiber_create_context();
 

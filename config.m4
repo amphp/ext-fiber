@@ -11,6 +11,11 @@ if test "$PHP_FIBER" != "no"; then
     src/fiber_stack.c"
   
   fiber_use_asm="yes"
+  fiber_user_ucontext="no"
+  
+  AC_CHECK_HEADER(ucontext.h, [
+    fiber_use_ucontext="yes"
+  ])
   
   AS_CASE([$host_cpu],
     [x86_64*], [fiber_cpu="x86_64"],
@@ -60,6 +65,9 @@ if test "$PHP_FIBER" != "no"; then
       src/fiber_asm.c \
       boost/asm/make_${fiber_asm_file} \
       boost/asm/jump_${fiber_asm_file}"
+  elif test "$task_use_ucontext" = 'yes'; then
+      task_source_files="$task_source_files \
+        src/fiber_ucontext.c"
   fi
   
   PHP_NEW_EXTENSION(fiber, $fiber_source_files, $ext_shared,, \\$(FIBER_CFLAGS))

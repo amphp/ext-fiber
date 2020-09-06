@@ -26,6 +26,11 @@ typedef struct _zend_fiber_context_win32 {
 	zend_bool initialized;
 } zend_fiber_context_win32;
 
+char *zend_fiber_backend_info()
+{
+    return "winfib (Windows Fiber API)";
+}
+
 zend_fiber_context zend_fiber_create_root_context()
 {
 	zend_fiber_context_win32 *context;
