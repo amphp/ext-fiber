@@ -20,22 +20,37 @@
 
 #include "php_fiber.h"
 #include "fiber.h"
+#include "fiber_stack.h"
 
 ZEND_DECLARE_MODULE_GLOBALS(fiber)
 
 static PHP_INI_MH(OnUpdateFiberStackSize)
 {
-	OnUpdateLong(entry, new_value, mh_arg1, mh_arg2, mh_arg3, stage);
-
-	if (FIBER_G(stack_size) < 0) {
-		FIBER_G(stack_size) = 0;
-	}
-
-	return SUCCESS;
+    zend_long tmp;
+    
+    if (OnUpdateLongGEZero(entry, new_value, mh_arg1, mh_arg2, mh_arg3, stage) == FAILURE) {
+        return FAILURE;
+    }
+    
+    if (FIBER_G(stack_size) == 0) {
+        FIBER_G(stack_size) = ZEND_FIBER_DEFAULT_STACK_SIZE;
+        return SUCCESS;
+    }
+    
+    tmp = ZEND_FIBER_PAGESIZE * FIBER_G(stack_size);
+    
+    if (tmp / ZEND_FIBER_PAGESIZE != FIBER_G(stack_size)) {
+        FIBER_G(stack_size) = ZEND_FIBER_DEFAULT_STACK_SIZE;
+        return FAILURE;
+    }
+    
+    FIBER_G(stack_size) = tmp;
+    
+    return SUCCESS;
 }
 
 PHP_INI_BEGIN()
-	STD_PHP_INI_ENTRY("fiber.stack_size", "0", PHP_INI_SYSTEM, OnUpdateFiberStackSize, stack_size, zend_fiber_globals, fiber_globals)
+	STD_PHP_INI_ENTRY("fiber.stack_size", "0", PHP_INI_ALL, OnUpdateFiberStackSize, stack_size, zend_fiber_globals, fiber_globals)
 PHP_INI_END()
 
 

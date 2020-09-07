@@ -56,6 +56,8 @@ void zend_fiber_stack_free(zend_fiber_stack *stack);
 #define ZEND_FIBER_PAGESIZE 4096
 #endif
 
+#define ZEND_FIBER_DEFAULT_STACK_SIZE ZEND_FIBER_PAGESIZE * (((sizeof(void *)) < 8) ? 64 : 256);
+
 #endif
 
 /*

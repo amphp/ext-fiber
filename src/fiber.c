@@ -210,7 +210,7 @@ ZEND_METHOD(Fiber, __construct)
 	ZEND_PARSE_PARAMETERS_END();
 
 	fiber->status = ZEND_FIBER_STATUS_INIT;
-	fiber->stack_size = ZEND_FIBER_VM_STACK_SIZE * (((sizeof(void *)) < 8) ? 16 : 128);
+    fiber->stack_size = FIBER_G(stack_size);
 
 	// Keep a reference to closures or callable objects as long as the fiber lives.
 	Z_TRY_ADDREF_P(&fiber->fci.function_name);
