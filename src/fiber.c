@@ -115,9 +115,8 @@ static void zend_fiber_run()
 
 	execute_ex(fiber->exec);
 
-	fiber->value = NULL;
-
 	zval_ptr_dtor(&fiber->fci.function_name);
+	zval_ptr_dtor(&fiber->value);
     zval_ptr_dtor(&fiber->result);
 
 	zend_vm_stack_destroy();
@@ -141,11 +140,7 @@ static int fiber_run_opcode_handler(zend_execute_data *exec)
 	fiber->status = ZEND_FIBER_STATUS_RUNNING;
 	fiber->fci.retval = &retval;
 
-	if (zend_call_function(&fiber->fci, &fiber->fci_cache) == SUCCESS) {
-        if (!EG(exception)) {
-			ZVAL_COPY_VALUE(&fiber->result, &retval);
-		}
-	}
+	zend_call_function(&fiber->fci, &fiber->fci_cache);
 
 	if (EG(exception)) {
 		if (fiber->status == ZEND_FIBER_STATUS_DEAD) {
@@ -155,6 +150,7 @@ static int fiber_run_opcode_handler(zend_execute_data *exec)
 		}
 	} else {
 		fiber->status = ZEND_FIBER_STATUS_FINISHED;
+		ZVAL_COPY_VALUE(&fiber->result, &retval);
 	}
 
 	return ZEND_USER_OPCODE_RETURN;
@@ -171,6 +167,7 @@ static zend_object *zend_fiber_object_create(zend_class_entry *ce)
 	zend_object_std_init(&fiber->std, ce);
 	fiber->std.handlers = &zend_fiber_handlers;
 
+	ZVAL_UNDEF(&fiber->value);
     ZVAL_UNDEF(&fiber->result);
     
 	return &fiber->std;
@@ -214,7 +211,7 @@ ZEND_METHOD(Fiber, __construct)
     fiber->stack_size = FIBER_G(stack_size);
 
 	// Keep a reference to closures or callable objects as long as the fiber lives.
-	Z_TRY_ADDREF_P(&fiber->fci.function_name);
+	Z_TRY_ADDREF(fiber->fci.function_name);
 }
 /* }}} */
 
@@ -272,10 +269,13 @@ ZEND_METHOD(Fiber, start)
 	fiber->stack->end = (zval *) ((char *) fiber->stack + ZEND_FIBER_VM_STACK_SIZE);
 	fiber->stack->prev = NULL;
 
-    fiber->value = return_value;
-
 	if (!zend_fiber_switch_to(fiber)) {
 		zend_throw_error(NULL, "Failed switching to fiber");
+		return;
+	}
+	
+	if (fiber->status == ZEND_FIBER_STATUS_SUSPENDED) {
+		ZVAL_COPY(return_value, &fiber->value);
 	}
 }
 /* }}} */
@@ -285,13 +285,13 @@ ZEND_METHOD(Fiber, start)
 ZEND_METHOD(Fiber, resume)
 {
 	zend_fiber *fiber;
-	zval *val;
+	zval *value;
 
-	val = NULL;
+	value = NULL;
 
 	ZEND_PARSE_PARAMETERS_START_EX(ZEND_PARSE_PARAMS_THROW, 0, 1)
 		Z_PARAM_OPTIONAL
-		Z_PARAM_ZVAL(val);
+		Z_PARAM_ZVAL(value);
 	ZEND_PARSE_PARAMETERS_END();
 
 	fiber = (zend_fiber *) Z_OBJ_P(getThis());
@@ -300,16 +300,24 @@ ZEND_METHOD(Fiber, resume)
 		zend_throw_error(zend_ce_fiber_error, "Cannot resume running fiber");
 		return;
 	}
-
-	if (val != NULL && fiber->value != NULL) {
-		ZVAL_COPY(fiber->value, val);
+	
+	Z_TRY_DELREF(fiber->value);
+	
+	if (value == NULL) {
+		ZVAL_NULL(&fiber->value);
+	} else {
+		ZVAL_COPY(&fiber->value, value);
 	}
 
 	fiber->status = ZEND_FIBER_STATUS_RUNNING;
-    fiber->value = return_value;
-
+    
 	if (!zend_fiber_switch_to(fiber)) {
 		zend_throw_error(NULL, "Failed switching to fiber");
+		return;
+	}
+	
+	if (fiber->status == ZEND_FIBER_STATUS_SUSPENDED) {
+		ZVAL_COPY(return_value, &fiber->value);
 	}
 }
 /* }}} */
@@ -337,10 +345,14 @@ ZEND_METHOD(Fiber, throw)
 	FIBER_G(error) = exception;
 
 	fiber->status = ZEND_FIBER_STATUS_RUNNING;
-	fiber->value = return_value;
 
 	if (!zend_fiber_switch_to(fiber)) {
 		zend_throw_error(NULL, "Failed switching to fiber");
+		return;
+	}
+	
+	if (fiber->status == ZEND_FIBER_STATUS_SUSPENDED) {
+		ZVAL_COPY(return_value, &fiber->value);
 	}
 }
 /* }}} */
@@ -370,7 +382,7 @@ ZEND_METHOD(Fiber, suspend)
 	zend_fiber *fiber;
 	zend_execute_data *exec;
 	size_t stack_page_size;
-	zval *val;
+	zval *value;
 	zval *error;
 
 	fiber = FIBER_G(current_fiber);
@@ -385,19 +397,22 @@ ZEND_METHOD(Fiber, suspend)
 		return;
 	}
 
-	val = NULL;
+	value = NULL;
 
 	ZEND_PARSE_PARAMETERS_START(0, 1)
 		Z_PARAM_OPTIONAL
-		Z_PARAM_ZVAL(val);
+		Z_PARAM_ZVAL(value);
 	ZEND_PARSE_PARAMETERS_END();
 
-	if (val != NULL && fiber->value != NULL) {
-		ZVAL_COPY(fiber->value, val);
+	Z_TRY_DELREF(fiber->value);
+	
+	if (value == NULL) {
+		ZVAL_NULL(&fiber->value);
+	} else {
+		ZVAL_COPY(&fiber->value, value);
 	}
 
 	fiber->status = ZEND_FIBER_STATUS_SUSPENDED;
-	fiber->value = return_value;
 
 	ZEND_FIBER_BACKUP_EG(fiber->stack, stack_page_size, fiber->exec);
 
@@ -412,14 +427,17 @@ ZEND_METHOD(Fiber, suspend)
 
 	error = FIBER_G(error);
 
-	if (error != NULL) {
-		FIBER_G(error) = NULL;
-		exec = EG(current_execute_data);
-
-		exec->opline--;
-		zend_throw_exception_object(error);
-		exec->opline++;
+	if (error == NULL) {
+		ZVAL_COPY(return_value, &fiber->value);
+		return;
 	}
+	
+	FIBER_G(error) = NULL;
+	exec = EG(current_execute_data);
+
+	exec->opline--;
+	zend_throw_exception_object(error);
+	exec->opline++;
 }
 /* }}} */
 

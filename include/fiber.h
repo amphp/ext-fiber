@@ -41,7 +41,7 @@ struct _zend_fiber {
 	zend_fiber_context context;
 
 	/* Destination for a PHP value being passed into or returned from the fiber. */
-	zval *value;
+	zval value;
     
     /* Holds result value once the fiber has finished. */
     zval result;
