@@ -117,7 +117,7 @@ static void zend_fiber_run()
 
 	zval_ptr_dtor(&fiber->fci.function_name);
 	zval_ptr_dtor(&fiber->value);
-    zval_ptr_dtor(&fiber->result);
+	zval_ptr_dtor(&fiber->result);
 
 	zend_vm_stack_destroy();
 	fiber->stack = NULL;
@@ -168,8 +168,8 @@ static zend_object *zend_fiber_object_create(zend_class_entry *ce)
 	fiber->std.handlers = &zend_fiber_handlers;
 
 	ZVAL_UNDEF(&fiber->value);
-    ZVAL_UNDEF(&fiber->result);
-    
+	ZVAL_UNDEF(&fiber->result);
+	
 	return &fiber->std;
 }
 
@@ -208,7 +208,7 @@ ZEND_METHOD(Fiber, __construct)
 	ZEND_PARSE_PARAMETERS_END();
 
 	fiber->status = ZEND_FIBER_STATUS_INIT;
-    fiber->stack_size = FIBER_G(stack_size);
+	fiber->stack_size = FIBER_G(stack_size);
 
 	// Keep a reference to closures or callable objects as long as the fiber lives.
 	Z_TRY_ADDREF(fiber->fci.function_name);
@@ -310,7 +310,7 @@ ZEND_METHOD(Fiber, resume)
 	}
 
 	fiber->status = ZEND_FIBER_STATUS_RUNNING;
-    
+	
 	if (!zend_fiber_switch_to(fiber)) {
 		zend_throw_error(NULL, "Failed switching to fiber");
 		return;
@@ -336,7 +336,7 @@ ZEND_METHOD(Fiber, throw)
 	fiber = (zend_fiber *) Z_OBJ_P(getThis());
 
 	if (fiber->status != ZEND_FIBER_STATUS_SUSPENDED) {
-        zend_throw_error(zend_ce_fiber_error, "Cannot throw exception into running fiber");
+		zend_throw_error(zend_ce_fiber_error, "Cannot throw exception into running fiber");
 		return;
 	}
 
@@ -361,30 +361,30 @@ ZEND_METHOD(Fiber, throw)
 /* {{{ proto mixed Fiber::getReturn() */
 ZEND_METHOD(Fiber, getReturn)
 {
-    zend_fiber *fiber;
-    
-    ZEND_PARSE_PARAMETERS_NONE();
-    
-    fiber = (zend_fiber *) Z_OBJ_P(getThis());
-    
-    if (fiber->status != ZEND_FIBER_STATUS_FINISHED) {
-        zend_throw_error(zend_ce_fiber_error, "Cannot get return value of unfinished fiber");
-        return;
-    }
-    
-    ZVAL_COPY(return_value, &fiber->result);
+	zend_fiber *fiber;
+	
+	ZEND_PARSE_PARAMETERS_NONE();
+	
+	fiber = (zend_fiber *) Z_OBJ_P(getThis());
+	
+	if (fiber->status != ZEND_FIBER_STATUS_FINISHED) {
+		zend_throw_error(zend_ce_fiber_error, "Cannot get return value of unfinished fiber");
+		return;
+	}
+	
+	ZVAL_COPY(return_value, &fiber->result);
 }
 
 
 /* {{{ proto ?Fiber Fiber::getCurrent() */
 ZEND_METHOD(Fiber, getCurrent)
 {
-    zend_fiber *fiber;
-    
-    ZEND_PARSE_PARAMETERS_NONE();
-    
+	zend_fiber *fiber;
+	
+	ZEND_PARSE_PARAMETERS_NONE();
+	
 	fiber = FIBER_G(current_fiber);
-    
+	
 	if (fiber == NULL) {
 		return;
 	}
@@ -510,7 +510,7 @@ static const zend_function_entry fiber_methods[] = {
 	ZEND_ME(Fiber, start, arginfo_fiber_start, ZEND_ACC_PUBLIC)
 	ZEND_ME(Fiber, resume, arginfo_fiber_resume, ZEND_ACC_PUBLIC)
 	ZEND_ME(Fiber, throw, arginfo_fiber_throw, ZEND_ACC_PUBLIC)
-    ZEND_ME(Fiber, getReturn, arginfo_fiber_void, ZEND_ACC_PUBLIC)
+	ZEND_ME(Fiber, getReturn, arginfo_fiber_void, ZEND_ACC_PUBLIC)
 	ZEND_ME(Fiber, getCurrent, arginfo_fiber_getCurrent, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
 	ZEND_ME(Fiber, suspend, arginfo_fiber_suspend, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
 	ZEND_ME(Fiber, __wakeup, arginfo_fiber_void, ZEND_ACC_PUBLIC)

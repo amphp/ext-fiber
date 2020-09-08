@@ -23,8 +23,8 @@
 typedef void* fcontext_t;
 
 typedef struct _transfer_t {
-    fcontext_t ctx;
-    void *data;
+	fcontext_t ctx;
+	void *data;
 } transfer_t;
 
 extern fcontext_t make_fcontext(void *sp, size_t size, void (*fn)(transfer_t));
@@ -44,7 +44,7 @@ typedef struct _zend_fiber_record_asm {
 
 char *zend_fiber_backend_info()
 {
-    return "assembler (boost.context v1.67.0)";
+	return "assembler (boost.context v1.67.0)";
 }
 
 void zend_fiber_asm_start(transfer_t trans)
