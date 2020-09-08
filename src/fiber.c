@@ -27,6 +27,7 @@
 #endif
 
 static zend_class_entry *zend_ce_fiber;
+static zend_class_entry *zend_ce_fiber_error;
 static zend_object_handlers zend_fiber_handlers;
 
 static zend_object *zend_fiber_object_create(zend_class_entry *ce);
@@ -244,7 +245,7 @@ ZEND_METHOD(Fiber, start)
 	fiber = (zend_fiber *) Z_OBJ_P(getThis());
 
 	if (fiber->status != ZEND_FIBER_STATUS_INIT) {
-		zend_throw_error(NULL, "Cannot start Fiber that has already been started");
+		zend_throw_error(zend_ce_fiber_error, "Cannot start Fiber that has already been started");
 		return;
 	}
 
@@ -296,7 +297,7 @@ ZEND_METHOD(Fiber, resume)
 	fiber = (zend_fiber *) Z_OBJ_P(getThis());
 
 	if (fiber->status != ZEND_FIBER_STATUS_SUSPENDED) {
-		zend_throw_error(NULL, "Non-suspended fiber cannot be resumed");
+		zend_throw_error(zend_ce_fiber_error, "Cannot resume running fiber");
 		return;
 	}
 
@@ -327,7 +328,7 @@ ZEND_METHOD(Fiber, throw)
 	fiber = (zend_fiber *) Z_OBJ_P(getThis());
 
 	if (fiber->status != ZEND_FIBER_STATUS_SUSPENDED) {
-        zend_throw_error(NULL, "Non-suspended fiber cannot throw exception");
+        zend_throw_error(zend_ce_fiber_error, "Cannot throw exception into running fiber");
 		return;
 	}
 
@@ -355,7 +356,7 @@ ZEND_METHOD(Fiber, getReturn)
     fiber = (zend_fiber *) Z_OBJ_P(getThis());
     
     if (fiber->status != ZEND_FIBER_STATUS_FINISHED) {
-        zend_throw_error(NULL, "Cannot get return value of unfinished fiber");
+        zend_throw_error(zend_ce_fiber_error, "Cannot get return value of unfinished fiber");
         return;
     }
     
@@ -375,12 +376,12 @@ ZEND_METHOD(Fiber, suspend)
 	fiber = FIBER_G(current_fiber);
 
 	if (UNEXPECTED(fiber == NULL)) {
-		zend_throw_error(NULL, "Cannot suspend from outside a fiber");
+		zend_throw_error(zend_ce_fiber_error, "Cannot suspend from outside a fiber");
 		return;
 	}
 
 	if (fiber->status != ZEND_FIBER_STATUS_RUNNING) {
-		zend_throw_error(NULL, "Cannot suspend from a fiber that is not running");
+		zend_throw_error(zend_ce_fiber_error, "Cannot suspend from a fiber that is not running");
 		return;
 	}
 
@@ -432,7 +433,7 @@ ZEND_METHOD(Fiber, __wakeup)
 
 	ZEND_PARSE_PARAMETERS_NONE();
 
-	zend_throw_exception(NULL, "Unserialization of 'Fiber' is not allowed", 0);
+	zend_throw_error(zend_ce_fiber_error, "Unserialization of 'Fiber' is not allowed");
 }
 /* }}} */
 
@@ -463,7 +464,7 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_fiber_suspend, 0, 0, 0)
 	ZEND_ARG_INFO(0, value)
 ZEND_END_ARG_INFO()
 
-static const zend_function_entry fiber_functions[] = {
+static const zend_function_entry fiber_methods[] = {
 	ZEND_ME(Fiber, __construct, arginfo_fiber_create, ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
 	ZEND_ME(Fiber, getStatus, arginfo_fiber_getStatus, ZEND_ACC_PUBLIC)
 	ZEND_ME(Fiber, start, arginfo_fiber_start, ZEND_ACC_PUBLIC)
@@ -472,6 +473,15 @@ static const zend_function_entry fiber_functions[] = {
     ZEND_ME(Fiber, getReturn, arginfo_fiber_void, ZEND_ACC_PUBLIC)
 	ZEND_ME(Fiber, suspend, arginfo_fiber_suspend, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
 	ZEND_ME(Fiber, __wakeup, arginfo_fiber_void, ZEND_ACC_PUBLIC)
+	ZEND_FE_END
+};
+
+ZEND_BEGIN_ARG_INFO(arginfo_fiber_error_create, 0)
+	ZEND_ARG_TYPE_INFO(0, message, IS_STRING, 0)
+ZEND_END_ARG_INFO()
+
+static const zend_function_entry fiber_error_methods[] = {
+	ZEND_ME(Fiber, __construct, arginfo_fiber_error_create, ZEND_ACC_PRIVATE | ZEND_ACC_CTOR)
 	ZEND_FE_END
 };
 
@@ -507,7 +517,7 @@ void zend_fiber_ce_register()
 	fiber_run_func.last_try_catch = 1;
 	fiber_run_func.try_catch_array = &fiber_terminate_try_catch_array;
 
-	INIT_CLASS_ENTRY(ce, "Fiber", fiber_functions);
+	INIT_CLASS_ENTRY(ce, "Fiber", fiber_methods);
 	zend_ce_fiber = zend_register_internal_class(&ce);
 	zend_ce_fiber->ce_flags |= ZEND_ACC_FINAL;
 	zend_ce_fiber->create_object = zend_fiber_object_create;
@@ -523,6 +533,11 @@ void zend_fiber_ce_register()
 	REGISTER_FIBER_CLASS_CONST_LONG("STATUS_RUNNING", (zend_long)ZEND_FIBER_STATUS_RUNNING);
 	REGISTER_FIBER_CLASS_CONST_LONG("STATUS_FINISHED", (zend_long)ZEND_FIBER_STATUS_FINISHED);
 	REGISTER_FIBER_CLASS_CONST_LONG("STATUS_DEAD", (zend_long)ZEND_FIBER_STATUS_DEAD);
+	
+	INIT_CLASS_ENTRY(ce, "FiberError", fiber_error_methods);
+	zend_ce_fiber_error = zend_register_internal_class_ex(&ce, zend_ce_error);
+	zend_ce_fiber_error->ce_flags |= ZEND_ACC_FINAL;
+	zend_ce_fiber_error->create_object = zend_ce_error->create_object;
 }
 
 void zend_fiber_ce_unregister()

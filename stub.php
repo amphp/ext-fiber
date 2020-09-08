@@ -65,3 +65,8 @@ final class Fiber
      */
     public static function suspend(mixed $value = null): mixed { }
 }
+
+/**
+ * Exception thrown due to invalid fiber actions, such as suspending from outside a fiber.
+ */
+final class FiberError extends Error { }
