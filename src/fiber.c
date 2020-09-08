@@ -376,6 +376,25 @@ ZEND_METHOD(Fiber, getReturn)
 }
 
 
+/* {{{ proto ?Fiber Fiber::getCurrent() */
+ZEND_METHOD(Fiber, getCurrent)
+{
+    zend_fiber *fiber;
+    
+    ZEND_PARSE_PARAMETERS_NONE();
+    
+	fiber = FIBER_G(current_fiber);
+    
+	if (fiber == NULL) {
+		return;
+	}
+	
+	GC_ADDREF(&fiber->std);
+	RETURN_OBJ(&fiber->std);
+}
+/* }}} */
+
+
 /* {{{ proto mixed Fiber::suspend([$value]) */
 ZEND_METHOD(Fiber, suspend)
 {
@@ -478,6 +497,9 @@ ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_INFO(arginfo_fiber_void, 0)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_fiber_getCurrent, 0, 0, Fiber, 1)
+ZEND_END_ARG_INFO()
+
 ZEND_BEGIN_ARG_INFO_EX(arginfo_fiber_suspend, 0, 0, 0)
 	ZEND_ARG_INFO(0, value)
 ZEND_END_ARG_INFO()
@@ -489,6 +511,7 @@ static const zend_function_entry fiber_methods[] = {
 	ZEND_ME(Fiber, resume, arginfo_fiber_resume, ZEND_ACC_PUBLIC)
 	ZEND_ME(Fiber, throw, arginfo_fiber_throw, ZEND_ACC_PUBLIC)
     ZEND_ME(Fiber, getReturn, arginfo_fiber_void, ZEND_ACC_PUBLIC)
+	ZEND_ME(Fiber, getCurrent, arginfo_fiber_getCurrent, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
 	ZEND_ME(Fiber, suspend, arginfo_fiber_suspend, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
 	ZEND_ME(Fiber, __wakeup, arginfo_fiber_void, ZEND_ACC_PUBLIC)
 	ZEND_FE_END

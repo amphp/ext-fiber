@@ -64,6 +64,13 @@ final class Fiber
      * @throws Error Thrown if not within a Fiber context.
      */
     public static function suspend(mixed $value = null): mixed { }
+	
+	/**
+	 * Returns the current Fiber context or null if not within a fiber.
+	 *
+	 * @return Fiber|null
+	 */
+	public static function getCurrent(): ?Fiber { }
 }
 
 /**
