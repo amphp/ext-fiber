@@ -186,14 +186,22 @@ static void zend_fiber_object_destroy(zend_object *object)
 }
 
 
-/* {{{ proto Fiber::__construct(callable $callback, mixed ...$args) */
+/* {{{ proto Fiber::__construct() */
 ZEND_METHOD(Fiber, __construct)
+{
+	// Empty function definition needed for declaring constructor private.
+}
+/* }}} */
+
+
+/* {{{ proto Fiber Fiber::create(callable $callback, mixed ...$args) */
+ZEND_METHOD(Fiber, create)
 {
 	zend_fiber *fiber;
 	zval *params;
 	uint32_t param_count;
 
-	fiber = (zend_fiber *) Z_OBJ_P(getThis());
+	fiber = (zend_fiber *) zend_fiber_object_create(zend_ce_fiber);
 
 	ZEND_PARSE_PARAMETERS_START_EX(ZEND_PARSE_PARAMS_THROW, 1, -1)
 		Z_PARAM_FUNC_EX(fiber->fci, fiber->fci_cache, 1, 0)
@@ -214,6 +222,7 @@ ZEND_METHOD(Fiber, __construct)
 
 	if (fiber->context == NULL) {
 		zend_throw_error(NULL, "Failed to create native fiber context");
+		GC_DELREF(&fiber->std);
 		return;
 	}
 
@@ -227,10 +236,14 @@ ZEND_METHOD(Fiber, __construct)
 	fiber->stack->end = (zval *) ((char *) fiber->stack + ZEND_FIBER_VM_STACK_SIZE);
 	fiber->stack->prev = NULL;
 	
+	fiber->status = ZEND_FIBER_STATUS_RUNNING;
+	
 	if (!zend_fiber_switch_to(fiber)) {
 		zend_throw_error(NULL, "Failed switching to fiber");
 		return;
 	}
+	
+	RETURN_OBJ(&fiber->std);
 }
 /* }}} */
 
@@ -343,6 +356,14 @@ ZEND_METHOD(Fiber, __wakeup)
 /* }}} */
 
 
+/* {{{ proto FiberError::__construct(string $message) */
+ZEND_METHOD(FiberError, __construct)
+{
+	// Empty function definition needed for declaring constructor private.
+}
+/* }}} */
+
+
 ZEND_BEGIN_ARG_INFO_EX(arginfo_fiber_create, 0, 0, 1)
 	ZEND_ARG_CALLABLE_INFO(0, callable, 0)
 	ZEND_ARG_VARIADIC_INFO(0, arguments)
@@ -358,7 +379,8 @@ ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_fiber_getCurrent, 0, 0, Fiber, 1)
 ZEND_END_ARG_INFO()
 
 static const zend_function_entry fiber_methods[] = {
-	ZEND_ME(Fiber, __construct, arginfo_fiber_create, ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
+	ZEND_ME(Fiber, __construct, arginfo_fiber_void, ZEND_ACC_PRIVATE | ZEND_ACC_CTOR)
+	ZEND_ME(Fiber, create, arginfo_fiber_create, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
 	ZEND_ME(Fiber, getStatus, arginfo_fiber_getStatus, ZEND_ACC_PUBLIC)
 	ZEND_ME(Fiber, resume, arginfo_fiber_void, ZEND_ACC_PUBLIC)
 	ZEND_ME(Fiber, getCurrent, arginfo_fiber_getCurrent, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
@@ -372,10 +394,9 @@ ZEND_BEGIN_ARG_INFO(arginfo_fiber_error_create, 0)
 ZEND_END_ARG_INFO()
 
 static const zend_function_entry fiber_error_methods[] = {
-	ZEND_ME(Fiber, __construct, arginfo_fiber_error_create, ZEND_ACC_PRIVATE | ZEND_ACC_CTOR)
+	ZEND_ME(FiberError, __construct, arginfo_fiber_error_create, ZEND_ACC_PRIVATE | ZEND_ACC_CTOR)
 	ZEND_FE_END
 };
-
 
 void zend_fiber_ce_register()
 {

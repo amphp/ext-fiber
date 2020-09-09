@@ -11,7 +11,12 @@ final class Fiber
      * @param callable $callback Function to invoke when starting the Fiber.
      * @param mixed ...$args Function arguments.
      */
-    public function __construct(callable $callback, mixed ...$args) { }
+    public static function create(callable $callback, mixed ...$args): Fiber { }
+
+    /**
+     * Private constructor to force use of {@see create()}.
+     */
+    private function __construct() { }
 
     /**
      * @return int One of the Fiber status constants.
@@ -31,16 +36,22 @@ final class Fiber
      * @throws FiberError Thrown if not within a fiber.
      */
     public static function suspend(): void { }
-	
-	/**
-	 * Returns the current Fiber context or null if not within a fiber.
-	 *
-	 * @return Fiber|null
-	 */
-	public static function getCurrent(): ?Fiber { }
+
+    /**
+     * Returns the current Fiber context or null if not within a fiber.
+     *
+     * @return Fiber|null
+     */
+    public static function getCurrent(): ?Fiber { }
 }
 
 /**
  * Exception thrown due to invalid fiber actions, such as suspending from outside a fiber.
  */
-final class FiberError extends Error { }
+final class FiberError extends Error
+{
+    /**
+     * Private constructor to prevent userland code from throwing FiberError.
+     */
+    private function __construct(string $message) { }
+}
