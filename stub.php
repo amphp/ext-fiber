@@ -6,7 +6,7 @@ final class Fiber
      * @param callable $callback Function to invoke when starting the Fiber.
      * @param mixed ...$args Function arguments.
      */
-    public static function create(callable $callback, mixed ...$args): Fiber { }
+    public static function run(callable $callback, mixed ...$args): void { }
 
     /**
      * Private constructor to force use of {@see create()}.

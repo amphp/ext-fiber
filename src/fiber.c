@@ -115,8 +115,6 @@ static void zend_fiber_run()
 
 	execute_ex(fiber->exec);
 
-	zval_ptr_dtor(&fiber->fci.function_name);
-
 	zend_vm_stack_destroy();
 	fiber->stack = NULL;
 	fiber->exec = NULL;
@@ -139,6 +137,9 @@ static int fiber_run_opcode_handler(zend_execute_data *exec)
 	fiber->fci.retval = &retval;
 
 	zend_call_function(&fiber->fci, &fiber->fci_cache);
+	
+	zval_ptr_dtor(&fiber->fci.function_name);
+	GC_DELREF(&fiber->std);
 
 	if (EG(exception)) {
 		if (fiber->status == ZEND_FIBER_STATUS_DEAD) {
@@ -194,8 +195,8 @@ static ZEND_COLD zend_function *zend_fiber_get_constructor(zend_object *object)
 }
 
 
-/* {{{ proto Fiber Fiber::create(callable $callback, mixed ...$args) */
-ZEND_METHOD(Fiber, create)
+/* {{{ proto void Fiber::run(callable $callback, mixed ...$args) */
+ZEND_METHOD(Fiber, run)
 {
 	zend_fiber *fiber;
 	zval *params;
@@ -221,12 +222,13 @@ ZEND_METHOD(Fiber, create)
 	fiber->stack_size = FIBER_G(stack_size);
 
 	if (fiber->context == NULL) {
-		zend_throw_error(NULL, "Failed to create native fiber context");
 		GC_DELREF(&fiber->std);
+		zend_throw_error(NULL, "Failed to create native fiber context");
 		return;
 	}
 
 	if (!zend_fiber_create(fiber->context, zend_fiber_run, fiber->stack_size)) {
+		GC_DELREF(&fiber->std);
 		zend_throw_error(NULL, "Failed to create native fiber");
 		return;
 	}
@@ -242,8 +244,6 @@ ZEND_METHOD(Fiber, create)
 		zend_throw_error(NULL, "Failed switching to fiber");
 		return;
 	}
-	
-	RETURN_OBJ(&fiber->std);
 }
 /* }}} */
 
@@ -400,7 +400,7 @@ ZEND_METHOD(FiberError, __construct)
 /* }}} */
 
 
-ZEND_BEGIN_ARG_INFO_EX(arginfo_fiber_create, 0, 0, 1)
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_fiber_run, 0, 0, IS_VOID, 1)
 	ZEND_ARG_CALLABLE_INFO(0, callable, 0)
 	ZEND_ARG_VARIADIC_INFO(0, arguments)
 ZEND_END_ARG_INFO()
@@ -408,14 +408,14 @@ ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_fiber_status, 0, 0, _IS_BOOL, 0)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_INFO(arginfo_fiber_void, 0)
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_fiber_void, 0, 0, IS_VOID, 0)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_fiber_getCurrent, 0, 0, Fiber, 1)
 ZEND_END_ARG_INFO()
 
 static const zend_function_entry fiber_methods[] = {
-	ZEND_ME(Fiber, create, arginfo_fiber_create, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+	ZEND_ME(Fiber, run, arginfo_fiber_run, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
 	ZEND_ME(Fiber, isSuspended, arginfo_fiber_status, ZEND_ACC_PUBLIC)
 	ZEND_ME(Fiber, isRunning, arginfo_fiber_status, ZEND_ACC_PUBLIC)
 	ZEND_ME(Fiber, isTerminated, arginfo_fiber_status, ZEND_ACC_PUBLIC)
