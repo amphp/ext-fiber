@@ -186,12 +186,12 @@ static void zend_fiber_object_destroy(zend_object *object)
 }
 
 
-/* {{{ proto Fiber::__construct() */
-ZEND_METHOD(Fiber, __construct)
+static ZEND_COLD zend_function *zend_fiber_get_constructor(zend_object *object)
 {
-	// Empty function definition needed for declaring constructor private.
+	zend_throw_error(NULL, "Use Fiber::create() to create a new fiber");
+	
+	return NULL;
 }
-/* }}} */
 
 
 /* {{{ proto Fiber Fiber::create(callable $callback, mixed ...$args) */
@@ -359,7 +359,7 @@ ZEND_METHOD(Fiber, __wakeup)
 /* {{{ proto FiberError::__construct(string $message) */
 ZEND_METHOD(FiberError, __construct)
 {
-	// Empty function definition needed for declaring constructor private.
+	zend_throw_error(NULL, "FiberError cannot be constructed manually");
 }
 /* }}} */
 
@@ -379,7 +379,6 @@ ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_fiber_getCurrent, 0, 0, Fiber, 1)
 ZEND_END_ARG_INFO()
 
 static const zend_function_entry fiber_methods[] = {
-	ZEND_ME(Fiber, __construct, arginfo_fiber_void, ZEND_ACC_PRIVATE | ZEND_ACC_CTOR)
 	ZEND_ME(Fiber, create, arginfo_fiber_create, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
 	ZEND_ME(Fiber, getStatus, arginfo_fiber_getStatus, ZEND_ACC_PUBLIC)
 	ZEND_ME(Fiber, resume, arginfo_fiber_void, ZEND_ACC_PUBLIC)
@@ -394,7 +393,7 @@ ZEND_BEGIN_ARG_INFO(arginfo_fiber_error_create, 0)
 ZEND_END_ARG_INFO()
 
 static const zend_function_entry fiber_error_methods[] = {
-	ZEND_ME(FiberError, __construct, arginfo_fiber_error_create, ZEND_ACC_PRIVATE | ZEND_ACC_CTOR)
+	ZEND_ME(FiberError, __construct, arginfo_fiber_error_create, ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
 	ZEND_FE_END
 };
 
@@ -439,6 +438,7 @@ void zend_fiber_ce_register()
 	memcpy(&zend_fiber_handlers, &std_object_handlers, sizeof(zend_object_handlers));
 	zend_fiber_handlers.free_obj = zend_fiber_object_destroy;
 	zend_fiber_handlers.clone_obj = NULL;
+	zend_fiber_handlers.get_constructor = zend_fiber_get_constructor;
 
 	REGISTER_FIBER_CLASS_CONST_LONG("STATUS_INIT", (zend_long)ZEND_FIBER_STATUS_INIT);
 	REGISTER_FIBER_CLASS_CONST_LONG("STATUS_SUSPENDED", (zend_long)ZEND_FIBER_STATUS_SUSPENDED);

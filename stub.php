@@ -51,7 +51,10 @@ final class Fiber
 final class FiberError extends Error
 {
     /**
-     * Private constructor to prevent userland code from throwing FiberError.
+     * Private constructor to prevent user code from throwing FiberError.
      */
-    private function __construct(string $message) { }
+    public function __construct(string $message)
+    {
+        throw new \Error("FiberError cannot be constructed manually");
+    }
 }
