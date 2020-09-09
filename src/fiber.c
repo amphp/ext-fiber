@@ -260,6 +260,42 @@ ZEND_METHOD(Fiber, getStatus)
 /* }}} */
 
 
+/* {{{ proto bool Fiber::isSuspended() */
+ZEND_METHOD(Fiber, isSuspended)
+{
+	ZEND_PARSE_PARAMETERS_NONE();
+
+	zend_fiber *fiber = (zend_fiber *) Z_OBJ_P(getThis());
+	
+	RETURN_BOOL(fiber->status == ZEND_FIBER_STATUS_SUSPENDED);
+}
+/* }}} */
+
+
+/* {{{ proto bool Fiber::isRunning() */
+ZEND_METHOD(Fiber, isRunning)
+{
+	ZEND_PARSE_PARAMETERS_NONE();
+
+	zend_fiber *fiber = (zend_fiber *) Z_OBJ_P(getThis());
+	
+	RETURN_BOOL(fiber->status == ZEND_FIBER_STATUS_RUNNING);
+}
+/* }}} */
+
+
+/* {{{ proto bool Fiber::isTerminated() */
+ZEND_METHOD(Fiber, isTerminated)
+{
+	ZEND_PARSE_PARAMETERS_NONE();
+
+	zend_fiber *fiber = (zend_fiber *) Z_OBJ_P(getThis());
+	
+	RETURN_BOOL(fiber->status == ZEND_FIBER_STATUS_FINISHED || fiber->status == ZEND_FIBER_STATUS_DEAD);
+}
+/* }}} */
+
+
 /* {{{ proto void Fiber::resume() */
 ZEND_METHOD(Fiber, resume)
 {
@@ -369,7 +405,7 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_fiber_create, 0, 0, 1)
 	ZEND_ARG_VARIADIC_INFO(0, arguments)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_fiber_getStatus, 0, 0, IS_LONG, 0)
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_fiber_status, 0, 0, _IS_BOOL, 0)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO(arginfo_fiber_void, 0)
@@ -380,7 +416,9 @@ ZEND_END_ARG_INFO()
 
 static const zend_function_entry fiber_methods[] = {
 	ZEND_ME(Fiber, create, arginfo_fiber_create, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-	ZEND_ME(Fiber, getStatus, arginfo_fiber_getStatus, ZEND_ACC_PUBLIC)
+	ZEND_ME(Fiber, isSuspended, arginfo_fiber_status, ZEND_ACC_PUBLIC)
+	ZEND_ME(Fiber, isRunning, arginfo_fiber_status, ZEND_ACC_PUBLIC)
+	ZEND_ME(Fiber, isTerminated, arginfo_fiber_status, ZEND_ACC_PUBLIC)
 	ZEND_ME(Fiber, resume, arginfo_fiber_void, ZEND_ACC_PUBLIC)
 	ZEND_ME(Fiber, getCurrent, arginfo_fiber_getCurrent, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
 	ZEND_ME(Fiber, suspend, arginfo_fiber_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
@@ -439,12 +477,6 @@ void zend_fiber_ce_register()
 	zend_fiber_handlers.free_obj = zend_fiber_object_destroy;
 	zend_fiber_handlers.clone_obj = NULL;
 	zend_fiber_handlers.get_constructor = zend_fiber_get_constructor;
-
-	REGISTER_FIBER_CLASS_CONST_LONG("STATUS_INIT", (zend_long)ZEND_FIBER_STATUS_INIT);
-	REGISTER_FIBER_CLASS_CONST_LONG("STATUS_SUSPENDED", (zend_long)ZEND_FIBER_STATUS_SUSPENDED);
-	REGISTER_FIBER_CLASS_CONST_LONG("STATUS_RUNNING", (zend_long)ZEND_FIBER_STATUS_RUNNING);
-	REGISTER_FIBER_CLASS_CONST_LONG("STATUS_FINISHED", (zend_long)ZEND_FIBER_STATUS_FINISHED);
-	REGISTER_FIBER_CLASS_CONST_LONG("STATUS_DEAD", (zend_long)ZEND_FIBER_STATUS_DEAD);
 	
 	INIT_CLASS_ENTRY(ce, "FiberError", fiber_error_methods);
 	zend_ce_fiber_error = zend_register_internal_class_ex(&ce, zend_ce_error);

@@ -71,9 +71,6 @@ zend_bool zend_fiber_suspend(zend_fiber_context current);
 
 END_EXTERN_C()
 
-#define REGISTER_FIBER_CLASS_CONST_LONG(const_name, value) \
-	zend_declare_class_constant_long(zend_ce_fiber, const_name, sizeof(const_name)-1, (zend_long)value);
-
 #define ZEND_FIBER_VM_STACK_SIZE 4096
 
 #endif
