@@ -35,9 +35,6 @@ ZEND_BEGIN_MODULE_GLOBALS(fiber)
 	/* Default fiber C stack size. */
 	zend_long stack_size;
 
-	/* Error to be thrown into a fiber (will be populated by throw()). */
-	zval *error;
-
 ZEND_END_MODULE_GLOBALS(fiber)
 
 extern ZEND_DECLARE_MODULE_GLOBALS(fiber)

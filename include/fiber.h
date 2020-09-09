@@ -40,12 +40,6 @@ struct _zend_fiber {
 	/* Fiber context of this fiber, will be created during call to start(). */
 	zend_fiber_context context;
 
-	/* Destination for a PHP value being passed into or returned from the fiber. */
-	zval value;
-	
-	/* Holds result value once the fiber has finished. */
-	zval result;
-
 	/* Current Zend VM execute data being run by the fiber. */
 	zend_execute_data *exec;
 

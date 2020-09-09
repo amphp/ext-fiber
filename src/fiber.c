@@ -116,8 +116,6 @@ static void zend_fiber_run()
 	execute_ex(fiber->exec);
 
 	zval_ptr_dtor(&fiber->fci.function_name);
-	zval_ptr_dtor(&fiber->value);
-	zval_ptr_dtor(&fiber->result);
 
 	zend_vm_stack_destroy();
 	fiber->stack = NULL;
@@ -150,7 +148,6 @@ static int fiber_run_opcode_handler(zend_execute_data *exec)
 		}
 	} else {
 		fiber->status = ZEND_FIBER_STATUS_FINISHED;
-		ZVAL_COPY_VALUE(&fiber->result, &retval);
 	}
 
 	return ZEND_USER_OPCODE_RETURN;
@@ -166,9 +163,6 @@ static zend_object *zend_fiber_object_create(zend_class_entry *ce)
 
 	zend_object_std_init(&fiber->std, ce);
 	fiber->std.handlers = &zend_fiber_handlers;
-
-	ZVAL_UNDEF(&fiber->value);
-	ZVAL_UNDEF(&fiber->result);
 	
 	return &fiber->std;
 }
@@ -186,32 +180,57 @@ static void zend_fiber_object_destroy(zend_object *object)
 		zend_fiber_switch_to(fiber);
 	}
 
-	if (fiber->status == ZEND_FIBER_STATUS_INIT) {
-		zval_ptr_dtor(&fiber->fci.function_name);
-	}
-
 	zend_fiber_destroy(fiber->context);
 
 	zend_object_std_dtor(&fiber->std);
 }
 
 
-/* {{{ proto Fiber::__construct(callable $callback) */
+/* {{{ proto Fiber::__construct(callable $callback, mixed ...$args) */
 ZEND_METHOD(Fiber, __construct)
 {
 	zend_fiber *fiber;
+	zval *params;
+	uint32_t param_count;
 
 	fiber = (zend_fiber *) Z_OBJ_P(getThis());
 
-	ZEND_PARSE_PARAMETERS_START_EX(ZEND_PARSE_PARAMS_THROW, 1, 1)
+	ZEND_PARSE_PARAMETERS_START_EX(ZEND_PARSE_PARAMS_THROW, 1, -1)
 		Z_PARAM_FUNC_EX(fiber->fci, fiber->fci_cache, 1, 0)
+		Z_PARAM_VARIADIC('+', params, param_count)
 	ZEND_PARSE_PARAMETERS_END();
-
-	fiber->status = ZEND_FIBER_STATUS_INIT;
-	fiber->stack_size = FIBER_G(stack_size);
-
+	
 	// Keep a reference to closures or callable objects as long as the fiber lives.
 	Z_TRY_ADDREF(fiber->fci.function_name);
+	
+	fiber->fci.params = params;
+	fiber->fci.param_count = param_count;
+#if PHP_VERSION_ID < 80000
+	fiber->fci.no_separation = 1;
+#endif
+	
+	fiber->context = zend_fiber_create_context();
+	fiber->stack_size = FIBER_G(stack_size);
+
+	if (fiber->context == NULL) {
+		zend_throw_error(NULL, "Failed to create native fiber context");
+		return;
+	}
+
+	if (!zend_fiber_create(fiber->context, zend_fiber_run, fiber->stack_size)) {
+		zend_throw_error(NULL, "Failed to create native fiber");
+		return;
+	}
+
+	fiber->stack = (zend_vm_stack) emalloc(ZEND_FIBER_VM_STACK_SIZE);
+	fiber->stack->top = ZEND_VM_STACK_ELEMENTS(fiber->stack) + 1;
+	fiber->stack->end = (zval *) ((char *) fiber->stack + ZEND_FIBER_VM_STACK_SIZE);
+	fiber->stack->prev = NULL;
+	
+	if (!zend_fiber_switch_to(fiber)) {
+		zend_throw_error(NULL, "Failed switching to fiber");
+		return;
+	}
 }
 /* }}} */
 
@@ -228,60 +247,7 @@ ZEND_METHOD(Fiber, getStatus)
 /* }}} */
 
 
-/* {{{ proto mixed Fiber::start($params...) */
-ZEND_METHOD(Fiber, start)
-{
-	zend_fiber *fiber;
-	zval *params;
-	uint32_t param_count;
-
-	ZEND_PARSE_PARAMETERS_START(0, -1)
-		Z_PARAM_VARIADIC('+', params, param_count)
-	ZEND_PARSE_PARAMETERS_END();
-
-	fiber = (zend_fiber *) Z_OBJ_P(getThis());
-
-	if (fiber->status != ZEND_FIBER_STATUS_INIT) {
-		zend_throw_error(zend_ce_fiber_error, "Cannot start Fiber that has already been started");
-		return;
-	}
-
-	fiber->fci.params = params;
-	fiber->fci.param_count = param_count;
-#if PHP_VERSION_ID < 80000
-	fiber->fci.no_separation = 1;
-#endif
-
-	fiber->context = zend_fiber_create_context();
-
-	if (fiber->context == NULL) {
-		zend_throw_error(NULL, "Failed to create native fiber context");
-		return;
-	}
-
-	if (!zend_fiber_create(fiber->context, zend_fiber_run, fiber->stack_size)) {
-		zend_throw_error(NULL, "Failed to create native fiber");
-		return;
-	}
-
-	fiber->stack = (zend_vm_stack) emalloc(ZEND_FIBER_VM_STACK_SIZE);
-	fiber->stack->top = ZEND_VM_STACK_ELEMENTS(fiber->stack) + 1;
-	fiber->stack->end = (zval *) ((char *) fiber->stack + ZEND_FIBER_VM_STACK_SIZE);
-	fiber->stack->prev = NULL;
-
-	if (!zend_fiber_switch_to(fiber)) {
-		zend_throw_error(NULL, "Failed switching to fiber");
-		return;
-	}
-	
-	if (USED_RET() && fiber->status == ZEND_FIBER_STATUS_SUSPENDED) {
-		ZVAL_COPY(return_value, &fiber->value);
-	}
-}
-/* }}} */
-
-
-/* {{{ proto mixed Fiber::resume($value) */
+/* {{{ proto void Fiber::resume() */
 ZEND_METHOD(Fiber, resume)
 {
 	zend_fiber *fiber;
@@ -289,10 +255,7 @@ ZEND_METHOD(Fiber, resume)
 
 	value = NULL;
 
-	ZEND_PARSE_PARAMETERS_START_EX(ZEND_PARSE_PARAMS_THROW, 0, 1)
-		Z_PARAM_OPTIONAL
-		Z_PARAM_ZVAL(value);
-	ZEND_PARSE_PARAMETERS_END();
+	ZEND_PARSE_PARAMETERS_NONE();
 
 	fiber = (zend_fiber *) Z_OBJ_P(getThis());
 
@@ -300,14 +263,6 @@ ZEND_METHOD(Fiber, resume)
 		zend_throw_error(zend_ce_fiber_error, "Cannot resume running fiber");
 		return;
 	}
-	
-	Z_TRY_DELREF(fiber->value);
-	
-	if (value == NULL) {
-		ZVAL_NULL(&fiber->value);
-	} else {
-		ZVAL_COPY(&fiber->value, value);
-	}
 
 	fiber->status = ZEND_FIBER_STATUS_RUNNING;
 	
@@ -315,65 +270,8 @@ ZEND_METHOD(Fiber, resume)
 		zend_throw_error(NULL, "Failed switching to fiber");
 		return;
 	}
-	
-	if (USED_RET() && fiber->status == ZEND_FIBER_STATUS_SUSPENDED) {
-		ZVAL_COPY(return_value, &fiber->value);
-	}
 }
 /* }}} */
-
-
-/* {{{ proto mixed Fiber::throw(Throwable $exception) */
-ZEND_METHOD(Fiber, throw)
-{
-	zend_fiber *fiber;
-	zval *exception;
-
-	ZEND_PARSE_PARAMETERS_START_EX(ZEND_PARSE_PARAMS_THROW, 1, 1)
-		Z_PARAM_OBJECT_OF_CLASS(exception, zend_ce_throwable)
-	ZEND_PARSE_PARAMETERS_END();
-
-	fiber = (zend_fiber *) Z_OBJ_P(getThis());
-
-	if (fiber->status != ZEND_FIBER_STATUS_SUSPENDED) {
-		zend_throw_error(zend_ce_fiber_error, "Cannot throw exception into running fiber");
-		return;
-	}
-
-	Z_ADDREF_P(exception);
-
-	FIBER_G(error) = exception;
-
-	fiber->status = ZEND_FIBER_STATUS_RUNNING;
-
-	if (!zend_fiber_switch_to(fiber)) {
-		zend_throw_error(NULL, "Failed switching to fiber");
-		return;
-	}
-	
-	if (USED_RET() && fiber->status == ZEND_FIBER_STATUS_SUSPENDED) {
-		ZVAL_COPY(return_value, &fiber->value);
-	}
-}
-/* }}} */
-
-
-/* {{{ proto mixed Fiber::getReturn() */
-ZEND_METHOD(Fiber, getReturn)
-{
-	zend_fiber *fiber;
-	
-	ZEND_PARSE_PARAMETERS_NONE();
-	
-	fiber = (zend_fiber *) Z_OBJ_P(getThis());
-	
-	if (fiber->status != ZEND_FIBER_STATUS_FINISHED) {
-		zend_throw_error(zend_ce_fiber_error, "Cannot get return value of unfinished fiber");
-		return;
-	}
-	
-	ZVAL_COPY(return_value, &fiber->result);
-}
 
 
 /* {{{ proto ?Fiber Fiber::getCurrent() */
@@ -395,14 +293,11 @@ ZEND_METHOD(Fiber, getCurrent)
 /* }}} */
 
 
-/* {{{ proto mixed Fiber::suspend([$value]) */
+/* {{{ proto void Fiber::suspend() */
 ZEND_METHOD(Fiber, suspend)
 {
 	zend_fiber *fiber;
-	zend_execute_data *exec;
 	size_t stack_page_size;
-	zval *value;
-	zval *error;
 
 	fiber = FIBER_G(current_fiber);
 
@@ -416,20 +311,7 @@ ZEND_METHOD(Fiber, suspend)
 		return;
 	}
 
-	value = NULL;
-
-	ZEND_PARSE_PARAMETERS_START(0, 1)
-		Z_PARAM_OPTIONAL
-		Z_PARAM_ZVAL(value);
-	ZEND_PARSE_PARAMETERS_END();
-
-	Z_TRY_DELREF(fiber->value);
-	
-	if (value == NULL) {
-		ZVAL_NULL(&fiber->value);
-	} else {
-		ZVAL_COPY(&fiber->value, value);
-	}
+	ZEND_PARSE_PARAMETERS_NONE();
 
 	fiber->status = ZEND_FIBER_STATUS_SUSPENDED;
 
@@ -440,25 +322,9 @@ ZEND_METHOD(Fiber, suspend)
 	ZEND_FIBER_RESTORE_EG(fiber->stack, stack_page_size, fiber->exec);
 
 	if (fiber->status == ZEND_FIBER_STATUS_DEAD) {
-		zend_throw_error(NULL, "Fiber has been destroyed");
+		zend_throw_error(zend_ce_fiber_error, "Fiber has been destroyed");
 		return;
 	}
-
-	error = FIBER_G(error);
-
-	if (error == NULL) {
-        if (USED_RET()) {
-            ZVAL_COPY(return_value, &fiber->value);
-        }
-		return;
-	}
-	
-	FIBER_G(error) = NULL;
-	exec = EG(current_execute_data);
-
-	exec->opline--;
-	zend_throw_exception_object(error);
-	exec->opline++;
 }
 /* }}} */
 
@@ -479,21 +345,10 @@ ZEND_METHOD(Fiber, __wakeup)
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_fiber_create, 0, 0, 1)
 	ZEND_ARG_CALLABLE_INFO(0, callable, 0)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_fiber_getStatus, 0, 0, IS_LONG, 0)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_fiber_start, 0, 0, 0)
 	ZEND_ARG_VARIADIC_INFO(0, arguments)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_INFO_EX(arginfo_fiber_resume, 0, 0, 0)
-	ZEND_ARG_INFO(0, value)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO(arginfo_fiber_throw, 0)
-	 ZEND_ARG_OBJ_INFO(0, exception, Throwable, 0)
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_fiber_getStatus, 0, 0, IS_LONG, 0)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO(arginfo_fiber_void, 0)
@@ -502,19 +357,12 @@ ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_fiber_getCurrent, 0, 0, Fiber, 1)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_INFO_EX(arginfo_fiber_suspend, 0, 0, 0)
-	ZEND_ARG_INFO(0, value)
-ZEND_END_ARG_INFO()
-
 static const zend_function_entry fiber_methods[] = {
 	ZEND_ME(Fiber, __construct, arginfo_fiber_create, ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
 	ZEND_ME(Fiber, getStatus, arginfo_fiber_getStatus, ZEND_ACC_PUBLIC)
-	ZEND_ME(Fiber, start, arginfo_fiber_start, ZEND_ACC_PUBLIC)
-	ZEND_ME(Fiber, resume, arginfo_fiber_resume, ZEND_ACC_PUBLIC)
-	ZEND_ME(Fiber, throw, arginfo_fiber_throw, ZEND_ACC_PUBLIC)
-	ZEND_ME(Fiber, getReturn, arginfo_fiber_void, ZEND_ACC_PUBLIC)
+	ZEND_ME(Fiber, resume, arginfo_fiber_void, ZEND_ACC_PUBLIC)
 	ZEND_ME(Fiber, getCurrent, arginfo_fiber_getCurrent, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-	ZEND_ME(Fiber, suspend, arginfo_fiber_suspend, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+	ZEND_ME(Fiber, suspend, arginfo_fiber_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
 	ZEND_ME(Fiber, __wakeup, arginfo_fiber_void, ZEND_ACC_PUBLIC)
 	ZEND_FE_END
 };
