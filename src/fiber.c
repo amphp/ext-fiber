@@ -274,7 +274,7 @@ ZEND_METHOD(Fiber, start)
 		return;
 	}
 	
-	if (fiber->status == ZEND_FIBER_STATUS_SUSPENDED) {
+	if (USED_RET() && fiber->status == ZEND_FIBER_STATUS_SUSPENDED) {
 		ZVAL_COPY(return_value, &fiber->value);
 	}
 }
@@ -316,7 +316,7 @@ ZEND_METHOD(Fiber, resume)
 		return;
 	}
 	
-	if (fiber->status == ZEND_FIBER_STATUS_SUSPENDED) {
+	if (USED_RET() && fiber->status == ZEND_FIBER_STATUS_SUSPENDED) {
 		ZVAL_COPY(return_value, &fiber->value);
 	}
 }
@@ -351,7 +351,7 @@ ZEND_METHOD(Fiber, throw)
 		return;
 	}
 	
-	if (fiber->status == ZEND_FIBER_STATUS_SUSPENDED) {
+	if (USED_RET() && fiber->status == ZEND_FIBER_STATUS_SUSPENDED) {
 		ZVAL_COPY(return_value, &fiber->value);
 	}
 }
@@ -447,7 +447,9 @@ ZEND_METHOD(Fiber, suspend)
 	error = FIBER_G(error);
 
 	if (error == NULL) {
-		ZVAL_COPY(return_value, &fiber->value);
+        if (USED_RET()) {
+            ZVAL_COPY(return_value, &fiber->value);
+        }
 		return;
 	}
 	
