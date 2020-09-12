@@ -21,6 +21,7 @@
 #include "php_fiber.h"
 #include "fiber.h"
 #include "fiber_stack.h"
+#include "future.h"
 
 ZEND_DECLARE_MODULE_GLOBALS(fiber)
 
@@ -65,6 +66,7 @@ static PHP_GINIT_FUNCTION(fiber)
 
 PHP_MINIT_FUNCTION(fiber)
 {
+	zend_future_ce_register();
 	zend_fiber_ce_register();
 
 	REGISTER_INI_ENTRIES();

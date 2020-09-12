@@ -8,7 +8,8 @@ if test "$PHP_FIBER" != "no"; then
 
   fiber_source_files="src/php_fiber.c \
     src/fiber.c \
-    src/fiber_stack.c"
+    src/fiber_stack.c
+    src/future.c"
   
   fiber_use_asm="yes"
   fiber_user_ucontext="no"

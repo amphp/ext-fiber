@@ -33,8 +33,8 @@ struct _zend_fiber {
 	/* Status of the fiber, one of the ZEND_FIBER_STATUS_* constants. */
 	zend_uchar status;
 	
-	/* Flag if a suspension is currently pending. */
-	zend_uchar suspending;
+	/* Fiber suspension state, one of the ZEND_FIBER_STATE_* constants. */
+	zend_uchar state;
 	
 	/* Value to return from suspend when resuming the fiber (will be populated by resume()). */
 	zval *value;
@@ -64,6 +64,9 @@ static const zend_uchar ZEND_FIBER_STATUS_SUSPENDED = 1;
 static const zend_uchar ZEND_FIBER_STATUS_RUNNING = 2;
 static const zend_uchar ZEND_FIBER_STATUS_FINISHED = 3;
 static const zend_uchar ZEND_FIBER_STATUS_DEAD = 4;
+
+static const zend_uchar ZEND_FIBER_STATE_READY = 0;
+static const zend_uchar ZEND_FIBER_STATE_SUSPENDING = 1;
 
 typedef void (* zend_fiber_func)();
 

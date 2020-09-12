@@ -9,7 +9,7 @@ final class Fiber
     public static function run(callable $callback, mixed ...$args): void { }
 
     /**
-     * Private constructor to force use of {@see create()}.
+     * Private constructor to force use of {@see run()}.
      */
     private function __construct() { }
 
@@ -49,17 +49,15 @@ final class Fiber
     /**
      * Suspend execution of the fiber.
      *
-     * @param callable(Fiber $fiber):void $scheduler
+     * @param Future $future
      *
      * @return mixed Value given to {@see Fiber::resume()}.
      *
      * @throws FiberError Thrown if not within a fiber context.
      */
-    public static function suspend(callable $scheduler): mixed { }
+    public static function suspend(Future $future): mixed { }
 
     /**
-     * Returns the current Fiber context or null if not within a fiber.
-     *
      * @return bool True if currently executing within a fiber context, false if in root context.
      */
     public static function inFiber(): bool { }
