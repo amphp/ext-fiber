@@ -131,7 +131,7 @@ zend_bool zend_fiber_switch_context(zend_fiber_context current, zend_fiber_conte
 	return 1;
 }
 
-zend_bool zend_fiber_yield(zend_fiber_context current)
+zend_bool zend_fiber_suspend_context(zend_fiber_context current)
 {
 	zend_fiber_context_ucontext *fiber;
 

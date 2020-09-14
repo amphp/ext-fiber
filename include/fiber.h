@@ -36,6 +36,8 @@ struct _zend_fiber {
 	/* Fiber suspension state, one of the ZEND_FIBER_STATE_* constants. */
 	zend_uchar state;
 	
+	zend_bool is_scheduler;
+	
 	/* Value to return from suspend when resuming the fiber (will be populated by resume()). */
 	zval *value;
 	
@@ -79,7 +81,7 @@ zend_bool zend_fiber_create(zend_fiber_context context, zend_fiber_func func, si
 void zend_fiber_destroy(zend_fiber_context context);
 
 zend_bool zend_fiber_switch_context(zend_fiber_context current, zend_fiber_context next);
-zend_bool zend_fiber_suspend(zend_fiber_context current);
+zend_bool zend_fiber_suspend_context(zend_fiber_context current);
 
 END_EXTERN_C()
 

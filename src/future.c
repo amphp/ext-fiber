@@ -17,7 +17,7 @@
 
 ZEND_API zend_class_entry *zend_ce_future;
 
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_future_schedule, 0, 1, IS_VOID, 0)
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_future_schedule, 0, 1, Scheduler, 0)
 	ZEND_ARG_OBJ_INFO(0, fiber, Fiber, 0)
 ZEND_END_ARG_INFO()
 
