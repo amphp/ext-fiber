@@ -21,11 +21,12 @@
 
 #include "php_fiber.h"
 #include "fiber.h"
-#include "future.h"
 
 #ifndef ZEND_PARSE_PARAMETERS_NONE
 #define ZEND_PARSE_PARAMETERS_NONE() zend_parse_parameters_none()
 #endif
+
+ZEND_API zend_class_entry *zend_ce_future;
 
 static zend_class_entry *zend_ce_fiber;
 static zend_class_entry *zend_ce_scheduler;
@@ -268,7 +269,7 @@ ZEND_METHOD(Scheduler, create)
 /* }}} */
 
 
-/* {{{ proto void Fiber::run(callable $callback, mixed ...$args) */
+/* {{{ proto Fiber Fiber::run(callable $callback, mixed ...$args) */
 ZEND_METHOD(Fiber, run)
 {
 	zend_fiber *fiber;
@@ -319,18 +320,6 @@ ZEND_METHOD(Fiber, run)
 	
 	GC_ADDREF(&fiber->std);
 	RETURN_OBJ(&fiber->std);
-}
-/* }}} */
-
-
-/* {{{ proto int Fiber::getStatus() */
-ZEND_METHOD(Fiber, getStatus)
-{
-	ZEND_PARSE_PARAMETERS_NONE();
-
-	zend_fiber *fiber = (zend_fiber *) Z_OBJ_P(getThis());
-
-	RETURN_LONG(fiber->status);
 }
 /* }}} */
 
@@ -624,6 +613,15 @@ static const zend_function_entry fiber_methods[] = {
 	ZEND_FE_END
 };
 
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_future_schedule, 0, 1, Scheduler, 0)
+	ZEND_ARG_OBJ_INFO(0, fiber, Fiber, 0)
+ZEND_END_ARG_INFO()
+
+static const zend_function_entry future_methods[] = {
+	ZEND_ABSTRACT_ME(Future, schedule, arginfo_future_schedule)
+	ZEND_FE_END
+};
+
 ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_scheduler_create, 0, 0, Scheduler, 0)
 	ZEND_ARG_CALLABLE_INFO(0, callable, 0)
 ZEND_END_ARG_INFO()
@@ -684,6 +682,9 @@ void zend_fiber_ce_register()
 	zend_fiber_handlers.free_obj = zend_fiber_object_destroy;
 	zend_fiber_handlers.clone_obj = NULL;
 	zend_fiber_handlers.get_constructor = zend_fiber_get_constructor;
+	
+	INIT_CLASS_ENTRY(ce, "Future", future_methods);
+	zend_ce_future = zend_register_internal_interface(&ce);
 	
 	INIT_CLASS_ENTRY(ce, "Scheduler", scheduler_methods);
 	zend_ce_scheduler = zend_register_internal_class(&ce);
