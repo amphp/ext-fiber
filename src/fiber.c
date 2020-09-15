@@ -261,7 +261,7 @@ ZEND_METHOD(Scheduler, create)
 	fiber->stack->prev = NULL;
 	
 	fiber->status = ZEND_FIBER_STATUS_INIT;
-	fiber->is_scheduler = true;
+	fiber->is_scheduler = 1;
 	
 	GC_ADDREF(&fiber->std);
 	RETURN_OBJ(&fiber->std);
@@ -311,7 +311,7 @@ ZEND_METHOD(Fiber, run)
 	fiber->stack->prev = NULL;
 	
 	fiber->status = ZEND_FIBER_STATUS_RUNNING;
-	fiber->is_scheduler = false;
+	fiber->is_scheduler = 0;
 	
 	if (!zend_fiber_switch_to(fiber)) {
 		zend_throw_error(NULL, "Failed switching to fiber");
