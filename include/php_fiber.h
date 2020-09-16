@@ -27,7 +27,10 @@ ZEND_TSRMLS_CACHE_EXTERN()
 
 ZEND_BEGIN_MODULE_GLOBALS(fiber)
 	/* Root fiber context (main thread). */
-	zend_fiber_context root;
+	zend_fiber *root_fiber;
+
+    /* Root fiber scheduler if suspended */
+    zend_fiber *root_scheduler;
 
 	/* Active fiber, NULL when in main thread. */
 	zend_fiber *current_fiber;
