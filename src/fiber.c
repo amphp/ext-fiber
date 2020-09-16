@@ -67,14 +67,12 @@ static zend_fiber *zend_create_root_fiber()
 	root_fiber->context = zend_fiber_create_root_context();
 	root_fiber->is_scheduler = 0;
 
-	root_fiber->stack = (zend_vm_stack) emalloc(ZEND_FIBER_VM_STACK_SIZE);
-	root_fiber->stack->top = ZEND_VM_STACK_ELEMENTS(root_fiber->stack) + 1;
-	root_fiber->stack->end = (zval *) ((char *) root_fiber->stack + ZEND_FIBER_VM_STACK_SIZE);
-	root_fiber->stack->prev = NULL;
-
+	root_fiber->stack = NULL;
 	root_fiber->status = ZEND_FIBER_STATUS_RUNNING;
 	
 	GC_ADDREF(&root_fiber->std);
+	
+	FIBER_G(root_fiber) = root_fiber;
 	
 	return root_fiber;
 }
@@ -753,7 +751,13 @@ void zend_fiber_shutdown()
 	zend_fiber *root_fiber;
 	root_fiber = FIBER_G(root_fiber);
 
+	if (root_fiber == NULL) {
+		return;
+	}
+	
 	FIBER_G(root_fiber) = NULL;
+	
+	GC_DELREF(&root_fiber->std);
 
-	//zend_fiber_destroy(root_fiber->context);
+	zend_fiber_destroy(root_fiber->context);
 }
