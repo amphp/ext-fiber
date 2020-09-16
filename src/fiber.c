@@ -73,9 +73,18 @@ static zend_bool zend_fiber_switch_to(zend_fiber *fiber)
 		}
 
 		root_fiber = (zend_fiber *) zend_fiber_object_create(zend_ce_fiber);
+		fiber->stack_size = FIBER_G(stack_size);
 		root_fiber->context = root_context;
-		root_fiber->stack = NULL;
 		root_fiber->is_scheduler = 0;
+
+		if (!zend_fiber_create(root_fiber->context, zend_fiber_run, root_fiber->stack_size)) {
+			return 1;
+		}
+
+		root_fiber->stack = (zend_vm_stack) emalloc(ZEND_FIBER_VM_STACK_SIZE);
+		root_fiber->stack->top = ZEND_VM_STACK_ELEMENTS(root_fiber->stack) + 1;
+		root_fiber->stack->end = (zval *) ((char *) root_fiber->stack + ZEND_FIBER_VM_STACK_SIZE);
+		root_fiber->stack->prev = NULL;
 
 		GC_ADDREF(&root_fiber->std);
 
@@ -432,6 +441,7 @@ ZEND_METHOD(Fiber, resume)
 ZEND_METHOD(Fiber, throw)
 {
 	zend_fiber *fiber;
+	zend_fiber *current;
 	zval *exception;
 
 	ZEND_PARSE_PARAMETERS_START_EX(ZEND_PARSE_PARAMS_THROW, 1, 1)
@@ -446,15 +456,25 @@ ZEND_METHOD(Fiber, throw)
 	}
 
 	Z_ADDREF_P(exception);
-
 	fiber->error = exception;
 
+	fiber->status = ZEND_FIBER_STATUS_RUNNING;
+	
 	if (fiber->state == ZEND_FIBER_STATE_SUSPENDING) {
 		fiber->state = ZEND_FIBER_STATE_READY;
 		return;
 	}
 
-	fiber->status = ZEND_FIBER_STATUS_RUNNING;
+	current = FIBER_G(current_fiber);
+
+	if (current != NULL && current->is_scheduler) {
+		current->status = ZEND_FIBER_STATUS_SUSPENDED;
+		if (!zend_fiber_suspend(current)) {
+			zend_throw_error(NULL, "Failed suspending fiber");
+			return;
+		}
+		return;
+	}
 
 	if (!zend_fiber_switch_to(fiber)) {
 		zend_throw_error(NULL, "Failed switching to fiber");
@@ -743,5 +763,5 @@ void zend_fiber_shutdown()
 
 	FIBER_G(root_fiber) = NULL;
 
-	zend_fiber_destroy(root_fiber->context);
+	//zend_fiber_destroy(root_fiber->context);
 }
