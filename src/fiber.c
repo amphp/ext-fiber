@@ -58,53 +58,47 @@ static zend_op fiber_run_op[2];
 } while (0)
 
 
-static zend_bool zend_fiber_switch_to(zend_fiber *fiber)
+static zend_fiber *zend_create_root_fiber()
 {
 	zend_fiber *root_fiber;
-	zend_fiber_context root_context;
 
-	root_fiber = FIBER_G(root_fiber);
+	root_fiber = (zend_fiber *) zend_fiber_object_create(zend_ce_fiber);
+	root_fiber->stack_size = FIBER_G(stack_size);
+	root_fiber->context = zend_fiber_create_root_context();
+	root_fiber->is_scheduler = 0;
 
-	if (root_fiber == NULL) {
-		root_context = zend_fiber_create_root_context();
+	root_fiber->stack = (zend_vm_stack) emalloc(ZEND_FIBER_VM_STACK_SIZE);
+	root_fiber->stack->top = ZEND_VM_STACK_ELEMENTS(root_fiber->stack) + 1;
+	root_fiber->stack->end = (zval *) ((char *) root_fiber->stack + ZEND_FIBER_VM_STACK_SIZE);
+	root_fiber->stack->prev = NULL;
 
-		if (root_context == NULL) {
-			return 0;
-		}
+	root_fiber->status = ZEND_FIBER_STATUS_RUNNING;
+	
+	GC_ADDREF(&root_fiber->std);
+	
+	return root_fiber;
+}
 
-		root_fiber = (zend_fiber *) zend_fiber_object_create(zend_ce_fiber);
-		fiber->stack_size = FIBER_G(stack_size);
-		root_fiber->context = root_context;
-		root_fiber->is_scheduler = 0;
 
-		if (!zend_fiber_create(root_fiber->context, zend_fiber_run, root_fiber->stack_size)) {
-			return 1;
-		}
-
-		root_fiber->stack = (zend_vm_stack) emalloc(ZEND_FIBER_VM_STACK_SIZE);
-		root_fiber->stack->top = ZEND_VM_STACK_ELEMENTS(root_fiber->stack) + 1;
-		root_fiber->stack->end = (zval *) ((char *) root_fiber->stack + ZEND_FIBER_VM_STACK_SIZE);
-		root_fiber->stack->prev = NULL;
-
-		GC_ADDREF(&root_fiber->std);
-
-		FIBER_G(root_fiber) = root_fiber;
-	} else {
-		root_context = root_fiber->context;
-	}
-
+static zend_bool zend_fiber_switch_to(zend_fiber *fiber)
+{
 	zend_fiber *prev;
 	zend_bool result;
 	zend_execute_data *exec;
 	zend_vm_stack stack;
 	size_t stack_page_size;
 
+	prev = FIBER_G(current_fiber);
+	
+	if (prev == NULL) {
+		prev = zend_create_root_fiber();
+	}
+	
+	FIBER_G(current_fiber) = fiber;
+	
 	ZEND_FIBER_BACKUP_EG(stack, stack_page_size, exec);
 
-	prev = FIBER_G(current_fiber);
-	FIBER_G(current_fiber) = fiber;
-
-	result = zend_fiber_switch_context((prev == NULL) ? root_context : prev->context, fiber->context);
+	result = zend_fiber_switch_context(prev->context, fiber->context);
 
 	FIBER_G(current_fiber) = prev;
 
@@ -191,8 +185,6 @@ static int fiber_run_opcode_handler(zend_execute_data *exec)
 	} else {
 		fiber->status = ZEND_FIBER_STATUS_FINISHED;
 	}
-
-	// TODO
 
 	return ZEND_USER_OPCODE_RETURN;
 }
@@ -518,7 +510,16 @@ ZEND_METHOD(Fiber, suspend)
 
 	fiber = FIBER_G(current_fiber);
 
-	if (fiber != NULL) {
+	if (fiber == NULL) {
+		fiber = zend_create_root_fiber();
+		
+		if (fiber == NULL) {
+			zend_throw_error(zend_ce_fiber_error, "Could not create root fiber context");
+			return;
+		}
+		
+		FIBER_G(current_fiber) = fiber;
+	} else {
 		if (UNEXPECTED(fiber->is_scheduler)) {
 			zend_throw_error(zend_ce_fiber_error, "Cannot suspend from a scheduler");
 			return;
@@ -528,15 +529,6 @@ ZEND_METHOD(Fiber, suspend)
 			zend_throw_error(zend_ce_fiber_error, "Cannot suspend from a fiber that is not running");
 			return;
 		}
-	} else {
-		fiber = (zend_fiber *) zend_fiber_object_create(zend_ce_fiber);
-		fiber->context = zend_fiber_create_root_context();
-		fiber->stack = NULL;
-		fiber->is_scheduler = 0;
-
-		GC_ADDREF(&fiber->std);
-
-		FIBER_G(root_fiber) = fiber;
 	}
 
 	ZEND_PARSE_PARAMETERS_START_EX(ZEND_PARSE_PARAMS_THROW, 1, 1)

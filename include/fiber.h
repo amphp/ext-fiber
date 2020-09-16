@@ -79,8 +79,6 @@ char *zend_fiber_backend_info();
 zend_fiber_context zend_fiber_create_root_context();
 zend_fiber_context zend_fiber_create_context();
 
-static void zend_fiber_run();
-
 zend_bool zend_fiber_create(zend_fiber_context context, zend_fiber_func func, size_t stack_size);
 void zend_fiber_destroy(zend_fiber_context context);
 
