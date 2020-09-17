@@ -40,6 +40,8 @@ struct _zend_fiber {
 	
 	zend_bool is_scheduler;
 	
+	zend_fiber *previous;
+	
 	/* Value to return from suspend when resuming the fiber (will be populated by resume()). */
 	zval *value;
 	
