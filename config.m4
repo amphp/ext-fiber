@@ -4,7 +4,7 @@ PHP_ARG_ENABLE(fiber, whether to enable fiber support,
 if test "$PHP_FIBER" != "no"; then
   AC_DEFINE(HAVE_FIBER, 1, [ ])
   
-  FIBER_CFLAGS="-Wall -DZEND_ENABLE_STATIC_TSRMLS_CACHE=1"
+  FIBER_CFLAGS="-Wall -Werror -DZEND_ENABLE_STATIC_TSRMLS_CACHE=1"
 
   fiber_source_files="src/php_fiber.c \
     src/fiber.c \
