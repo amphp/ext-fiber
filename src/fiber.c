@@ -568,7 +568,7 @@ ZEND_METHOD(Fiber, suspend)
 		}
 		
 		if (scheduler->status == ZEND_FIBER_STATUS_RUNNING) {
-			ZEND_ASSERT(fiber->previous = scheduler);
+			ZEND_ASSERT(fiber->previous == scheduler);
 			fiber->previous = NULL;
 			if (!zend_fiber_suspend(fiber)) {
 				zend_throw_error(NULL, "Failed suspending fiber");
