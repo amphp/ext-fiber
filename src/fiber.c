@@ -155,8 +155,6 @@ static void zend_fiber_run()
 
 	zend_fiber_suspend_context(fiber->context);
 	
-	php_printf("Resumed finished fiber!\n");
-
 	abort();
 }
 
@@ -187,6 +185,35 @@ static int fiber_run_opcode_handler(zend_execute_data *exec)
 	}
 
 	return ZEND_USER_OPCODE_RETURN;
+}
+
+
+static zend_bool zend_fiber_resume(zend_fiber *fiber)
+{
+	zend_fiber *current;
+	zend_bool result;
+	
+	current = FIBER_G(current_fiber);
+
+	ZEND_ASSERT(current != NULL);
+	
+	if (current->is_scheduler) {
+		if (current->previous == fiber) {
+			// Suspend from scheduler to fiber that resumed the scheduler.
+			current->status = ZEND_FIBER_STATUS_SUSPENDED;
+			current->previous = NULL;
+			result = zend_fiber_suspend(current);
+			current->status = ZEND_FIBER_STATUS_RUNNING;
+			return result;
+		}
+		
+		// Another fiber started the scheduler, so switch to resuming fiber.
+		fiber->previous = current;
+		return zend_fiber_switch_to(fiber);
+	}
+	
+	// Suspend to previous fiber that switched to this fiber.
+	return zend_fiber_suspend(fiber);
 }
 
 
@@ -381,7 +408,6 @@ ZEND_METHOD(Fiber, isTerminated)
 ZEND_METHOD(Fiber, resume)
 {
 	zend_fiber *fiber;
-	zend_fiber *current;
 	zval *value;
 
 	value = NULL;
@@ -393,8 +419,6 @@ ZEND_METHOD(Fiber, resume)
 
 	fiber = (zend_fiber *) Z_OBJ_P(getThis());
 	
-	php_printf("Current Fiber: %x | Resuming Fiber: %x\n", FIBER_G(current_fiber), fiber);
-
 	if (UNEXPECTED(fiber->status != ZEND_FIBER_STATUS_SUSPENDED)) {
 		zend_throw_error(zend_ce_fiber_error, "Cannot resume running fiber");
 		return;
@@ -412,33 +436,10 @@ ZEND_METHOD(Fiber, resume)
 		return;
 	}
 
-	current = FIBER_G(current_fiber);
-
-	if (current != NULL && current->is_scheduler) {
-		current->status = ZEND_FIBER_STATUS_SUSPENDED;
-		
-		if (current->previous == fiber) {
-			current->previous = NULL;
-			php_printf("Resume through suspending\n");
-			if (!zend_fiber_suspend(current)) {
-				zend_throw_error(NULL, "Failed suspending fiber");
-			}
-			return;
-		}
-		
-		php_printf("Resume through switch\n");
-		if (!zend_fiber_switch_to(fiber)) {
-			zend_throw_error(NULL, "Failed switching to fiber");
-		}
+	if (!zend_fiber_resume(fiber)) {
+		zend_throw_error(NULL, "Failed resuming fiber");
 		return;
 	}
-	
-	php_printf("Resume through switch from non-scheduler\n");
-
-//	if (!zend_fiber_switch_to(fiber)) {
-//		zend_throw_error(NULL, "Failed switching to fiber");
-//		return;
-//	}
 }
 /* }}} */
 
@@ -447,7 +448,6 @@ ZEND_METHOD(Fiber, resume)
 ZEND_METHOD(Fiber, throw)
 {
 	zend_fiber *fiber;
-	zend_fiber *current;
 	zval *exception;
 
 	ZEND_PARSE_PARAMETERS_START_EX(ZEND_PARSE_PARAMS_THROW, 1, 1)
@@ -471,18 +471,8 @@ ZEND_METHOD(Fiber, throw)
 		return;
 	}
 
-	current = FIBER_G(current_fiber);
-
-	if (current != NULL && current->is_scheduler) {
-		current->status = ZEND_FIBER_STATUS_SUSPENDED;
-		if (!zend_fiber_suspend(current)) {
-			zend_throw_error(NULL, "Failed suspending fiber");
-		}
-		return;
-	}
-
-	if (!zend_fiber_switch_to(fiber)) {
-		zend_throw_error(NULL, "Failed switching to fiber");
+	if (!zend_fiber_resume(fiber)) {
+		zend_throw_error(NULL, "Failed throwing into fiber");
 		return;
 	}
 }
@@ -539,7 +529,6 @@ ZEND_METHOD(Fiber, suspend)
 		}
 
 		if (UNEXPECTED(fiber->status != ZEND_FIBER_STATUS_RUNNING)) {
-			php_printf("Fiber status: %d\n", fiber->status);
 			zend_throw_error(zend_ce_fiber_error, "Cannot suspend from a fiber that is not running");
 			return;
 		}
@@ -573,7 +562,14 @@ ZEND_METHOD(Fiber, suspend)
 	if (fiber->state == ZEND_FIBER_STATE_SUSPENDING) {
 		fiber->state = ZEND_FIBER_STATE_READY;
 
+		if (scheduler->status == ZEND_FIBER_STATUS_FINISHED || scheduler->status == ZEND_FIBER_STATUS_DEAD) {
+			zend_throw_error(zend_ce_fiber_error, "The scheduler returned has terminated!");
+			return;
+		}
+		
 		if (scheduler->status == ZEND_FIBER_STATUS_RUNNING) {
+			ZEND_ASSERT(fiber->previous = scheduler);
+			fiber->previous = NULL;
 			if (!zend_fiber_suspend(fiber)) {
 				zend_throw_error(NULL, "Failed suspending fiber");
 				return;
@@ -625,6 +621,35 @@ ZEND_METHOD(Fiber, __wakeup)
 	ZEND_PARSE_PARAMETERS_NONE();
 
 	zend_throw_error(zend_ce_fiber_error, "Unserialization of 'Fiber' is not allowed");
+}
+/* }}} */
+
+
+/* {{{ proto void Scheduler::pause() */
+ZEND_METHOD(Scheduler, pause)
+{
+	zend_fiber *fiber;
+	
+	ZEND_PARSE_PARAMETERS_NONE();
+	
+	fiber = FIBER_G(current_fiber);
+	
+	if (UNEXPECTED(!fiber->is_scheduler)) {
+		zend_throw_error(zend_ce_fiber_error, "Cannot suspend a fiber with Scheduler::pause(); use Fiber::suspend()");
+		return;
+	}
+	
+	if (UNEXPECTED(fiber->status != ZEND_FIBER_STATUS_RUNNING)) {
+		zend_throw_error(zend_ce_fiber_error, "Cannot suspend from a scheduler that is not running");
+		return;
+	}
+	
+	fiber->status = ZEND_FIBER_STATUS_SUSPENDED;
+	
+	if (!zend_fiber_suspend(fiber)) {
+		zend_throw_error(NULL, "Failed suspending scheduler");
+		return;
+	}
 }
 /* }}} */
 
@@ -688,6 +713,7 @@ ZEND_END_ARG_INFO()
 
 static const zend_function_entry scheduler_methods[] = {
 	ZEND_ME(Scheduler, create, arginfo_scheduler_create, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+	ZEND_ME(Scheduler, pause, arginfo_fiber_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
 	ZEND_FE_END
 };
 
