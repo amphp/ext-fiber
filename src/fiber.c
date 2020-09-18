@@ -212,7 +212,12 @@ static zend_bool zend_fiber_resume(zend_fiber *fiber)
 		return zend_fiber_switch_to(fiber);
 	}
 	
-	// Suspend to previous fiber that switched to this fiber.
+	if (current == FIBER_G(root_fiber)) {
+		// Switch to fiber if in root context.
+		return zend_fiber_switch_to(fiber);
+	}
+	
+	// Otherwise suspend to previous fiber that switched to this fiber.
 	return zend_fiber_suspend(fiber);
 }
 
@@ -575,9 +580,9 @@ ZEND_METHOD(Fiber, suspend)
 			zend_throw_error(zend_ce_fiber_error, "Fiber has been destroyed");
 			return;
 		}
-	} else {
-		fiber->status = ZEND_FIBER_STATUS_RUNNING;
 	}
+	
+	fiber->status = ZEND_FIBER_STATUS_RUNNING;
 
 	if (fiber->error == NULL) {
 		ZVAL_COPY_VALUE(return_value, &fiber->value);
