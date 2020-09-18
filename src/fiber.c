@@ -756,5 +756,13 @@ void zend_fiber_ce_unregister()
 
 void zend_fiber_shutdown()
 {
+	zend_fiber *fiber;
+	
+	ZEND_HASH_FOREACH_PTR(&schedulers, fiber) {
+		while (fiber->status == ZEND_FIBER_STATUS_SUSPENDED) {
+			zend_fiber_switch_to(fiber);
+		}
+	} ZEND_HASH_FOREACH_END();
+	
 	FIBER_G(root_fiber) = NULL;
 }
