@@ -47,9 +47,6 @@ struct _zend_fiber {
 	
 	/* Error to be thrown into a fiber (will be populated by throw()). */
 	zval *error;
-	
-	/* Fiber callback return value. */
-	zval result;
 
 	/* Callback and info / cache to be used when fiber is started. */
 	zend_fcall_info fci;

@@ -182,7 +182,6 @@ static int fiber_run_opcode_handler(zend_execute_data *exec)
 		}
 	} else {
 		fiber->status = ZEND_FIBER_STATUS_FINISHED;
-		ZVAL_COPY_VALUE(&fiber->result, &retval);
 	}
 
 	return ZEND_USER_OPCODE_RETURN;
@@ -228,8 +227,6 @@ static zend_object *zend_fiber_object_create(zend_class_entry *ce)
 	zend_object_std_init(&fiber->std, ce);
 	fiber->std.handlers = &zend_fiber_handlers;
 	
-	ZVAL_NULL(&fiber->result);
-
 	return &fiber->std;
 }
 
@@ -248,7 +245,6 @@ static void zend_fiber_object_destroy(zend_object *object)
 
 	zend_fiber_destroy(fiber->context);
 
-	zval_ptr_dtor(&fiber->result);
 	zend_object_std_dtor(&fiber->std);
 
 	efree(fiber);
@@ -310,12 +306,19 @@ static ZEND_COLD zend_function *zend_fiber_get_constructor(zend_object *object)
 }
 
 
-/* {{{ proto Fiber Fiber::run(callable $callback, mixed ...$args) */
+/* {{{ proto void Fiber::run(callable $callback, mixed ...$args) */
 ZEND_METHOD(Fiber, run)
 {
 	zend_fiber *fiber;
 	zval *params;
 	uint32_t param_count;
+	
+	fiber = FIBER_G(current_fiber);
+	
+	if (fiber == NULL || !fiber->is_scheduler) {
+		zend_throw_error(NULL, "New fibers can only be created inside Scheduler::run()");
+		return;
+	}
 
 	fiber = (zend_fiber *) zend_fiber_object_create(zend_ce_fiber);
 
@@ -358,8 +361,6 @@ ZEND_METHOD(Fiber, run)
 		zend_throw_error(NULL, "Failed switching to fiber");
 		return;
 	}
-
-	ZVAL_COPY(return_value, &fiber->result);
 }
 /* }}} */
 
@@ -616,7 +617,7 @@ ZEND_METHOD(FiberError, __construct)
 /* }}} */
 
 
-ZEND_BEGIN_ARG_INFO_EX(arginfo_fiber_run, 0, 0, 0)
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_fiber_run, 0, 0, IS_VOID, 0)
 	ZEND_ARG_CALLABLE_INFO(0, callable, 0)
 	ZEND_ARG_VARIADIC_INFO(0, arguments)
 ZEND_END_ARG_INFO()
