@@ -750,14 +750,5 @@ void zend_fiber_ce_unregister()
 
 void zend_fiber_shutdown()
 {
-	zend_fiber *root_fiber;
-	root_fiber = FIBER_G(root_fiber);
-
-	if (root_fiber == NULL) {
-		return;
-	}
-	
 	FIBER_G(root_fiber) = NULL;
-	
-	zend_fiber_destroy(root_fiber->context);
 }
