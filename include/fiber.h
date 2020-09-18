@@ -43,7 +43,7 @@ struct _zend_fiber {
 	zend_fiber *previous;
 	
 	/* Value to return from suspend when resuming the fiber (will be populated by resume()). */
-	zval *value;
+	zval value;
 	
 	/* Error to be thrown into a fiber (will be populated by throw()). */
 	zval *error;

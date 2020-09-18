@@ -227,6 +227,8 @@ static zend_object *zend_fiber_object_create(zend_class_entry *ce)
 	zend_object_std_init(&fiber->std, ce);
 	fiber->std.handlers = &zend_fiber_handlers;
 	
+	ZVAL_NULL(&fiber->value);
+	
 	return &fiber->std;
 }
 
@@ -244,6 +246,8 @@ static void zend_fiber_object_destroy(zend_object *object)
 	}
 
 	zend_fiber_destroy(fiber->context);
+	
+	zval_ptr_dtor(&fiber->value);
 
 	zend_object_std_dtor(&fiber->std);
 
@@ -422,8 +426,7 @@ ZEND_METHOD(Fiber, resume)
 	}
 
 	if (value != NULL) {
-		Z_TRY_ADDREF_P(value);
-		fiber->value = value;
+		ZVAL_COPY(&fiber->value, value);
 	}
 
 	fiber->status = ZEND_FIBER_STATUS_RUNNING;
@@ -577,10 +580,8 @@ ZEND_METHOD(Fiber, suspend)
 	}
 
 	if (fiber->error == NULL) {
-		if (fiber->value != NULL) {
-			ZVAL_COPY_VALUE(return_value, fiber->value);
-			fiber->value = NULL;
-		}
+		ZVAL_COPY_VALUE(return_value, &fiber->value);
+		ZVAL_NULL(&fiber->value);
 		return;
 	}
 
