@@ -5,8 +5,10 @@ final class Fiber
     /**
      * @param callable $callback Function to invoke when starting the Fiber.
      * @param mixed ...$args Function arguments.
+     *
+     * @return mixed Return value of the given callback.
      */
-    public static function run(callable $callback, mixed ...$args): void { }
+    public static function run(callable $callback, mixed ...$args): mixed { }
 
     /**
      * Private constructor to force use of {@see run()}.
@@ -56,9 +58,4 @@ final class Fiber
      * @throws FiberError Thrown if not within a fiber context.
      */
     public static function suspend(Future $future): mixed { }
-
-    /**
-     * @return bool True if currently executing within a fiber context, false if in root context.
-     */
-    public static function inFiber(): bool { }
 }
