@@ -7,7 +7,7 @@ interface Future
      *
      * @param Fiber $fiber
      *
-     * @return Scheduler
+     * @return FiberScheduler
      */
-    public function schedule(\Fiber $fiber): Scheduler;
+    public function schedule(\Fiber $fiber): FiberScheduler;
 }

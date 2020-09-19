@@ -1,6 +1,6 @@
 <?php
 
-interface Scheduler
+interface FiberScheduler
 {
     /**
      * Run the scheduler.

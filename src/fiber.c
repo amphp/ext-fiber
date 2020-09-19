@@ -30,7 +30,7 @@
 ZEND_API zend_class_entry *zend_ce_future;
 
 static zend_class_entry *zend_ce_fiber;
-static zend_class_entry *zend_ce_scheduler;
+static zend_class_entry *zend_ce_fiber_scheduler;
 static zend_class_entry *zend_ce_fiber_error;
 static zend_object_handlers zend_fiber_handlers;
 
@@ -255,7 +255,7 @@ static zend_fiber *zend_fiber_create_from_scheduler(zval *scheduler)
 	zval closure;
 	char *error;
 	
-	if (!instanceof_function(Z_OBJCE_P(scheduler), zend_ce_scheduler)) {
+	if (UNEXPECTED(!instanceof_function(Z_OBJCE_P(scheduler), zend_ce_fiber_scheduler))) {
 		return NULL;
 	}
 	
@@ -335,7 +335,7 @@ ZEND_METHOD(Fiber, run)
 	fiber = FIBER_G(current_fiber);
 	
 	if (fiber == NULL || !fiber->is_scheduler) {
-		zend_throw_error(NULL, "New fibers can only be created inside Scheduler::run()");
+		zend_throw_error(NULL, "New fibers can only be created inside FiberScheduler::run()");
 		return;
 	}
 
@@ -684,7 +684,7 @@ static const zend_function_entry fiber_methods[] = {
 	ZEND_FE_END
 };
 
-ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_future_schedule, 0, 1, Scheduler, 0)
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_future_schedule, 0, 1, FiberScheduler, 0)
 	ZEND_ARG_OBJ_INFO(0, fiber, Fiber, 0)
 ZEND_END_ARG_INFO()
 
@@ -697,7 +697,7 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_scheduler_run, 0, 0, IS_VOID, 0)
 ZEND_END_ARG_INFO()
 
 static const zend_function_entry scheduler_methods[] = {
-	ZEND_ABSTRACT_ME(Scheduler, run, arginfo_scheduler_run)
+	ZEND_ABSTRACT_ME(FiberScheduler, run, arginfo_scheduler_run)
 	ZEND_FE_END
 };
 
@@ -756,8 +756,8 @@ void zend_fiber_ce_register()
 	INIT_CLASS_ENTRY(ce, "Future", future_methods);
 	zend_ce_future = zend_register_internal_interface(&ce);
 
-	INIT_CLASS_ENTRY(ce, "Scheduler", scheduler_methods);
-	zend_ce_scheduler = zend_register_internal_interface(&ce);
+	INIT_CLASS_ENTRY(ce, "FiberScheduler", scheduler_methods);
+	zend_ce_fiber_scheduler = zend_register_internal_interface(&ce);
 
 	INIT_CLASS_ENTRY(ce, "FiberError", fiber_error_methods);
 	zend_ce_fiber_error = zend_register_internal_class_ex(&ce, zend_ce_error);
