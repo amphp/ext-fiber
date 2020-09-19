@@ -184,6 +184,8 @@ static int fiber_run_opcode_handler(zend_execute_data *exec)
 	} else {
 		fiber->status = ZEND_FIBER_STATUS_FINISHED;
 	}
+	
+	GC_DELREF(&fiber->std);
 
 	return ZEND_USER_OPCODE_RETURN;
 }
