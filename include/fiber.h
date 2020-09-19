@@ -39,8 +39,10 @@ struct _zend_fiber {
 	/* Fiber suspension state, one of the ZEND_FIBER_STATE_* constants. */
 	zend_uchar state;
 	
+	/* Flag to determine if the fiber is a scheduler. */
 	zend_bool is_scheduler;
 	
+	/* Used by schedulers to determine which fiber entered the scheduler. */
 	zend_fiber *previous;
 	
 	/* Value to return from suspend when resuming the fiber (will be populated by resume()). */
