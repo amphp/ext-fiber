@@ -19,6 +19,10 @@
 
 BEGIN_EXTERN_C()
 
+#ifndef zend_observer_fcall_handlers
+#define zend_observer_fcall_handlers zend_observer_fcall
+#endif
+
 void zend_fiber_ce_register();
 void zend_fiber_ce_unregister();
 
@@ -90,7 +94,7 @@ void zend_fiber_destroy(zend_fiber_context context);
 zend_bool zend_fiber_switch_context(zend_fiber_context current, zend_fiber_context next);
 zend_bool zend_fiber_suspend_context(zend_fiber_context current);
 
-zend_observer_fcall zend_fiber_observer_fcall_init(zend_function *fbc);
+zend_observer_fcall_handlers zend_fiber_observer_fcall_init(zend_function *fbc);
 
 END_EXTERN_C()
 

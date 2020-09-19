@@ -309,13 +309,13 @@ static void zend_fiber_observer_end(zend_execute_data *execute_data, zval *retva
 }
 
 
-zend_observer_fcall zend_fiber_observer_fcall_init(zend_function *fbc)
+zend_observer_fcall_handlers zend_fiber_observer_fcall_init(zend_function *fbc)
 {
 	if (!fbc->common.function_name && !EG(current_execute_data)->prev_execute_data) {
-		return (zend_observer_fcall){NULL, zend_fiber_observer_end};
+		return (zend_observer_fcall_handlers){NULL, zend_fiber_observer_end};
 	}
 	
-	return (zend_observer_fcall){NULL, NULL};
+	return (zend_observer_fcall_handlers){NULL, NULL};
 }
 
 
