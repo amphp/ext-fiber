@@ -66,6 +66,8 @@ static PHP_GINIT_FUNCTION(fiber)
 PHP_MINIT_FUNCTION(fiber)
 {
 	zend_fiber_ce_register();
+	
+	zend_observer_fcall_register(zend_fiber_observer_fcall_init);
 
 	REGISTER_INI_ENTRIES();
 

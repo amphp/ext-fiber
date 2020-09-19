@@ -18,6 +18,7 @@
 #include "zend_interfaces.h"
 #include "zend_exceptions.h"
 #include "zend_closures.h"
+#include "zend_observer.h"
 
 #include "php_fiber.h"
 #include "fiber.h"
@@ -292,6 +293,28 @@ static zend_fiber *zend_fiber_create_from_scheduler(zval *scheduler)
 	zval_ptr_dtor(&closure);
 	
 	return fiber;
+}
+
+
+static void zend_fiber_observer_end(zend_execute_data *execute_data, zval *retval)
+{
+	zend_fiber *fiber;
+	
+	ZEND_HASH_REVERSE_FOREACH_PTR(&schedulers, fiber) {
+		while (fiber->status == ZEND_FIBER_STATUS_SUSPENDED) {
+			zend_fiber_switch_to(fiber);
+		}
+	} ZEND_HASH_FOREACH_END_DEL();
+}
+
+
+zend_observer_fcall zend_fiber_observer_fcall_init(zend_function *fbc)
+{
+	if (!fbc->common.function_name && !EG(current_execute_data)->prev_execute_data) {
+		return (zend_observer_fcall){NULL, zend_fiber_observer_end};
+	}
+	
+	return (zend_observer_fcall){NULL, NULL};
 }
 
 
@@ -759,13 +782,5 @@ void zend_fiber_ce_unregister()
 
 void zend_fiber_shutdown()
 {
-	zend_fiber *fiber;
-	
-	ZEND_HASH_REVERSE_FOREACH_PTR(&schedulers, fiber) {
-		while (fiber->status == ZEND_FIBER_STATUS_SUSPENDED) {
-			zend_fiber_switch_to(fiber);
-		}
-	} ZEND_HASH_FOREACH_END();
-	
 	FIBER_G(root_fiber) = NULL;
 }
