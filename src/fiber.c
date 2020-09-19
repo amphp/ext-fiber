@@ -188,37 +188,24 @@ static int fiber_run_opcode_handler(zend_execute_data *exec)
 }
 
 
-static zend_bool zend_fiber_resume(zend_fiber *fiber)
+static zend_bool zend_fiber_resume(zend_fiber *fiber, zend_fiber *scheduler)
 {
-	zend_fiber *current;
 	zend_bool result;
 	
-	current = FIBER_G(current_fiber);
-
-	ZEND_ASSERT(current != NULL);
+	ZEND_ASSERT(scheduler->is_scheduler);
 	
-	if (current->is_scheduler) {
-		if (current->previous == fiber) {
-			// Suspend from scheduler to fiber that resumed the scheduler.
-			current->status = ZEND_FIBER_STATUS_SUSPENDED;
-			current->previous = NULL;
-			result = zend_fiber_suspend(current);
-			current->status = ZEND_FIBER_STATUS_RUNNING;
-			return result;
-		}
-		
-		// Another fiber started the scheduler, so switch to resuming fiber.
-		fiber->previous = current;
-		return zend_fiber_switch_to(fiber);
+	if (scheduler->previous == fiber) {
+		// Suspend from scheduler to fiber that resumed the scheduler.
+		scheduler->status = ZEND_FIBER_STATUS_SUSPENDED;
+		scheduler->previous = NULL;
+		result = zend_fiber_suspend(scheduler);
+		scheduler->status = ZEND_FIBER_STATUS_RUNNING;
+		return result;
 	}
 	
-	if (current == FIBER_G(root_fiber)) {
-		// Switch to fiber if in root context.
-		return zend_fiber_switch_to(fiber);
-	}
-	
-	// Otherwise suspend to previous fiber that switched to this fiber.
-	return zend_fiber_suspend(fiber);
+	// Another fiber started the scheduler, so switch to resuming fiber.
+	fiber->previous = scheduler;
+	return zend_fiber_switch_to(fiber);
 }
 
 
@@ -414,6 +401,7 @@ ZEND_METHOD(Fiber, isTerminated)
 ZEND_METHOD(Fiber, resume)
 {
 	zend_fiber *fiber;
+	zend_fiber *scheduler;
 	zval *value;
 
 	value = NULL;
@@ -422,6 +410,13 @@ ZEND_METHOD(Fiber, resume)
 		Z_PARAM_OPTIONAL
 		Z_PARAM_ZVAL(value);
 	ZEND_PARSE_PARAMETERS_END();
+	
+	scheduler = FIBER_G(current_fiber);
+	
+	if (UNEXPECTED(scheduler == NULL || !scheduler->is_scheduler)) {
+		zend_throw_error(zend_ce_fiber_error, "Fibers can only be resumed within a scheduler");
+		return;
+	}
 
 	fiber = (zend_fiber *) Z_OBJ_P(getThis());
 	
@@ -441,7 +436,7 @@ ZEND_METHOD(Fiber, resume)
 		return;
 	}
 
-	if (!zend_fiber_resume(fiber)) {
+	if (!zend_fiber_resume(fiber, scheduler)) {
 		zend_throw_error(NULL, "Failed resuming fiber");
 		return;
 	}
@@ -453,15 +448,23 @@ ZEND_METHOD(Fiber, resume)
 ZEND_METHOD(Fiber, throw)
 {
 	zend_fiber *fiber;
+	zend_fiber *scheduler;
 	zval *exception;
 
 	ZEND_PARSE_PARAMETERS_START_EX(ZEND_PARSE_PARAMS_THROW, 1, 1)
 		Z_PARAM_OBJECT_OF_CLASS(exception, zend_ce_throwable)
 	ZEND_PARSE_PARAMETERS_END();
 
+	scheduler = FIBER_G(current_fiber);
+	
+	if (UNEXPECTED(scheduler == NULL || !scheduler->is_scheduler)) {
+		zend_throw_error(zend_ce_fiber_error, "Fibers can only be resumed within a scheduler");
+		return;
+	}
+	
 	fiber = (zend_fiber *) Z_OBJ_P(getThis());
 
-	if (fiber->status != ZEND_FIBER_STATUS_SUSPENDED) {
+	if (UNEXPECTED(fiber->status != ZEND_FIBER_STATUS_SUSPENDED)) {
 		zend_throw_error(zend_ce_fiber_error, "Cannot throw exception into running fiber");
 		return;
 	}
@@ -476,7 +479,7 @@ ZEND_METHOD(Fiber, throw)
 		return;
 	}
 
-	if (!zend_fiber_resume(fiber)) {
+	if (!zend_fiber_resume(fiber, scheduler)) {
 		zend_throw_error(NULL, "Failed throwing into fiber");
 		return;
 	}
