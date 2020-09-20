@@ -155,6 +155,8 @@ static void zend_fiber_run()
 	fiber->stack = NULL;
 	fiber->exec = NULL;
 
+	GC_DELREF(&fiber->std);
+
 	zend_fiber_suspend_context(fiber->context);
 	
 	abort();
@@ -187,7 +189,6 @@ static int fiber_run_opcode_handler(zend_execute_data *exec)
 	}
 	
 	zval_ptr_dtor(&fiber->closure);
-	GC_DELREF(&fiber->std);
 	
 	return ZEND_USER_OPCODE_RETURN;
 }
@@ -228,7 +229,6 @@ static zend_object *zend_fiber_object_create(zend_class_entry *ce)
 	ZVAL_NULL(&fiber->value);
 	
 	ZVAL_OBJ(&context, &fiber->std);
-	GC_ADDREF(&fiber->std);
 	
 	func = zend_hash_find_ptr(&zend_ce_fiber->function_table, fiber_continue_name);
 	zend_create_closure(&fiber->closure, func, zend_ce_fiber, zend_ce_fiber, &context);
@@ -254,8 +254,6 @@ static void zend_fiber_object_destroy(zend_object *object)
 	zval_ptr_dtor(&fiber->value);
 
 	zend_object_std_dtor(&fiber->std);
-	
-	efree(fiber);
 }
 
 
@@ -739,5 +737,16 @@ void zend_fiber_ce_unregister()
 
 void zend_fiber_shutdown()
 {
+	zend_fiber *fiber;
+	
+	fiber = FIBER_G(root_fiber);
+	
+	if (fiber == NULL) {
+		return;
+	}
+	
 	FIBER_G(root_fiber) = NULL;
+	
+	Z_DELREF(fiber->closure);
+	GC_DELREF(&fiber->std);
 }
