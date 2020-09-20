@@ -186,6 +186,7 @@ static int fiber_run_opcode_handler(zend_execute_data *exec)
 		fiber->status = ZEND_FIBER_STATUS_FINISHED;
 	}
 	
+	zval_ptr_dtor(&fiber->closure);
 	GC_DELREF(&fiber->std);
 	
 	return ZEND_USER_OPCODE_RETURN;
@@ -208,7 +209,6 @@ static zend_bool zend_fiber_resume(zend_fiber *fiber, zend_fiber *scheduler)
 	}
 	
 	// Another fiber started the scheduler, so switch to resuming fiber.
-	fiber->previous = scheduler;
 	return zend_fiber_switch_to(fiber);
 }
 
@@ -216,6 +216,8 @@ static zend_bool zend_fiber_resume(zend_fiber *fiber, zend_fiber *scheduler)
 static zend_object *zend_fiber_object_create(zend_class_entry *ce)
 {
 	zend_fiber *fiber;
+	zend_function *func;
+	zval context;
 
 	fiber = emalloc(sizeof(zend_fiber));
 	memset(fiber, 0, sizeof(zend_fiber));
@@ -224,6 +226,12 @@ static zend_object *zend_fiber_object_create(zend_class_entry *ce)
 	fiber->std.handlers = &zend_fiber_handlers;
 	
 	ZVAL_NULL(&fiber->value);
+	
+	ZVAL_OBJ(&context, &fiber->std);
+	GC_ADDREF(&fiber->std);
+	
+	func = zend_hash_find_ptr(&zend_ce_fiber->function_table, fiber_continue_name);
+	zend_create_closure(&fiber->closure, func, zend_ce_fiber, zend_ce_fiber, &context);
 	
 	return &fiber->std;
 }
@@ -246,6 +254,8 @@ static void zend_fiber_object_destroy(zend_object *object)
 	zval_ptr_dtor(&fiber->value);
 
 	zend_object_std_dtor(&fiber->std);
+	
+	efree(fiber);
 }
 
 
@@ -478,9 +488,6 @@ ZEND_METHOD(Fiber, await)
 	zval *awaitable;
 	zval *fiber_scheduler;
 	
-	zend_function *func;
-	zval closure;
-	zval context;
 	zval method_name;
 	zval retval;
 
@@ -513,20 +520,14 @@ ZEND_METHOD(Fiber, await)
 		Z_PARAM_OBJECT_OF_CLASS(awaitable, zend_ce_awaitable)
 		Z_PARAM_OBJECT_OF_CLASS(fiber_scheduler, zend_ce_fiber_scheduler)
 	ZEND_PARSE_PARAMETERS_END();
-
-	ZVAL_OBJ(&context, &fiber->std);
-	
-	func = zend_hash_find_ptr(&zend_ce_fiber->function_table, fiber_continue_name);
-	zend_create_closure(&closure, func, zend_ce_fiber, zend_ce_fiber, &context);
 	
    	fiber->status = ZEND_FIBER_STATUS_SUSPENDED;
   	fiber->state = ZEND_FIBER_STATE_SUSPENDING;
 
 	ZVAL_STRING(&method_name, "onResolve");
-	call_user_function(NULL, awaitable, &method_name, &retval, 1, &closure);
+	call_user_function(NULL, awaitable, &method_name, &retval, 1, &fiber->closure);
 	zval_ptr_dtor(&retval);
 	zval_ptr_dtor(&method_name);
-	zval_ptr_dtor(&closure);
 	
 	if (EG(exception)) {
 		fiber->state = ZEND_FIBER_STATE_READY;
@@ -584,9 +585,6 @@ ZEND_METHOD(Fiber, await)
 	exec->opline--;
 	zend_throw_exception_object(error);
 	exec->opline++;
-	
-	zval_ptr_dtor(&context);
-	zval_ptr_dtor(&closure);
 }
 /* }}} */
 

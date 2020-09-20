@@ -49,6 +49,9 @@ struct _zend_fiber {
 	/* Used by schedulers to determine which fiber entered the scheduler. */
 	zend_fiber *previous;
 	
+	/* Continuation closure provided to Awaitable::onResolve(). */
+	zval closure;
+	
 	/* Value to return from suspend when resuming the fiber (will be populated by resume()). */
 	zval value;
 	
