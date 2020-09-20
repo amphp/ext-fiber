@@ -297,6 +297,35 @@ static zend_fiber *zend_fiber_create_from_scheduler(zval *scheduler)
 }
 
 
+static zend_fiber *zend_fiber_get_scheduler(zval *scheduler)
+{
+	zend_fiber *fiber;
+	zend_ulong handle = Z_OBJ_HANDLE_P(scheduler);
+	
+	fiber = zend_hash_index_find_ptr(&schedulers, handle);
+	
+	if (fiber != NULL) {
+		if (fiber->status != ZEND_FIBER_STATUS_FINISHED && fiber->status != ZEND_FIBER_STATUS_DEAD) {
+			return fiber;
+		}
+		
+		zend_hash_index_del(&schedulers, handle);
+		GC_DELREF(&fiber->std);
+	}
+	
+	fiber = zend_fiber_create_from_scheduler(scheduler);
+	
+	if (fiber == NULL) {
+		return NULL;
+	}
+	
+	zend_hash_index_add_ptr(&schedulers, handle, fiber);
+	GC_ADDREF(&fiber->std);
+	
+	return fiber;
+}
+
+
 static void zend_fiber_observer_end(zend_execute_data *execute_data, zval *retval)
 {
 	zend_fiber *fiber;
@@ -305,6 +334,7 @@ static void zend_fiber_observer_end(zend_execute_data *execute_data, zval *retva
 		while (fiber->status == ZEND_FIBER_STATUS_SUSPENDED) {
 			zend_fiber_switch_to(fiber);
 		}
+		GC_DELREF(&fiber->std);
 	} ZEND_HASH_FOREACH_END_DEL();
 }
 
@@ -485,7 +515,6 @@ ZEND_METHOD(Fiber, await)
 	ZEND_PARSE_PARAMETERS_END();
 
 	ZVAL_OBJ(&context, &fiber->std);
-	GC_ADDREF(&fiber->std);
 	
 	func = zend_hash_find_ptr(&zend_ce_fiber->function_table, fiber_continue_name);
 	zend_create_closure(&closure, func, zend_ce_fiber, zend_ce_fiber, &context);
@@ -497,27 +526,18 @@ ZEND_METHOD(Fiber, await)
 	call_user_function(NULL, awaitable, &method_name, &retval, 1, &closure);
 	zval_ptr_dtor(&retval);
 	zval_ptr_dtor(&method_name);
+	zval_ptr_dtor(&closure);
 	
-	GC_DELREF(&fiber->std);
-
 	if (EG(exception)) {
 		fiber->state = ZEND_FIBER_STATE_READY;
 		return;
 	}
 	
-	scheduler = zend_hash_index_find_ptr(&schedulers, Z_OBJ_HANDLE_P(fiber_scheduler));
+	scheduler = zend_fiber_get_scheduler(fiber_scheduler);
 	
-	if (scheduler == NULL || scheduler->status == ZEND_FIBER_STATUS_FINISHED || scheduler->status == ZEND_FIBER_STATUS_DEAD) {
-		zend_hash_index_del(&schedulers, Z_OBJ_HANDLE_P(fiber_scheduler));
-		
-		scheduler = zend_fiber_create_from_scheduler(fiber_scheduler);
-		
-		if (scheduler == NULL) {
-			zend_throw_error(zend_ce_fiber_error, "Failed to create scheduler fiber");
-			return;
-		}
-		
-		zend_hash_index_add_ptr(&schedulers, Z_OBJ_HANDLE_P(fiber_scheduler), scheduler);
+	if (scheduler == NULL) {
+		zend_throw_error(NULL, "Failed creating scheduler fiber");
+		return;
 	}
 
 	if (fiber->state == ZEND_FIBER_STATE_SUSPENDING) {
