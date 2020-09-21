@@ -416,6 +416,7 @@ ZEND_METHOD(Fiber, run)
 	fiber->is_scheduler = 0;
 
 	if (!zend_fiber_switch_to(fiber)) {
+		fiber->status = ZEND_FIBER_STATUS_INIT;
 		zend_throw_error(NULL, "Failed switching to fiber");
 		return;
 	}
@@ -470,6 +471,7 @@ ZEND_METHOD(Fiber, continue)
 	}
 
 	if (!zend_fiber_resume(fiber, scheduler)) {
+		fiber->status = ZEND_FIBER_STATUS_SUSPENDED;
 		zend_throw_error(NULL, "Failed resuming fiber");
 		return;
 	}
@@ -528,6 +530,7 @@ ZEND_METHOD(Fiber, await)
 	zval_ptr_dtor(&method_name);
 	
 	if (EG(exception)) {
+		fiber->status = ZEND_FIBER_STATUS_RUNNING;
 		fiber->state = ZEND_FIBER_STATE_READY;
 		return;
 	}
@@ -542,13 +545,9 @@ ZEND_METHOD(Fiber, await)
 	if (fiber->state == ZEND_FIBER_STATE_SUSPENDING) {
 		fiber->state = ZEND_FIBER_STATE_READY;
 
-		if (scheduler->status == ZEND_FIBER_STATUS_FINISHED || scheduler->status == ZEND_FIBER_STATUS_DEAD) {
-			zend_throw_error(zend_ce_fiber_error, "The scheduler returned has terminated!");
-			return;
-		}
-		
 		if (scheduler->status == ZEND_FIBER_STATUS_RUNNING) {
 			if (!zend_fiber_suspend(fiber)) {
+				fiber->status = ZEND_FIBER_STATUS_RUNNING;
 				zend_throw_error(NULL, "Failed suspending fiber");
 				return;
 			}
@@ -557,6 +556,7 @@ ZEND_METHOD(Fiber, await)
 			scheduler->previous = fiber;
 
 			if (!zend_fiber_switch_to(scheduler)) {
+				fiber->status = ZEND_FIBER_STATUS_RUNNING;
 				zend_throw_error(NULL, "Failed switching to scheduler");
 				return;
 			}
