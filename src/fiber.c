@@ -28,9 +28,9 @@
 #endif
 
 ZEND_API zend_class_entry *zend_ce_awaitable;
+ZEND_API zend_class_entry *zend_ce_fiber_scheduler;
 
 static zend_class_entry *zend_ce_fiber;
-static zend_class_entry *zend_ce_fiber_scheduler;
 static zend_class_entry *zend_ce_fiber_error;
 static zend_object_handlers zend_fiber_handlers;
 
@@ -200,10 +200,10 @@ static zend_bool zend_fiber_resume(zend_fiber *fiber, zend_fiber *scheduler)
 	
 	ZEND_ASSERT(scheduler->is_scheduler);
 	
-	if (scheduler->previous == fiber) {
+	if (scheduler->link == fiber) {
 		// Suspend from scheduler to fiber that resumed the scheduler.
 		scheduler->status = ZEND_FIBER_STATUS_SUSPENDED;
-		scheduler->previous = NULL;
+		scheduler->link = NULL;
 		result = zend_fiber_suspend(scheduler);
 		scheduler->status = ZEND_FIBER_STATUS_RUNNING;
 		return result;
@@ -226,7 +226,7 @@ static zend_object *zend_fiber_object_create(zend_class_entry *ce)
 	zend_object_std_init(&fiber->std, ce);
 	fiber->std.handlers = &zend_fiber_handlers;
 	
-	ZVAL_NULL(&fiber->value);
+	ZVAL_UNDEF(&fiber->value);
 	
 	ZVAL_OBJ(&context, &fiber->std);
 	
@@ -318,7 +318,6 @@ static zend_fiber *zend_fiber_get_scheduler(zval *scheduler)
 		}
 		
 		zend_hash_index_del(&schedulers, handle);
-		GC_DELREF(&fiber->std);
 	}
 	
 	fiber = zend_fiber_create_from_scheduler(scheduler);
@@ -338,12 +337,25 @@ static void zend_fiber_observer_end(zend_execute_data *execute_data, zval *retva
 {
 	zend_fiber *fiber;
 	
+	if (!EG(exception)) {
+		ZEND_HASH_REVERSE_FOREACH_PTR(&schedulers, fiber) {
+			if (fiber->status == ZEND_FIBER_STATUS_SUSPENDED) {
+				fiber->status = ZEND_FIBER_STATUS_RUNNING;
+				if (!zend_fiber_switch_to(fiber)) {
+					zend_throw_error(NULL, "Failed switching to fiber");
+					break;
+				}
+				
+				if (EG(exception)) {
+					break;
+				}
+			}
+		} ZEND_HASH_FOREACH_END();
+	}
+	
 	ZEND_HASH_REVERSE_FOREACH_PTR(&schedulers, fiber) {
-		while (fiber->status == ZEND_FIBER_STATUS_SUSPENDED) {
-			zend_fiber_switch_to(fiber);
-		}
 		GC_DELREF(&fiber->std);
-	} ZEND_HASH_FOREACH_END_DEL();
+	} ZEND_HASH_FOREACH_END();
 }
 
 
@@ -390,9 +402,6 @@ ZEND_METHOD(Fiber, run)
 
 	fiber->fci.params = params;
 	fiber->fci.param_count = param_count;
-#if PHP_VERSION_ID < 80000
-	fiber->fci.no_separation = 1;
-#endif
 
 	fiber->context = zend_fiber_create_context();
 	fiber->stack_size = FIBER_G(stack_size);
@@ -446,6 +455,13 @@ ZEND_METHOD(Fiber, continue)
 
 	fiber = (zend_fiber *) Z_OBJ_P(getThis());
 	
+	if (fiber->link != scheduler) {
+		zend_throw_error(zend_ce_fiber_error, "Fiber resumed by a scheduler other than that provided to await");
+		return;
+	}
+	
+	fiber->link = NULL;
+	
 	if (UNEXPECTED(fiber->status != ZEND_FIBER_STATUS_SUSPENDED)) {
 		zend_throw_error(zend_ce_fiber_error, "Cannot resume running fiber");
 		return;
@@ -459,7 +475,7 @@ ZEND_METHOD(Fiber, continue)
 		
 		Z_ADDREF_P(exception);
 		fiber->error = exception;
-	} else if (value != NULL) {
+	} else {
 		ZVAL_COPY(&fiber->value, value);
 	}
 
@@ -545,6 +561,8 @@ ZEND_METHOD(Fiber, await)
 	if (fiber->state == ZEND_FIBER_STATE_SUSPENDING) {
 		fiber->state = ZEND_FIBER_STATE_READY;
 
+		fiber->link = scheduler;
+		
 		if (scheduler->status == ZEND_FIBER_STATUS_RUNNING) {
 			if (!zend_fiber_suspend(fiber)) {
 				fiber->status = ZEND_FIBER_STATUS_RUNNING;
@@ -553,7 +571,7 @@ ZEND_METHOD(Fiber, await)
 			}
 		} else {
 			scheduler->status = ZEND_FIBER_STATUS_RUNNING;
-			scheduler->previous = fiber;
+			scheduler->link = fiber;
 
 			if (!zend_fiber_switch_to(scheduler)) {
 				fiber->status = ZEND_FIBER_STATUS_RUNNING;
@@ -569,10 +587,20 @@ ZEND_METHOD(Fiber, await)
 	}
 	
 	fiber->status = ZEND_FIBER_STATUS_RUNNING;
+	
+	if (EG(exception)) {
+		// Exception thrown from scheduler.
+		return;
+	}
 
 	if (fiber->error == NULL) {
-		ZVAL_COPY_VALUE(return_value, &fiber->value);
-		ZVAL_NULL(&fiber->value);
+		if (Z_TYPE(fiber->value) == IS_UNDEF) {
+			zend_throw_error(zend_ce_fiber_error, "Scheduler ended without resuming fiber");
+			return;
+		}
+		
+		RETVAL_COPY_VALUE(&fiber->value);
+		ZVAL_UNDEF(&fiber->value);
 		return;
 	}
 

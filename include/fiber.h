@@ -28,7 +28,8 @@ void zend_fiber_ce_unregister();
 
 void zend_fiber_shutdown();
 
-extern ZEND_API zend_class_entry *zend_ce_future;
+extern ZEND_API zend_class_entry *zend_ce_awaitable;
+extern ZEND_API zend_class_entry *zend_ce_fiber_scheduler;
 
 typedef void* zend_fiber_context;
 typedef struct _zend_fiber zend_fiber;
@@ -46,8 +47,8 @@ struct _zend_fiber {
 	/* Flag to determine if the fiber is a scheduler. */
 	zend_bool is_scheduler;
 	
-	/* Used by schedulers to determine which fiber entered the scheduler. */
-	zend_fiber *previous;
+	/* Used to determine which fiber entered a scheduler and which scheduler should resume a fiber. */
+	zend_fiber *link;
 	
 	/* Continuation closure provided to Awaitable::onResolve(). */
 	zval closure;
