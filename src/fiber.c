@@ -229,9 +229,12 @@ static zend_object *zend_fiber_object_create(zend_class_entry *ce)
 	ZVAL_UNDEF(&fiber->value);
 	
 	ZVAL_OBJ(&context, &fiber->std);
+	Z_ADDREF(context);
 	
 	func = zend_hash_find_ptr(&zend_ce_fiber->function_table, fiber_continue_name);
-	zend_create_closure(&fiber->closure, func, zend_ce_fiber, zend_ce_fiber, &context);
+	zend_create_fake_closure(&fiber->closure, func, func->op_array.scope, zend_ce_fiber, &context);
+
+	zval_ptr_dtor(&context);
 	
 	return &fiber->std;
 }
@@ -271,7 +274,7 @@ static zend_fiber *zend_fiber_create_from_scheduler(zval *scheduler)
 	fiber = (zend_fiber *) zend_fiber_object_create(zend_ce_fiber);
 	
 	func = zend_hash_find_ptr(&(Z_OBJCE_P(scheduler)->function_table), scheduler_run_name);
-	zend_create_closure(&closure, func, Z_OBJCE_P(scheduler), Z_OBJCE_P(scheduler), scheduler);
+	zend_create_fake_closure(&closure, func, func->op_array.scope, Z_OBJCE_P(scheduler), scheduler);
 	
 	if (zend_fcall_info_init(&closure, 0, &fiber->fci, &fiber->fci_cache, NULL, &error) == FAILURE) {
 		return NULL;
