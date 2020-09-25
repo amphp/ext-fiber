@@ -177,6 +177,8 @@ static int fiber_run_opcode_handler(zend_execute_data *exec)
 	zend_call_function(&fiber->fci, &fiber->fci_cache);
 
 	zval_ptr_dtor(&fiber->fci.function_name);
+	zval_ptr_dtor(&fiber->value);
+	zval_ptr_dtor(&fiber->closure);
 
 	if (EG(exception)) {
 		if (fiber->status == ZEND_FIBER_STATUS_DEAD) {
@@ -187,8 +189,6 @@ static int fiber_run_opcode_handler(zend_execute_data *exec)
 	} else {
 		fiber->status = ZEND_FIBER_STATUS_FINISHED;
 	}
-	
-	zval_ptr_dtor(&fiber->closure);
 	
 	return ZEND_USER_OPCODE_RETURN;
 }
@@ -231,8 +231,8 @@ static zend_object *zend_fiber_object_create(zend_class_entry *ce)
 	ZVAL_OBJ(&context, &fiber->std);
 	Z_ADDREF(context);
 	
-	func = zend_hash_find_ptr(&zend_ce_fiber->function_table, fiber_continue_name);
-	zend_create_fake_closure(&fiber->closure, func, func->op_array.scope, zend_ce_fiber, &context);
+	func = zend_hash_find_ptr(&ce->function_table, fiber_continue_name);
+	zend_create_fake_closure(&fiber->closure, func, func->op_array.scope, ce, &context);
 
 	zval_ptr_dtor(&context);
 	
@@ -253,8 +253,6 @@ static void zend_fiber_object_destroy(zend_object *object)
 	}
 
 	zend_fiber_destroy(fiber->context);
-	
-	zval_ptr_dtor(&fiber->value);
 
 	zend_object_std_dtor(&fiber->std);
 }
@@ -265,7 +263,6 @@ static zend_fiber *zend_fiber_create_from_scheduler(zval *scheduler)
 	zend_fiber *fiber;
 	zend_function *func;
 	zval closure;
-	char *error;
 	
 	if (UNEXPECTED(!instanceof_function(Z_OBJCE_P(scheduler), zend_ce_fiber_scheduler))) {
 		return NULL;
@@ -276,7 +273,7 @@ static zend_fiber *zend_fiber_create_from_scheduler(zval *scheduler)
 	func = zend_hash_find_ptr(&(Z_OBJCE_P(scheduler)->function_table), scheduler_run_name);
 	zend_create_fake_closure(&closure, func, func->op_array.scope, Z_OBJCE_P(scheduler), scheduler);
 	
-	if (zend_fcall_info_init(&closure, 0, &fiber->fci, &fiber->fci_cache, NULL, &error) == FAILURE) {
+	if (zend_fcall_info_init(&closure, 0, &fiber->fci, &fiber->fci_cache, NULL, NULL) == FAILURE) {
 		return NULL;
 	}
 	
@@ -339,24 +336,19 @@ static zend_fiber *zend_fiber_get_scheduler(zval *scheduler)
 static void zend_fiber_observer_end(zend_execute_data *execute_data, zval *retval)
 {
 	zend_fiber *fiber;
-	
-	if (!EG(exception)) {
-		ZEND_HASH_REVERSE_FOREACH_PTR(&schedulers, fiber) {
-			if (fiber->status == ZEND_FIBER_STATUS_SUSPENDED) {
-				fiber->status = ZEND_FIBER_STATUS_RUNNING;
-				if (!zend_fiber_switch_to(fiber)) {
-					zend_throw_error(NULL, "Failed switching to fiber");
-					break;
-				}
-				
-				if (EG(exception)) {
-					break;
-				}
-			}
-		} ZEND_HASH_FOREACH_END();
-	}
-	
+
 	ZEND_HASH_REVERSE_FOREACH_PTR(&schedulers, fiber) {
+		if (fiber->status == ZEND_FIBER_STATUS_SUSPENDED) {
+			fiber->status = ZEND_FIBER_STATUS_RUNNING;
+			if (!zend_fiber_switch_to(fiber)) {
+				zend_throw_error(NULL, "Failed switching to fiber");
+			}
+			GC_DELREF(&fiber->std);
+		}
+	} ZEND_HASH_FOREACH_END();
+
+	ZEND_HASH_REVERSE_FOREACH_PTR(&fibers, fiber) {
+		zend_hash_index_del(&fibers, fiber->std.handle);
 		GC_DELREF(&fiber->std);
 	} ZEND_HASH_FOREACH_END();
 }
