@@ -41,6 +41,7 @@ static zend_op_array fiber_run_func;
 static zend_try_catch_element fiber_terminate_try_catch_array = { 0, 1, 0, 0 };
 static zend_op fiber_run_op[2];
 
+static HashTable fibers;
 static HashTable schedulers;
 static zend_string *scheduler_run_name;
 static zend_string *fiber_continue_name;
@@ -67,15 +68,15 @@ static zend_fiber *zend_fiber_create_root()
 	zend_fiber *root_fiber;
 
 	root_fiber = (zend_fiber *) zend_fiber_object_create(zend_ce_fiber);
-	root_fiber->stack_size = FIBER_G(stack_size);
+	root_fiber->stack_size = 0;
+	root_fiber->stack = NULL;
 	root_fiber->context = zend_fiber_create_root_context();
 	root_fiber->is_scheduler = 0;
 
-	root_fiber->stack = NULL;
 	root_fiber->status = ZEND_FIBER_STATUS_RUNNING;
-	
+
 	FIBER_G(root_fiber) = root_fiber;
-	
+
 	return root_fiber;
 }
 
@@ -89,13 +90,13 @@ static zend_bool zend_fiber_switch_to(zend_fiber *fiber)
 	size_t stack_page_size;
 
 	previous = FIBER_G(current_fiber);
-	
+
 	if (previous == NULL) {
 		previous = zend_fiber_create_root();
 	}
-	
+
 	FIBER_G(current_fiber) = fiber;
-	
+
 	ZEND_FIBER_BACKUP_EG(stack, stack_page_size, exec);
 
 	result = zend_fiber_switch_context(previous->context, fiber->context);
@@ -155,10 +156,10 @@ static void zend_fiber_run()
 	fiber->stack = NULL;
 	fiber->exec = NULL;
 
-	GC_DELREF(&fiber->std);
+	zend_hash_index_del(&fibers, fiber->std.handle);
 
 	zend_fiber_suspend_context(fiber->context);
-	
+
 	abort();
 }
 
@@ -189,7 +190,7 @@ static int fiber_run_opcode_handler(zend_execute_data *exec)
 	} else {
 		fiber->status = ZEND_FIBER_STATUS_FINISHED;
 	}
-	
+
 	return ZEND_USER_OPCODE_RETURN;
 }
 
@@ -197,9 +198,9 @@ static int fiber_run_opcode_handler(zend_execute_data *exec)
 static zend_bool zend_fiber_resume(zend_fiber *fiber, zend_fiber *scheduler)
 {
 	zend_bool result;
-	
+
 	ZEND_ASSERT(scheduler->is_scheduler);
-	
+
 	if (scheduler->link == fiber) {
 		// Suspend from scheduler to fiber that resumed the scheduler.
 		scheduler->status = ZEND_FIBER_STATUS_SUSPENDED;
@@ -208,7 +209,7 @@ static zend_bool zend_fiber_resume(zend_fiber *fiber, zend_fiber *scheduler)
 		scheduler->status = ZEND_FIBER_STATUS_RUNNING;
 		return result;
 	}
-	
+
 	// Another fiber started the scheduler, so switch to resuming fiber.
 	return zend_fiber_switch_to(fiber);
 }
@@ -225,17 +226,19 @@ static zend_object *zend_fiber_object_create(zend_class_entry *ce)
 
 	zend_object_std_init(&fiber->std, ce);
 	fiber->std.handlers = &zend_fiber_handlers;
-	
+
 	ZVAL_UNDEF(&fiber->value);
-	
+
 	ZVAL_OBJ(&context, &fiber->std);
 	Z_ADDREF(context);
-	
+
 	func = zend_hash_find_ptr(&ce->function_table, fiber_continue_name);
 	zend_create_fake_closure(&fiber->closure, func, func->op_array.scope, ce, &context);
 
 	zval_ptr_dtor(&context);
-	
+
+	zend_hash_index_add_ptr(&fibers, fiber->std.handle, fiber);
+
 	return &fiber->std;
 }
 
@@ -243,7 +246,7 @@ static zend_object *zend_fiber_object_create(zend_class_entry *ce)
 static void zend_fiber_object_destroy(zend_object *object)
 {
 	zend_fiber *fiber;
-	
+
 	fiber = (zend_fiber *) object;
 
 	if (fiber->status == ZEND_FIBER_STATUS_SUSPENDED) {
@@ -258,25 +261,34 @@ static void zend_fiber_object_destroy(zend_object *object)
 }
 
 
+static void zend_fiber_hash_index_destroy(zval *ptr)
+{
+	zend_fiber *fiber;
+
+	fiber = (zend_fiber *) Z_PTR_P(ptr);
+	GC_DELREF(&fiber->std);
+}
+
+
 static zend_fiber *zend_fiber_create_from_scheduler(zval *scheduler)
 {
 	zend_fiber *fiber;
 	zend_function *func;
 	zval closure;
-	
+
 	if (UNEXPECTED(!instanceof_function(Z_OBJCE_P(scheduler), zend_ce_fiber_scheduler))) {
 		return NULL;
 	}
-	
+
 	fiber = (zend_fiber *) zend_fiber_object_create(zend_ce_fiber);
-	
+
 	func = zend_hash_find_ptr(&(Z_OBJCE_P(scheduler)->function_table), scheduler_run_name);
 	zend_create_fake_closure(&closure, func, func->op_array.scope, Z_OBJCE_P(scheduler), scheduler);
-	
+
 	if (zend_fcall_info_init(&closure, 0, &fiber->fci, &fiber->fci_cache, NULL, NULL) == FAILURE) {
 		return NULL;
 	}
-	
+
 	// Keep a reference to closures or callable objects as long as the fiber lives.
 	Z_TRY_ADDREF(fiber->fci.function_name);
 
@@ -298,9 +310,9 @@ static zend_fiber *zend_fiber_create_from_scheduler(zval *scheduler)
 
 	fiber->status = ZEND_FIBER_STATUS_INIT;
 	fiber->is_scheduler = 1;
-	
+
 	zval_ptr_dtor(&closure);
-	
+
 	return fiber;
 }
 
@@ -309,26 +321,25 @@ static zend_fiber *zend_fiber_get_scheduler(zval *scheduler)
 {
 	zend_fiber *fiber;
 	zend_ulong handle = Z_OBJ_HANDLE_P(scheduler);
-	
+
 	fiber = zend_hash_index_find_ptr(&schedulers, handle);
-	
+
 	if (fiber != NULL) {
 		if (fiber->status != ZEND_FIBER_STATUS_FINISHED && fiber->status != ZEND_FIBER_STATUS_DEAD) {
 			return fiber;
 		}
-		
+
 		zend_hash_index_del(&schedulers, handle);
 	}
-	
+
 	fiber = zend_fiber_create_from_scheduler(scheduler);
-	
+
 	if (fiber == NULL) {
 		return NULL;
 	}
-	
+
 	zend_hash_index_add_ptr(&schedulers, handle, fiber);
-	GC_ADDREF(&fiber->std);
-	
+
 	return fiber;
 }
 
@@ -343,13 +354,11 @@ static void zend_fiber_observer_end(zend_execute_data *execute_data, zval *retva
 			if (!zend_fiber_switch_to(fiber)) {
 				zend_throw_error(NULL, "Failed switching to fiber");
 			}
-			GC_DELREF(&fiber->std);
 		}
 	} ZEND_HASH_FOREACH_END();
 
 	ZEND_HASH_REVERSE_FOREACH_PTR(&fibers, fiber) {
 		zend_hash_index_del(&fibers, fiber->std.handle);
-		GC_DELREF(&fiber->std);
 	} ZEND_HASH_FOREACH_END();
 }
 
@@ -737,7 +746,8 @@ void zend_fiber_ce_register()
 	zend_ce_fiber_error = zend_register_internal_class_ex(&ce, zend_ce_error);
 	zend_ce_fiber_error->ce_flags |= ZEND_ACC_FINAL;
 	zend_ce_fiber_error->create_object = zend_ce_error->create_object;
-	
+
+	zend_hash_init(&fibers, 0, NULL, zend_fiber_hash_index_destroy, 1);
 	zend_hash_init(&schedulers, 0, NULL, NULL, 1);
 	
 	scheduler_run_name = zend_string_init("run", sizeof("run") - 1, 1);
@@ -748,7 +758,8 @@ void zend_fiber_ce_unregister()
 {
 	zend_string_free(fiber_run_func.function_name);
 	fiber_run_func.function_name = NULL;
-	
+
+	zend_hash_destroy(&fibers);
 	zend_hash_destroy(&schedulers);
 	
 	zend_string_free(scheduler_run_name);
@@ -769,7 +780,6 @@ void zend_fiber_shutdown()
 	}
 	
 	FIBER_G(root_fiber) = NULL;
-	
+
 	Z_DELREF(fiber->closure);
-	GC_DELREF(&fiber->std);
 }
