@@ -530,6 +530,11 @@ ZEND_METHOD(Fiber, await)
 			return;
 		}
 
+		if (UNEXPECTED(fiber->state == ZEND_FIBER_STATE_SUSPENDING)) {
+			zend_throw_error(zend_ce_fiber_error, "Cannot await in Awaitable::onResolve()");
+			return;
+		}
+
 		if (UNEXPECTED(fiber->status != ZEND_FIBER_STATUS_RUNNING)) {
 			zend_throw_error(zend_ce_fiber_error, "Cannot await in a fiber that is not running");
 			return;
