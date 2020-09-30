@@ -170,7 +170,7 @@ static int fiber_run_opcode_handler(zend_execute_data *exec)
 	zval retval;
 
 	fiber = FIBER_G(current_fiber);
-	ZEND_ASSERT(fiber != NULL);
+	ZEND_ASSERT(fiber != NULL && fiber != FIBER_G(root_fiber));
 
 	fiber->status = ZEND_FIBER_STATUS_RUNNING;
 	fiber->fci.retval = &retval;
@@ -178,8 +178,6 @@ static int fiber_run_opcode_handler(zend_execute_data *exec)
 	zend_call_function(&fiber->fci, &fiber->fci_cache);
 
 	zval_ptr_dtor(&fiber->fci.function_name);
-	zval_ptr_dtor(&fiber->value);
-	zval_ptr_dtor(&fiber->closure);
 
 	if (EG(exception)) {
 		if (fiber->status == ZEND_FIBER_STATUS_DEAD) {
@@ -258,6 +256,9 @@ static void zend_fiber_object_destroy(zend_object *object)
 	zend_fiber_destroy(fiber->context);
 
 	zend_object_std_dtor(&fiber->std);
+
+	zval_ptr_dtor(&fiber->value);
+	zval_ptr_dtor(&fiber->closure);
 }
 
 
@@ -286,11 +287,14 @@ static zend_fiber *zend_fiber_create_from_scheduler(zval *scheduler)
 	zend_create_fake_closure(&closure, func, func->op_array.scope, Z_OBJCE_P(scheduler), scheduler);
 
 	if (zend_fcall_info_init(&closure, 0, &fiber->fci, &fiber->fci_cache, NULL, NULL) == FAILURE) {
+		zval_ptr_dtor(&closure);
 		return NULL;
 	}
 
 	// Keep a reference to closures or callable objects as long as the fiber lives.
 	Z_TRY_ADDREF(fiber->fci.function_name);
+
+	zval_ptr_dtor(&closure);
 
 	fiber->context = zend_fiber_create_context();
 	fiber->stack_size = FIBER_G(stack_size);
@@ -311,8 +315,6 @@ static zend_fiber *zend_fiber_create_from_scheduler(zval *scheduler)
 	fiber->status = ZEND_FIBER_STATUS_INIT;
 	fiber->is_scheduler = 1;
 
-	zval_ptr_dtor(&closure);
-
 	return fiber;
 }
 
@@ -330,6 +332,7 @@ static zend_fiber *zend_fiber_get_scheduler(zval *scheduler)
 		}
 
 		zend_hash_index_del(&schedulers, handle);
+		zend_hash_index_del(&fibers, fiber->std.handle);
 	}
 
 	fiber = zend_fiber_create_from_scheduler(scheduler);
@@ -776,15 +779,6 @@ void zend_fiber_ce_unregister()
 
 void zend_fiber_shutdown()
 {
-	zend_fiber *fiber;
-	
-	fiber = FIBER_G(root_fiber);
-	
-	if (fiber == NULL) {
-		return;
-	}
-	
 	FIBER_G(root_fiber) = NULL;
-
-	Z_DELREF(fiber->closure);
+	FIBER_G(current_fiber) = NULL;
 }
