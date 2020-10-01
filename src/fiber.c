@@ -156,6 +156,9 @@ static void zend_fiber_run()
 	fiber->stack = NULL;
 	fiber->exec = NULL;
 
+	zval_ptr_dtor(&fiber->value);
+	zval_ptr_dtor(&fiber->closure);
+
 	zend_hash_index_del(&fibers, fiber->std.handle);
 
 	zend_fiber_suspend_context(fiber->context);
@@ -256,9 +259,6 @@ static void zend_fiber_object_destroy(zend_object *object)
 	zend_fiber_destroy(fiber->context);
 
 	zend_object_std_dtor(&fiber->std);
-
-	zval_ptr_dtor(&fiber->value);
-	zval_ptr_dtor(&fiber->closure);
 }
 
 
@@ -356,6 +356,7 @@ static void zend_fiber_observer_end(zend_execute_data *execute_data, zval *retva
 			fiber->status = ZEND_FIBER_STATUS_RUNNING;
 			if (!zend_fiber_switch_to(fiber)) {
 				zend_throw_error(NULL, "Failed switching to fiber");
+				break;
 			}
 		}
 	} ZEND_HASH_FOREACH_END();
@@ -779,6 +780,17 @@ void zend_fiber_ce_unregister()
 
 void zend_fiber_shutdown()
 {
+	zend_fiber *fiber;
+
+	fiber = FIBER_G(root_fiber);
+
 	FIBER_G(root_fiber) = NULL;
 	FIBER_G(current_fiber) = NULL;
+
+	if (fiber == NULL) {
+		return;
+	}
+
+	zval_ptr_dtor(&fiber->value);
+	zval_ptr_dtor(&fiber->closure);
 }
