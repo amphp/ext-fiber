@@ -354,14 +354,16 @@ static void zend_fiber_observer_end(zend_execute_data *execute_data, zval *retva
 	ZEND_HASH_REVERSE_FOREACH_PTR(&schedulers, fiber) {
 		if (fiber->status == ZEND_FIBER_STATUS_SUSPENDED) {
 			fiber->status = ZEND_FIBER_STATUS_RUNNING;
-			if (!zend_fiber_switch_to(fiber)) {
-				zend_throw_error(NULL, "Failed switching to fiber");
-				break;
-			}
+			zend_fiber_switch_to(fiber);
 		}
 	} ZEND_HASH_FOREACH_END();
 
 	ZEND_HASH_REVERSE_FOREACH_PTR(&fibers, fiber) {
+		if (fiber->status == ZEND_FIBER_STATUS_SUSPENDED) {
+			fiber->status = ZEND_FIBER_STATUS_DEAD;
+			zend_fiber_switch_to(fiber);
+		}
+
 		zend_hash_index_del(&fibers, fiber->std.handle);
 	} ZEND_HASH_FOREACH_END();
 }
