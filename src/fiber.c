@@ -635,9 +635,19 @@ ZEND_METHOD(Fiber, await)
 	if (EG(exception)) {
 		// Exception thrown from scheduler, invoke exception handler and bailout.
 		fiber->status = ZEND_FIBER_STATUS_DEAD;
+
+		if (zend_is_unwind_exit(EG(exception))) {
+			return; // Exception is UnwindExit, so ignore as we are exiting anyway.
+		}
+
+		ZVAL_STR(&retval, EG(exception)->ce->name);
+
 		zend_fiber_scheduler_uncaught_exception_handler();
 		zend_fiber_cleanup();
-		zend_error(E_ERROR, "Fiber Scheduler threw an exception");
+
+		zend_error(E_ERROR, "Uncaught %s thrown from fiber scheduler", Z_STRVAL(retval));
+
+		zval_ptr_dtor(&retval);
 		return;
 	}
 
