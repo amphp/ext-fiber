@@ -379,6 +379,29 @@ zend_observer_fcall_handlers zend_fiber_observer_fcall_init(zend_function *fbc)
 }
 
 
+static void zend_fiber_scheduler_uncaught_exception_handler()
+{
+	zend_object *exception;
+	zval param;
+	zval retval;
+
+	if (Z_TYPE(EG(user_exception_handler)) == IS_UNDEF) {
+		return;
+	}
+
+	exception = EG(exception);
+	GC_ADDREF(exception);
+	ZVAL_OBJ(&param, exception);
+
+	zend_clear_exception();
+
+	call_user_function(EG(function_table), NULL, &EG(user_exception_handler), &retval, 1, &param);
+
+	zval_ptr_dtor(&param);
+	zval_ptr_dtor(&retval);
+}
+
+
 static ZEND_COLD zend_function *zend_fiber_get_constructor(zend_object *object)
 {
 	zend_throw_error(NULL, "Use Fiber::run() to run a fiber");
@@ -601,12 +624,15 @@ ZEND_METHOD(Fiber, await)
 		}
 	}
 	
-	fiber->status = ZEND_FIBER_STATUS_RUNNING;
-	
 	if (EG(exception)) {
-		// Exception thrown from scheduler.
+		// Exception thrown from scheduler, invoke exception handler and bailout.
+		fiber->status = ZEND_FIBER_STATUS_DEAD;
+		zend_fiber_scheduler_uncaught_exception_handler();
+		zend_error(E_ERROR, "Fiber Scheduler threw an exception");
 		return;
 	}
+
+	fiber->status = ZEND_FIBER_STATUS_RUNNING;
 
 	if (fiber->error == NULL) {
 		if (Z_TYPE(fiber->value) == IS_UNDEF) {
