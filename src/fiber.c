@@ -347,6 +347,21 @@ static zend_fiber *zend_fiber_get_scheduler(zval *scheduler)
 }
 
 
+static void zend_fiber_cleanup()
+{
+	zend_fiber *fiber;
+
+	ZEND_HASH_REVERSE_FOREACH_PTR(&fibers, fiber) {
+		if (fiber->status == ZEND_FIBER_STATUS_SUSPENDED) {
+			fiber->status = ZEND_FIBER_STATUS_DEAD;
+			zend_fiber_switch_to(fiber);
+		}
+
+		zend_hash_index_del(&fibers, fiber->std.handle);
+	} ZEND_HASH_FOREACH_END();
+}
+
+
 static void zend_fiber_observer_end(zend_execute_data *execute_data, zval *retval)
 {
 	zend_fiber *fiber;
@@ -358,14 +373,7 @@ static void zend_fiber_observer_end(zend_execute_data *execute_data, zval *retva
 		}
 	} ZEND_HASH_FOREACH_END();
 
-	ZEND_HASH_REVERSE_FOREACH_PTR(&fibers, fiber) {
-		if (fiber->status == ZEND_FIBER_STATUS_SUSPENDED) {
-			fiber->status = ZEND_FIBER_STATUS_DEAD;
-			zend_fiber_switch_to(fiber);
-		}
-
-		zend_hash_index_del(&fibers, fiber->std.handle);
-	} ZEND_HASH_FOREACH_END();
+	zend_fiber_cleanup();
 }
 
 
@@ -628,6 +636,7 @@ ZEND_METHOD(Fiber, await)
 		// Exception thrown from scheduler, invoke exception handler and bailout.
 		fiber->status = ZEND_FIBER_STATUS_DEAD;
 		zend_fiber_scheduler_uncaught_exception_handler();
+		zend_fiber_cleanup();
 		zend_error(E_ERROR, "Fiber Scheduler threw an exception");
 		return;
 	}
