@@ -28,6 +28,20 @@ extern ZEND_API zend_class_entry *zend_ce_awaitable;
 extern ZEND_API zend_class_entry *zend_ce_fiber_scheduler;
 
 typedef void* zend_fiber_context;
+
+typedef struct _zend_fiber_continuation zend_fiber_continuation;
+
+struct _zend_fiber_continuation {
+	/* Continuation closure provided to Awaitable::onResolve(). */
+	zval closure;
+
+	/* Value to return from suspend when resuming the fiber (will be populated by resume()). */
+	zval value;
+
+	/* Error to be thrown into a fiber (will be populated by throw()). */
+	zval *error;
+};
+
 typedef struct _zend_fiber zend_fiber;
 
 struct _zend_fiber {
@@ -40,20 +54,11 @@ struct _zend_fiber {
 	/* Fiber suspension state, one of the ZEND_FIBER_STATE_* constants. */
 	zend_uchar state;
 	
-	/* Flag to determine if the fiber is a scheduler. */
-	zend_bool is_scheduler;
-	
 	/* Used to determine which fiber entered a scheduler and which scheduler should resume a fiber. */
 	zend_fiber *link;
-	
-	/* Continuation closure provided to Awaitable::onResolve(). */
-	zval closure;
-	
-	/* Value to return from suspend when resuming the fiber (will be populated by resume()). */
-	zval value;
-	
-	/* Error to be thrown into a fiber (will be populated by throw()). */
-	zval *error;
+
+	/* Continuation variables for non-scheduler fibers. */
+	zend_fiber_continuation *continuation;
 
 	/* Callback and info / cache to be used when fiber is started. */
 	zend_fcall_info fci;
