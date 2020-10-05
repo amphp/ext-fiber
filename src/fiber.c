@@ -302,6 +302,12 @@ static void zend_fiber_hash_index_destroy(zval *ptr)
 }
 
 
+static void zend_fiber_scheduler_hash_index_destroy(zval *ptr)
+{
+	efree(Z_PTR_P(ptr));
+}
+
+
 static zend_fiber *zend_fiber_create_from_scheduler(zval *scheduler)
 {
 	zend_fiber *fiber;
@@ -386,10 +392,6 @@ static void zend_fiber_cleanup()
 	zend_fiber *fiber;
 	uint32_t handle;
 
-	ZEND_HASH_REVERSE_FOREACH_NUM_KEY_PTR(&schedulers, handle, fiber) {
-		zend_hash_index_del(&schedulers, handle);
-	} ZEND_HASH_FOREACH_END();
-
 	ZEND_HASH_REVERSE_FOREACH_NUM_KEY_PTR(&fibers, handle, fiber) {
 		if (fiber->status == ZEND_FIBER_STATUS_SUSPENDED) {
 			fiber->status = ZEND_FIBER_STATUS_DEAD;
@@ -397,6 +399,10 @@ static void zend_fiber_cleanup()
 		}
 
 		zend_hash_index_del(&fibers, handle);
+	} ZEND_HASH_FOREACH_END();
+
+	ZEND_HASH_REVERSE_FOREACH_NUM_KEY_PTR(&schedulers, handle, fiber) {
+		zend_hash_index_del(&schedulers, handle);
 	} ZEND_HASH_FOREACH_END();
 }
 
@@ -838,7 +844,7 @@ void zend_fiber_ce_register()
 	zend_ce_fiber_error->create_object = zend_ce_error->create_object;
 
 	zend_hash_init(&fibers, 0, NULL, zend_fiber_hash_index_destroy, 1);
-	zend_hash_init(&schedulers, 0, NULL, NULL, 1);
+	zend_hash_init(&schedulers, 0, NULL, zend_fiber_scheduler_hash_index_destroy, 1);
 	
 	scheduler_run_name = zend_string_init("run", sizeof("run") - 1, 1);
 	fiber_continue_name = zend_string_init("continue", sizeof("continue") - 1, 1);
