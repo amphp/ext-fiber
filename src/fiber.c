@@ -417,8 +417,6 @@ static void zend_fiber_observer_end(zend_execute_data *execute_data, zval *retva
 			zend_fiber_switch_to(fiber);
 		}
 	} ZEND_HASH_FOREACH_END();
-
-	zend_fiber_cleanup();
 }
 
 
@@ -528,7 +526,7 @@ ZEND_METHOD(Fiber, continue)
 		Z_PARAM_OBJECT_OF_CLASS_EX(exception, zend_ce_throwable, 1, 0)
 		Z_PARAM_ZVAL(value);
 	ZEND_PARSE_PARAMETERS_END();
-	
+
 	scheduler = FIBER_G(current_fiber);
 	
 	if (UNEXPECTED(scheduler == NULL || !zend_fiber_is_scheduler(scheduler))) {
@@ -564,11 +562,6 @@ ZEND_METHOD(Fiber, continue)
 
 	fiber->status = ZEND_FIBER_STATUS_RUNNING;
 
-	if (fiber->state == ZEND_FIBER_STATE_SUSPENDING) {
-		fiber->state = ZEND_FIBER_STATE_READY;
-		return;
-	}
-
 	if (!zend_fiber_resume(fiber, scheduler)) {
 		fiber->status = ZEND_FIBER_STATUS_SUSPENDED;
 		zend_throw_error(zend_ce_fiber_error, "Failed resuming fiber");
@@ -601,11 +594,6 @@ ZEND_METHOD(Fiber, await)
 			return;
 		}
 
-		if (UNEXPECTED(fiber->state == ZEND_FIBER_STATE_SUSPENDING)) {
-			zend_throw_error(zend_ce_fiber_error, "Cannot await in Awaitable::onResolve()");
-			return;
-		}
-
 		if (UNEXPECTED(fiber->status != ZEND_FIBER_STATUS_RUNNING)) {
 			zend_throw_error(zend_ce_fiber_error, "Cannot await in a fiber that is not running");
 			return;
@@ -625,7 +613,6 @@ ZEND_METHOD(Fiber, await)
 	}
 
    	fiber->status = ZEND_FIBER_STATUS_SUSPENDED;
-  	fiber->state = ZEND_FIBER_STATE_SUSPENDING;
 
 	ZVAL_STRING(&method_name, "onResolve");
 	call_user_function(NULL, awaitable, &method_name, &retval, 1, &fiber->continuation->closure);
@@ -633,41 +620,39 @@ ZEND_METHOD(Fiber, await)
 	zval_ptr_dtor(&method_name);
 	
 	if (EG(exception)) {
+		// Exception thrown from Awaitable::onResolve().
 		fiber->status = ZEND_FIBER_STATUS_RUNNING;
-		fiber->state = ZEND_FIBER_STATE_READY;
 		return;
 	}
 
-	if (fiber->state == ZEND_FIBER_STATE_SUSPENDING) {
-		fiber->state = ZEND_FIBER_STATE_READY;
+	fiber->link = scheduler;
 
-		fiber->link = scheduler;
-		
-		if (scheduler->status == ZEND_FIBER_STATUS_RUNNING) {
-			if (!zend_fiber_suspend(fiber)) {
-				fiber->status = ZEND_FIBER_STATUS_RUNNING;
-				zend_throw_error(zend_ce_fiber_error, "Failed suspending fiber");
-				return;
-			}
-		} else {
-			scheduler->status = ZEND_FIBER_STATUS_RUNNING;
-			scheduler->link = fiber;
-
-			if (!zend_fiber_switch_to(scheduler)) {
-				fiber->status = ZEND_FIBER_STATUS_RUNNING;
-				zend_throw_error(zend_ce_fiber_error, "Failed switching to scheduler");
-				return;
-			}
+	if (scheduler->status == ZEND_FIBER_STATUS_RUNNING) {
+		if (!zend_fiber_suspend(fiber)) {
+			fiber->status = ZEND_FIBER_STATUS_RUNNING;
+			zend_throw_error(zend_ce_fiber_error, "Failed suspending fiber");
+			return;
 		}
+	} else {
+		scheduler->status = ZEND_FIBER_STATUS_RUNNING;
+		scheduler->link = fiber;
 
-		if (fiber->status == ZEND_FIBER_STATUS_DEAD) {
-			zend_throw_error(zend_ce_fiber_error, "Fiber has been destroyed");
+		if (!zend_fiber_switch_to(scheduler)) {
+			fiber->status = ZEND_FIBER_STATUS_RUNNING;
+			zend_throw_error(zend_ce_fiber_error, "Failed switching to scheduler");
 			return;
 		}
 	}
+
+	if (fiber->status == ZEND_FIBER_STATUS_DEAD) {
+		zend_throw_error(zend_ce_fiber_error, "Fiber has been destroyed");
+		return;
+	}
+
+	fiber->status = ZEND_FIBER_STATUS_RUNNING;
 	
 	if (EG(exception)) {
-		zval name, *message, rv;
+		zval name, message, rv;
 
 		// Exception thrown from scheduler, invoke exception handler and bailout.
 		fiber->status = ZEND_FIBER_STATUS_DEAD;
@@ -677,21 +662,19 @@ ZEND_METHOD(Fiber, await)
 		}
 
 		ZVAL_STR(&name, EG(exception)->ce->name);
-		message = zend_read_property(EG(exception)->ce, EG(exception), "message", sizeof("message") - 1, 0, &rv);
+		ZVAL_COPY(&message, zend_read_property(EG(exception)->ce, EG(exception), "message", sizeof("message") - 1, 0, &rv));
 
 		zend_fiber_scheduler_uncaught_exception_handler();
 		zend_fiber_cleanup();
 
-		zend_error(E_ERROR, "Uncaught %s thrown from FiberScheduler::run(): %s", Z_STRVAL(name), Z_STRVAL_P(message));
+		zend_error(E_ERROR, "Uncaught %s thrown from FiberScheduler::run(): %s", Z_STRVAL(name), Z_STRVAL(message));
 
 		zval_ptr_dtor(&name);
-		zval_ptr_dtor(message);
+		zval_ptr_dtor(&message);
 		zval_ptr_dtor(&rv);
 
 		return;
 	}
-
-	fiber->status = ZEND_FIBER_STATUS_RUNNING;
 
 	if (UNEXPECTED(scheduler->status == ZEND_FIBER_STATUS_FINISHED || scheduler->status == ZEND_FIBER_STATUS_DEAD)) {
 		zend_throw_error(zend_ce_fiber_error, "FiberScheduler::run() returned unexpectedly");

@@ -51,9 +51,6 @@ struct _zend_fiber {
 	/* Status of the fiber, one of the ZEND_FIBER_STATUS_* constants. */
 	zend_uchar status;
 	
-	/* Fiber suspension state, one of the ZEND_FIBER_STATE_* constants. */
-	zend_uchar state;
-	
 	/* Used to determine which fiber entered a scheduler and which scheduler should resume a fiber. */
 	zend_fiber *link;
 
@@ -82,9 +79,6 @@ static const zend_uchar ZEND_FIBER_STATUS_SUSPENDED = 1;
 static const zend_uchar ZEND_FIBER_STATUS_RUNNING = 2;
 static const zend_uchar ZEND_FIBER_STATUS_FINISHED = 3;
 static const zend_uchar ZEND_FIBER_STATUS_DEAD = 4;
-
-static const zend_uchar ZEND_FIBER_STATE_READY = 0;
-static const zend_uchar ZEND_FIBER_STATE_SUSPENDING = 1;
 
 typedef void (* zend_fiber_func)();
 
