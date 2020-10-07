@@ -308,9 +308,7 @@ static zend_fiber *zend_fiber_create_from_scheduler(zval *scheduler)
 	zend_function *func;
 	zval closure;
 
-	if (UNEXPECTED(!instanceof_function(Z_OBJCE_P(scheduler), zend_ce_fiber_scheduler))) {
-		return NULL;
-	}
+	ZEND_ASSERT(instanceof_function(Z_OBJCE_P(scheduler), zend_ce_fiber_scheduler));
 
 	fiber = (zend_fiber *) zend_fiber_object_initialize(zend_ce_fiber, 1);
 
@@ -356,6 +354,8 @@ static zend_fiber *zend_fiber_get_scheduler(zval *scheduler)
 {
 	zend_fiber *fiber;
 	zend_ulong handle = Z_OBJ_HANDLE_P(scheduler);
+
+	ZEND_ASSERT(instanceof_function(Z_OBJCE_P(scheduler), zend_ce_fiber_scheduler));
 
 	fiber = zend_hash_index_find_ptr(&schedulers, handle);
 
@@ -425,24 +425,31 @@ zend_observer_fcall_handlers zend_fiber_observer_fcall_init(zend_execute_data *e
 }
 
 
-static void zend_fiber_scheduler_uncaught_exception_handler()
+static void zend_fiber_scheduler_uncaught_exception_handler(zend_object *exception)
 {
-	zend_object *exception;
-	zval param, retval;
+	zval param, retval, name, message;
 
-	if (Z_TYPE(EG(user_exception_handler)) == IS_UNDEF) {
-		return;
+	ZEND_ASSERT(instanceof_function(exception->ce, zend_ce_throwable));
+
+	if (Z_TYPE(EG(user_exception_handler)) != IS_UNDEF) {
+		GC_ADDREF(exception);
+		ZVAL_OBJ(&param, exception);
+
+		zend_clear_exception();
+
+		call_user_function(EG(function_table), NULL, &EG(user_exception_handler), &retval, 1, &param);
+
+		zval_ptr_dtor(&param);
+		zval_ptr_dtor(&retval);
 	}
 
-	exception = EG(exception);
-	GC_ADDREF(exception);
-	ZVAL_OBJ(&param, exception);
+	ZVAL_STR(&name, exception->ce->name);
+	ZVAL_COPY(&message, zend_read_property(exception->ce, exception, "message", sizeof("message") - 1, 0, &retval));
 
-	zend_clear_exception();
+	zend_error(E_ERROR, "Uncaught %s thrown from FiberScheduler::run(): %s", Z_STRVAL(name), Z_STRVAL(message));
 
-	call_user_function(EG(function_table), NULL, &EG(user_exception_handler), &retval, 1, &param);
-
-	zval_ptr_dtor(&param);
+	zval_ptr_dtor(&name);
+	zval_ptr_dtor(&message);
 	zval_ptr_dtor(&retval);
 }
 
@@ -614,7 +621,7 @@ ZEND_METHOD(Fiber, await)
 	zval_ptr_dtor(&retval);
 	zval_ptr_dtor(&method_name);
 	
-	if (EG(exception)) {
+	if (UNEXPECTED(EG(exception))) {
 		// Exception thrown from Awaitable::onResolve().
 		fiber->status = ZEND_FIBER_STATUS_RUNNING;
 		return;
@@ -646,27 +653,14 @@ ZEND_METHOD(Fiber, await)
 
 	fiber->status = ZEND_FIBER_STATUS_RUNNING;
 	
-	if (EG(exception)) {
+	if (UNEXPECTED(EG(exception))) {
 		// Exception thrown from scheduler, invoke exception handler and bailout.
 		if (zend_is_unwind_exit(EG(exception))) {
 			return; // Exception is UnwindExit, so ignore as we are exiting anyway.
 		}
 
-		zval name, message, rv;
-
 		fiber->status = ZEND_FIBER_STATUS_DEAD;
-
-		ZVAL_STR(&name, EG(exception)->ce->name);
-		ZVAL_COPY(&message, zend_read_property(EG(exception)->ce, EG(exception), "message", sizeof("message") - 1, 0, &rv));
-
-		zend_fiber_scheduler_uncaught_exception_handler();
-
-		zend_error(E_ERROR, "Uncaught %s thrown from FiberScheduler::run(): %s", Z_STRVAL(name), Z_STRVAL(message));
-
-		zval_ptr_dtor(&name);
-		zval_ptr_dtor(&message);
-		zval_ptr_dtor(&rv);
-
+		zend_fiber_scheduler_uncaught_exception_handler(EG(exception));
 		return;
 	}
 
