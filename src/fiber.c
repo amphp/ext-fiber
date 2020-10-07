@@ -387,7 +387,7 @@ static void zend_fiber_cleanup()
 	uint32_t handle;
 
 	ZEND_HASH_REVERSE_FOREACH_NUM_KEY_PTR(&fibers, handle, fiber) {
-		if (fiber->status == ZEND_FIBER_STATUS_SUSPENDED) {
+		if (fiber->status == ZEND_FIBER_STATUS_SUSPENDED && !zend_fiber_is_scheduler(fiber)) {
 			fiber->status = ZEND_FIBER_STATUS_DEAD;
 			zend_fiber_switch_to(fiber);
 		}
@@ -397,6 +397,7 @@ static void zend_fiber_cleanup()
 
 	ZEND_HASH_REVERSE_FOREACH_NUM_KEY_PTR(&schedulers, handle, fiber) {
 		zend_hash_index_del(&schedulers, handle);
+		efree(fiber);
 	} ZEND_HASH_FOREACH_END();
 }
 
@@ -646,20 +647,19 @@ ZEND_METHOD(Fiber, await)
 	fiber->status = ZEND_FIBER_STATUS_RUNNING;
 	
 	if (EG(exception)) {
-		zval name, message, rv;
-
 		// Exception thrown from scheduler, invoke exception handler and bailout.
-		fiber->status = ZEND_FIBER_STATUS_DEAD;
-
 		if (zend_is_unwind_exit(EG(exception))) {
 			return; // Exception is UnwindExit, so ignore as we are exiting anyway.
 		}
+
+		zval name, message, rv;
+
+		fiber->status = ZEND_FIBER_STATUS_DEAD;
 
 		ZVAL_STR(&name, EG(exception)->ce->name);
 		ZVAL_COPY(&message, zend_read_property(EG(exception)->ce, EG(exception), "message", sizeof("message") - 1, 0, &rv));
 
 		zend_fiber_scheduler_uncaught_exception_handler();
-		zend_fiber_cleanup();
 
 		zend_error(E_ERROR, "Uncaught %s thrown from FiberScheduler::run(): %s", Z_STRVAL(name), Z_STRVAL(message));
 
