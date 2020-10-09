@@ -47,6 +47,8 @@ static HashTable schedulers;
 static zend_string *scheduler_run_name;
 static zend_string *fiber_continue_name;
 
+static zend_bool zend_fiber_fatal_error = 0;
+
 #define ZEND_FIBER_BACKUP_EG(stack, stack_page_size, exec) do { \
 	stack = EG(vm_stack); \
 	stack->top = EG(vm_stack_top); \
@@ -120,9 +122,7 @@ static zend_bool zend_fiber_suspend(zend_fiber *fiber)
 	size_t stack_page_size;
 	zend_bool result;
 
-	if (fiber->stack == NULL) {
-		return 1;
-	}
+	ZEND_ASSERT(fiber->stack != NULL); // Root fiber should not be suspended.
 
 	ZEND_FIBER_BACKUP_EG(fiber->stack, stack_page_size, fiber->exec);
 
@@ -386,6 +386,15 @@ static void zend_fiber_cleanup()
 	zend_fiber *fiber;
 	uint32_t handle;
 
+	if (!zend_fiber_fatal_error) {
+		ZEND_HASH_REVERSE_FOREACH_PTR(&schedulers, fiber) {
+			if (fiber->status == ZEND_FIBER_STATUS_SUSPENDED) {
+				fiber->status = ZEND_FIBER_STATUS_RUNNING;
+				zend_fiber_switch_to(fiber);
+			}
+		} ZEND_HASH_FOREACH_END();
+	}
+
 	ZEND_HASH_REVERSE_FOREACH_NUM_KEY_PTR(&fibers, handle, fiber) {
 		if (fiber->status == ZEND_FIBER_STATUS_SUSPENDED && !zend_fiber_is_scheduler(fiber)) {
 			fiber->status = ZEND_FIBER_STATUS_DEAD;
@@ -402,26 +411,9 @@ static void zend_fiber_cleanup()
 }
 
 
-static void zend_fiber_observer_end(zend_execute_data *execute_data, zval *retval)
+void zend_fiber_error_observer(int type, const char *filename, uint32_t line, zend_string *message)
 {
-	zend_fiber *fiber;
-
-	ZEND_HASH_REVERSE_FOREACH_PTR(&schedulers, fiber) {
-		if (fiber->status == ZEND_FIBER_STATUS_SUSPENDED) {
-			fiber->status = ZEND_FIBER_STATUS_RUNNING;
-			zend_fiber_switch_to(fiber);
-		}
-	} ZEND_HASH_FOREACH_END();
-}
-
-
-zend_observer_fcall_handlers zend_fiber_observer_fcall_init(zend_execute_data *execute_data)
-{
-	if (!execute_data->func->common.function_name && !execute_data->prev_execute_data) {
-		return (zend_observer_fcall_handlers){NULL, zend_fiber_observer_end};
-	}
-	
-	return (zend_observer_fcall_handlers){NULL, NULL};
+	zend_fiber_fatal_error = type & E_FATAL_ERRORS && !(type & E_DONT_BAIL);
 }
 
 
@@ -840,16 +832,16 @@ void zend_fiber_shutdown()
 {
 	zend_fiber *fiber;
 
-	zend_fiber_cleanup();
-
 	fiber = FIBER_G(root_fiber);
-
-	FIBER_G(root_fiber) = NULL;
-	FIBER_G(current_fiber) = NULL;
 
 	if (fiber == NULL) {
 		return;
 	}
+
+	zend_fiber_cleanup();
+
+	FIBER_G(root_fiber) = NULL;
+	FIBER_G(current_fiber) = NULL;
 
 	zval_ptr_dtor(&fiber->continuation->value);
 	zval_ptr_dtor(&fiber->continuation->closure);
