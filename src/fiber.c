@@ -672,7 +672,8 @@ ZEND_METHOD(Fiber, await)
 	}
 
 	if (fiber->status == ZEND_FIBER_STATUS_DEAD) {
-		zend_throw_error(zend_ce_fiber_error, "Fiber has been destroyed");
+		// This occurs on exit if the fiber never resumed.
+		zend_throw_unwind_exit();
 		return;
 	}
 
