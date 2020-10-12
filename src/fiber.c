@@ -387,27 +387,60 @@ static void zend_fiber_cleanup()
 	uint32_t handle;
 
 	if (!zend_fiber_fatal_error) {
-		ZEND_HASH_REVERSE_FOREACH_PTR(&schedulers, fiber) {
-			if (fiber->status == ZEND_FIBER_STATUS_SUSPENDED) {
-				fiber->status = ZEND_FIBER_STATUS_RUNNING;
-				zend_fiber_switch_to(fiber);
-			}
-		} ZEND_HASH_FOREACH_END();
+		while (zend_array_count(&schedulers)) {
+			ZEND_HASH_REVERSE_FOREACH_NUM_KEY_PTR(&schedulers, handle, fiber) {
+				if (fiber->status == ZEND_FIBER_STATUS_SUSPENDED) {
+					fiber->status = ZEND_FIBER_STATUS_RUNNING;
+					zend_fiber_switch_to(fiber);
+				}
+
+				zend_hash_index_del(&schedulers, handle);
+				zend_hash_index_del(&fibers, fiber->std.handle);
+				efree(fiber);
+			} ZEND_HASH_FOREACH_END();
+		}
 	}
 
-	ZEND_HASH_REVERSE_FOREACH_NUM_KEY_PTR(&fibers, handle, fiber) {
-		if (fiber->status == ZEND_FIBER_STATUS_SUSPENDED && !zend_fiber_is_scheduler(fiber)) {
+	ZEND_HASH_REVERSE_FOREACH_PTR(&fibers, fiber) {
+		if (fiber->status == ZEND_FIBER_STATUS_SUSPENDED) {
 			fiber->status = ZEND_FIBER_STATUS_DEAD;
 			zend_fiber_switch_to(fiber);
 		}
 
-		zend_hash_index_del(&fibers, handle);
+		zend_hash_index_del(&fibers, fiber->std.handle);
 	} ZEND_HASH_FOREACH_END();
+}
 
-	ZEND_HASH_REVERSE_FOREACH_NUM_KEY_PTR(&schedulers, handle, fiber) {
-		zend_hash_index_del(&schedulers, handle);
-		efree(fiber);
-	} ZEND_HASH_FOREACH_END();
+
+static void zend_fiber_observer_end(zend_execute_data *execute_data, zval *retval)
+{
+	zend_fiber *fiber;
+	uint32_t handle;
+
+	if (zend_fiber_fatal_error) {
+		return;
+	}
+
+	while (zend_array_count(&schedulers)) {
+		ZEND_HASH_REVERSE_FOREACH_NUM_KEY_PTR(&schedulers, handle, fiber) {
+			if (fiber->status == ZEND_FIBER_STATUS_SUSPENDED) {
+				fiber->status = ZEND_FIBER_STATUS_RUNNING;
+				zend_fiber_switch_to(fiber);
+			}
+
+			zend_hash_index_del(&schedulers, handle);
+		} ZEND_HASH_FOREACH_END();
+	}
+}
+
+
+zend_observer_fcall_handlers zend_fiber_observer_fcall_init(zend_execute_data *execute_data)
+{
+	if (!execute_data->func->common.function_name && !execute_data->prev_execute_data) {
+		return (zend_observer_fcall_handlers){NULL, zend_fiber_observer_end};
+	}
+
+	return (zend_observer_fcall_handlers){NULL, NULL};
 }
 
 
