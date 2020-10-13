@@ -49,20 +49,22 @@ static zend_string *fiber_continue_name;
 
 static zend_bool zend_fiber_fatal_error = 0;
 
-#define ZEND_FIBER_BACKUP_EG(stack, stack_page_size, exec) do { \
+#define ZEND_FIBER_BACKUP_EG(stack, stack_page_size, exec, trace_num) do { \
 	stack = EG(vm_stack); \
 	stack->top = EG(vm_stack_top); \
 	stack->end = EG(vm_stack_end); \
 	stack_page_size = EG(vm_stack_page_size); \
 	exec = EG(current_execute_data); \
+	trace_num = EG(jit_trace_num); \
 } while (0)
 
-#define ZEND_FIBER_RESTORE_EG(stack, stack_page_size, exec) do { \
+#define ZEND_FIBER_RESTORE_EG(stack, stack_page_size, exec, trace_num) do { \
 	EG(vm_stack) = stack; \
 	EG(vm_stack_top) = stack->top; \
 	EG(vm_stack_end) = stack->end; \
 	EG(vm_stack_page_size) = stack_page_size; \
 	EG(current_execute_data) = exec; \
+	EG(jit_trace_num) = trace_num; \
 } while (0)
 
 
@@ -92,10 +94,8 @@ static zend_fiber *zend_fiber_create_root()
 static zend_bool zend_fiber_switch_to(zend_fiber *fiber)
 {
 	zend_fiber *previous;
-	zend_bool result;
-	zend_execute_data *exec;
-	zend_vm_stack stack;
 	size_t stack_page_size;
+	zend_bool result;
 
 	previous = FIBER_G(current_fiber);
 
@@ -105,13 +105,13 @@ static zend_bool zend_fiber_switch_to(zend_fiber *fiber)
 
 	FIBER_G(current_fiber) = fiber;
 
-	ZEND_FIBER_BACKUP_EG(stack, stack_page_size, exec);
+	ZEND_FIBER_BACKUP_EG(previous->stack, stack_page_size, previous->exec, previous->jit_trace_num);
 
 	result = zend_fiber_switch_context(previous->context, fiber->context);
 
 	FIBER_G(current_fiber) = previous;
 
-	ZEND_FIBER_RESTORE_EG(stack, stack_page_size, exec);
+	ZEND_FIBER_RESTORE_EG(previous->stack, stack_page_size, previous->exec, previous->jit_trace_num);
 
 	return result;
 }
@@ -122,13 +122,13 @@ static zend_bool zend_fiber_suspend(zend_fiber *fiber)
 	size_t stack_page_size;
 	zend_bool result;
 
-	ZEND_ASSERT(fiber->stack != NULL); // Root fiber should not be suspended.
+	ZEND_ASSERT(fiber != FIBER_G(root_fiber)); // Root fiber should not be suspended.
 
-	ZEND_FIBER_BACKUP_EG(fiber->stack, stack_page_size, fiber->exec);
+	ZEND_FIBER_BACKUP_EG(fiber->stack, stack_page_size, fiber->exec, fiber->jit_trace_num);
 
 	result = zend_fiber_suspend_context(fiber->context);
 
-	ZEND_FIBER_RESTORE_EG(fiber->stack, stack_page_size, fiber->exec);
+	ZEND_FIBER_RESTORE_EG(fiber->stack, stack_page_size, fiber->exec, fiber->jit_trace_num);
 
 	return result;
 }
@@ -155,6 +155,7 @@ static void zend_fiber_run()
 	fiber->exec->prev_execute_data = NULL;
 
 	EG(current_execute_data) = fiber->exec;
+	EG(jit_trace_num) = 0;
 
 	execute_ex(fiber->exec);
 

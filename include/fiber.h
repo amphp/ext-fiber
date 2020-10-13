@@ -67,6 +67,9 @@ struct _zend_fiber {
 	/* Current Zend VM execute data being run by the fiber. */
 	zend_execute_data *exec;
 
+	/* Current Zend VM JIT trace number. */
+	uint32_t jit_trace_num;
+
 	/* VM stack being used by the fiber. */
 	zend_vm_stack stack;
 
