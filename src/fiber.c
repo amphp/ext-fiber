@@ -191,13 +191,13 @@ static int fiber_run_opcode_handler(zend_execute_data *exec)
 	zval_ptr_dtor(&fiber->fci.function_name);
 
 	if (EG(exception)) {
-		if (fiber->status == ZEND_FIBER_STATUS_DEAD) {
+		if (fiber->status == ZEND_FIBER_STATUS_SHUTDOWN) {
 			zend_clear_exception();
 		} else {
-			fiber->status = ZEND_FIBER_STATUS_DEAD;
+			fiber->status = ZEND_FIBER_STATUS_THREW;
 		}
 	} else {
-		fiber->status = ZEND_FIBER_STATUS_FINISHED;
+		fiber->status = ZEND_FIBER_STATUS_RETURNED;
 	}
 
 	return ZEND_USER_OPCODE_RETURN;
@@ -278,7 +278,7 @@ static void zend_fiber_object_destroy(zend_object *object)
 	fiber = (zend_fiber *) object;
 
 	if (fiber->status == ZEND_FIBER_STATUS_SUSPENDED) {
-		fiber->status = ZEND_FIBER_STATUS_DEAD;
+		fiber->status = ZEND_FIBER_STATUS_SHUTDOWN;
 
 		zend_fiber_switch_to(fiber);
 	}
@@ -360,7 +360,7 @@ static zend_fiber *zend_fiber_get_scheduler(zval *scheduler)
 	fiber = zend_hash_index_find_ptr(&schedulers, handle);
 
 	if (fiber != NULL) {
-		if (UNEXPECTED(fiber->status == ZEND_FIBER_STATUS_FINISHED || fiber->status == ZEND_FIBER_STATUS_DEAD)) {
+		if (UNEXPECTED(fiber->status & ZEND_FIBER_STATUS_FINISHED)) {
 			zend_throw_error(zend_ce_fiber_error, "FiberScheduler::run() returned unexpectedly");
 			return NULL;
 		}
@@ -403,7 +403,7 @@ static void zend_fiber_cleanup()
 
 	ZEND_HASH_REVERSE_FOREACH_PTR(&fibers, fiber) {
 		if (fiber->status == ZEND_FIBER_STATUS_SUSPENDED) {
-			fiber->status = ZEND_FIBER_STATUS_DEAD;
+			fiber->status = ZEND_FIBER_STATUS_SHUTDOWN;
 			zend_fiber_switch_to(fiber);
 		}
 
@@ -562,14 +562,7 @@ ZEND_METHOD(Fiber, continue)
 	}
 
 	fiber = (zend_fiber *) Z_OBJ_P(getThis());
-	
-	if (fiber->link != scheduler) {
-		zend_throw_error(zend_ce_fiber_error, "Fiber resumed by a scheduler other than that provided to await");
-		return;
-	}
-	
-	fiber->link = NULL;
-	
+
 	if (UNEXPECTED(fiber->status != ZEND_FIBER_STATUS_SUSPENDED)) {
 		zend_throw_error(zend_ce_fiber_error, "Cannot resume running fiber");
 		return;
@@ -588,6 +581,13 @@ ZEND_METHOD(Fiber, continue)
 	}
 
 	fiber->status = ZEND_FIBER_STATUS_RUNNING;
+
+	if (UNEXPECTED(fiber->link != scheduler)) {
+		zend_throw_error(zend_ce_fiber_error, "Fiber resumed by a scheduler other than that provided to Fiber::await()");
+		return;
+	}
+
+	fiber->link = NULL;
 
 	if (!zend_fiber_resume(fiber, scheduler)) {
 		fiber->status = ZEND_FIBER_STATUS_SUSPENDED;
@@ -671,7 +671,7 @@ ZEND_METHOD(Fiber, await)
 		}
 	}
 
-	if (fiber->status == ZEND_FIBER_STATUS_DEAD) {
+	if (fiber->status == ZEND_FIBER_STATUS_SHUTDOWN) {
 		// This occurs on exit if the fiber never resumed.
 		zend_throw_unwind_exit();
 		return;
@@ -685,12 +685,12 @@ ZEND_METHOD(Fiber, await)
 			return; // Exception is UnwindExit, so ignore as we are exiting anyway.
 		}
 
-		fiber->status = ZEND_FIBER_STATUS_DEAD;
+		fiber->status = ZEND_FIBER_STATUS_SHUTDOWN;
 		zend_fiber_scheduler_uncaught_exception_handler(EG(exception));
 		return;
 	}
 
-	if (UNEXPECTED(scheduler->status == ZEND_FIBER_STATUS_FINISHED || scheduler->status == ZEND_FIBER_STATUS_DEAD)) {
+	if (UNEXPECTED(scheduler->status & ZEND_FIBER_STATUS_FINISHED)) {
 		zend_throw_error(zend_ce_fiber_error, "FiberScheduler::run() returned unexpectedly");
 		return;
 	}

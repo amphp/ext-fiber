@@ -75,10 +75,13 @@ struct _zend_fiber {
 };
 
 static const zend_uchar ZEND_FIBER_STATUS_INIT = 0;
-static const zend_uchar ZEND_FIBER_STATUS_SUSPENDED = 1;
-static const zend_uchar ZEND_FIBER_STATUS_RUNNING = 2;
-static const zend_uchar ZEND_FIBER_STATUS_FINISHED = 3;
-static const zend_uchar ZEND_FIBER_STATUS_DEAD = 4;
+static const zend_uchar ZEND_FIBER_STATUS_SUSPENDED = 0x1;
+static const zend_uchar ZEND_FIBER_STATUS_RUNNING = 0x2;
+static const zend_uchar ZEND_FIBER_STATUS_RETURNED = 0x4;
+static const zend_uchar ZEND_FIBER_STATUS_THREW = 0x8;
+static const zend_uchar ZEND_FIBER_STATUS_SHUTDOWN = 0x10;
+
+static const zend_uchar ZEND_FIBER_STATUS_FINISHED = 0xc;
 
 typedef void (* zend_fiber_func)();
 
