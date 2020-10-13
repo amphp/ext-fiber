@@ -386,22 +386,18 @@ static void zend_fiber_cleanup()
 	zend_fiber *fiber;
 	uint32_t handle;
 
-	if (!zend_fiber_fatal_error) {
-		while (zend_array_count(&schedulers)) {
-			ZEND_HASH_REVERSE_FOREACH_NUM_KEY_PTR(&schedulers, handle, fiber) {
-				if (fiber->status == ZEND_FIBER_STATUS_SUSPENDED) {
-					fiber->status = ZEND_FIBER_STATUS_RUNNING;
-					zend_fiber_switch_to(fiber);
-				}
-
-				zend_hash_index_del(&schedulers, handle);
-				zend_hash_index_del(&fibers, fiber->std.handle);
-				efree(fiber);
-			} ZEND_HASH_FOREACH_END();
+	ZEND_HASH_FOREACH_NUM_KEY_PTR(&schedulers, handle, fiber) {
+		if (fiber->status == ZEND_FIBER_STATUS_SUSPENDED) {
+			fiber->status = ZEND_FIBER_STATUS_SHUTDOWN;
+			zend_fiber_switch_to(fiber);
 		}
-	}
 
-	ZEND_HASH_REVERSE_FOREACH_PTR(&fibers, fiber) {
+		zend_hash_index_del(&schedulers, handle);
+		zend_hash_index_del(&fibers, fiber->std.handle);
+		efree(fiber);
+	} ZEND_HASH_FOREACH_END();
+
+	ZEND_HASH_FOREACH_PTR(&fibers, fiber) {
 		if (fiber->status == ZEND_FIBER_STATUS_SUSPENDED) {
 			fiber->status = ZEND_FIBER_STATUS_SHUTDOWN;
 			zend_fiber_switch_to(fiber);
@@ -421,16 +417,12 @@ static void zend_fiber_observer_end(zend_execute_data *execute_data, zval *retva
 		return;
 	}
 
-	while (zend_array_count(&schedulers)) {
-		ZEND_HASH_REVERSE_FOREACH_NUM_KEY_PTR(&schedulers, handle, fiber) {
-			if (fiber->status == ZEND_FIBER_STATUS_SUSPENDED) {
-				fiber->status = ZEND_FIBER_STATUS_RUNNING;
-				zend_fiber_switch_to(fiber);
-			}
-
-			zend_hash_index_del(&schedulers, handle);
-		} ZEND_HASH_FOREACH_END();
-	}
+	ZEND_HASH_FOREACH_NUM_KEY_PTR(&schedulers, handle, fiber) {
+		if (fiber->status == ZEND_FIBER_STATUS_SUSPENDED) {
+			fiber->status = ZEND_FIBER_STATUS_RUNNING;
+			zend_fiber_switch_to(fiber);
+		}
+	} ZEND_HASH_FOREACH_END();
 }
 
 
