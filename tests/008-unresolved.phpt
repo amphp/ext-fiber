@@ -12,7 +12,7 @@ $loop = new Loop;
 echo Fiber::await(new Promise($loop), $loop);
 
 --EXPECTF--
-Fatal error: Uncaught FiberError: FiberScheduler::run() returned unexpectedly in %s:%d
+Fatal error: Uncaught FiberError: FiberScheduler::run() returned before resuming the fiber in %s:%d
 Stack trace:
 #0 %s(%d): Fiber::await(Object(Promise), Object(Loop))
 #1 {main}

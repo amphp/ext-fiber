@@ -360,12 +360,12 @@ static zend_fiber *zend_fiber_get_scheduler(zval *scheduler)
 	fiber = zend_hash_index_find_ptr(&schedulers, handle);
 
 	if (fiber != NULL) {
-		if (UNEXPECTED(fiber->status & ZEND_FIBER_STATUS_FINISHED)) {
-			zend_throw_error(zend_ce_fiber_error, "FiberScheduler::run() returned unexpectedly");
-			return NULL;
+		if (EXPECTED(!(fiber->status & ZEND_FIBER_STATUS_FINISHED))) {
+			return fiber;
 		}
 
-		return fiber;
+		zend_hash_index_del(&schedulers, handle);
+		zend_hash_index_del(&fibers, fiber->std.handle);
 	}
 
 	fiber = zend_fiber_create_from_scheduler(scheduler);
@@ -691,7 +691,8 @@ ZEND_METHOD(Fiber, await)
 	}
 
 	if (UNEXPECTED(scheduler->status & ZEND_FIBER_STATUS_FINISHED)) {
-		zend_throw_error(zend_ce_fiber_error, "FiberScheduler::run() returned unexpectedly");
+		zend_hash_index_del(&schedulers, Z_OBJ_HANDLE_P(fiber_scheduler));
+		zend_throw_error(zend_ce_fiber_error, "FiberScheduler::run() returned before resuming the fiber");
 		return;
 	}
 
