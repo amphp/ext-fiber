@@ -12,6 +12,7 @@ $loop = new Loop;
 $loop->defer(function () use ($loop): void {
     Fiber::run(function () use ($loop): void {
         try {
+            echo "fiber\n";
             echo Fiber::await(new Promise($loop), $loop);
         } catch (\Throwable $exception) {
             echo "exit exception caught!\n";
@@ -28,4 +29,5 @@ Fiber::await(new Success($loop), $loop);
 echo "done\n";
 
 --EXPECTF--
+fiber
 done
