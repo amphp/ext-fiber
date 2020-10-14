@@ -32,9 +32,6 @@ typedef void* zend_fiber_context;
 typedef struct _zend_fiber_continuation zend_fiber_continuation;
 
 struct _zend_fiber_continuation {
-	/* Continuation closure provided to Awaitable::onResolve(). */
-	zval closure;
-
 	/* Value to return from suspend when resuming the fiber (will be populated by resume()). */
 	zval value;
 

@@ -42,7 +42,6 @@ static zend_op_array fiber_run_func;
 static zend_try_catch_element fiber_terminate_try_catch_array = { 0, 1, 0, 0 };
 static zend_op fiber_run_op[2];
 
-static HashTable fibers;
 static HashTable schedulers;
 static zend_string *scheduler_run_name;
 static zend_string *fiber_continue_name;
@@ -163,12 +162,7 @@ static void zend_fiber_run()
 	fiber->stack = NULL;
 	fiber->exec = NULL;
 
-	if (fiber->continuation != NULL) {
-		zval_ptr_dtor(&fiber->continuation->value);
-		zval_ptr_dtor(&fiber->continuation->closure);
-	}
-
-	zend_hash_index_del(&fibers, fiber->std.handle);
+	GC_DELREF(&fiber->std);
 
 	zend_fiber_suspend_context(fiber->context);
 
@@ -196,9 +190,11 @@ static int fiber_run_opcode_handler(zend_execute_data *exec)
 			zend_clear_exception();
 		} else {
 			fiber->status = ZEND_FIBER_STATUS_THREW;
+			GC_ADDREF(&fiber->std);
 		}
 	} else {
 		fiber->status = ZEND_FIBER_STATUS_RETURNED;
+		GC_ADDREF(&fiber->std);
 	}
 
 	return ZEND_USER_OPCODE_RETURN;
@@ -242,8 +238,6 @@ static zend_object *zend_fiber_object_create(zend_class_entry *ce)
 static zend_object *zend_fiber_object_initialize(zend_class_entry *ce, zend_bool is_scheduler)
 {
 	zend_fiber *fiber;
-	zend_function *func;
-	zval context;
 
 	fiber = emalloc(sizeof(zend_fiber));
 	memset(fiber, 0, sizeof(zend_fiber));
@@ -251,22 +245,11 @@ static zend_object *zend_fiber_object_initialize(zend_class_entry *ce, zend_bool
 	zend_object_std_init(&fiber->std, ce);
 	fiber->std.handlers = &zend_fiber_handlers;
 
-	ZVAL_OBJ(&context, &fiber->std);
-	Z_ADDREF(context);
-
 	if (!is_scheduler) {
 		fiber->continuation = emalloc(sizeof(zend_fiber_continuation));
 		memset(fiber->continuation, 0, sizeof(zend_fiber_continuation));
-
-		func = zend_hash_find_ptr(&ce->function_table, fiber_continue_name);
-		zend_create_fake_closure(&fiber->continuation->closure, func, func->op_array.scope, ce, &context);
-
 		ZVAL_UNDEF(&fiber->continuation->value);
 	}
-
-	zval_ptr_dtor(&context);
-
-	zend_hash_index_add_ptr(&fibers, fiber->std.handle, fiber);
 
 	return &fiber->std;
 }
@@ -285,21 +268,15 @@ static void zend_fiber_object_destroy(zend_object *object)
 	}
 
 	if (fiber->continuation != NULL) {
+		zval_ptr_dtor(&fiber->continuation->value);
 		efree(fiber->continuation);
 	}
 
 	zend_fiber_destroy(fiber->context);
 
 	zend_object_std_dtor(&fiber->std);
-}
 
-
-static void zend_fiber_hash_index_destroy(zval *ptr)
-{
-	zend_fiber *fiber;
-
-	fiber = (zend_fiber *) Z_PTR_P(ptr);
-	GC_DELREF(&fiber->std);
+	efree(fiber);
 }
 
 
@@ -366,7 +343,6 @@ static zend_fiber *zend_fiber_get_scheduler(zval *scheduler)
 		}
 
 		zend_hash_index_del(&schedulers, handle);
-		zend_hash_index_del(&fibers, fiber->std.handle);
 	}
 
 	fiber = zend_fiber_create_from_scheduler(scheduler);
@@ -394,17 +370,6 @@ static void zend_fiber_cleanup()
 		}
 
 		zend_hash_index_del(&schedulers, handle);
-		zend_hash_index_del(&fibers, fiber->std.handle);
-		efree(fiber);
-	} ZEND_HASH_FOREACH_END();
-
-	ZEND_HASH_FOREACH_PTR(&fibers, fiber) {
-		if (fiber->status == ZEND_FIBER_STATUS_SUSPENDED) {
-			fiber->status = ZEND_FIBER_STATUS_SHUTDOWN;
-			zend_fiber_switch_to(fiber);
-		}
-
-		zend_hash_index_del(&fibers, fiber->std.handle);
 	} ZEND_HASH_FOREACH_END();
 }
 
@@ -576,6 +541,7 @@ ZEND_METHOD(Fiber, continue)
 	fiber->status = ZEND_FIBER_STATUS_RUNNING;
 
 	if (UNEXPECTED(fiber->link != scheduler)) {
+		GC_ADDREF(&fiber->std);
 		zend_throw_error(zend_ce_fiber_error, "Fiber resumed by a scheduler other than that provided to Fiber::await()");
 		return;
 	}
@@ -595,7 +561,8 @@ ZEND_METHOD(Fiber, await)
 {
 	zend_fiber *fiber, *scheduler;
 	zend_execute_data *exec;
-	zval *awaitable, *fiber_scheduler, *error, method_name, retval;
+	zend_function *func;
+	zval *awaitable, *fiber_scheduler, *error, closure, context, method_name, retval;
 
 	fiber = FIBER_G(current_fiber);
 
@@ -634,17 +601,28 @@ ZEND_METHOD(Fiber, await)
 
    	fiber->status = ZEND_FIBER_STATUS_SUSPENDED;
 
+	ZVAL_OBJ(&context, &fiber->std);
+	Z_ADDREF(context);
+
+	func = zend_hash_find_ptr(&zend_ce_fiber->function_table, fiber_continue_name);
+	zend_create_fake_closure(&closure, func, func->op_array.scope, zend_ce_fiber, &context);
+
+	zval_ptr_dtor(&context);
+
 	ZVAL_STRING(&method_name, "onResolve");
-	call_user_function(NULL, awaitable, &method_name, &retval, 1, &fiber->continuation->closure);
+	call_user_function(NULL, awaitable, &method_name, &retval, 1, &closure);
+
 	zval_ptr_dtor(&retval);
 	zval_ptr_dtor(&method_name);
-	
+	zval_ptr_dtor(&closure);
+
 	if (UNEXPECTED(EG(exception))) {
 		// Exception thrown from Awaitable::onResolve().
 		fiber->status = ZEND_FIBER_STATUS_RUNNING;
 		return;
 	}
 
+	GC_DELREF(&fiber->std);
 	fiber->link = scheduler;
 
 	if (scheduler->status == ZEND_FIBER_STATUS_RUNNING) {
@@ -666,11 +644,13 @@ ZEND_METHOD(Fiber, await)
 
 	if (fiber->status == ZEND_FIBER_STATUS_SHUTDOWN) {
 		// This occurs on exit if the fiber never resumed.
+		zval_ptr_dtor(&closure);
 		zend_throw_unwind_exit();
 		return;
 	}
 
 	fiber->status = ZEND_FIBER_STATUS_RUNNING;
+	GC_ADDREF(&fiber->std);
 	
 	if (UNEXPECTED(EG(exception))) {
 		// Exception thrown from scheduler, invoke exception handler and bailout.
@@ -834,7 +814,6 @@ void zend_fiber_ce_register()
 	zend_ce_fiber_error->ce_flags |= ZEND_ACC_FINAL;
 	zend_ce_fiber_error->create_object = zend_ce_error->create_object;
 
-	zend_hash_init(&fibers, 0, NULL, zend_fiber_hash_index_destroy, 1);
 	zend_hash_init(&schedulers, 0, NULL, NULL, 1);
 	
 	scheduler_run_name = zend_string_init("run", sizeof("run") - 1, 1);
@@ -846,7 +825,6 @@ void zend_fiber_ce_unregister()
 	zend_string_free(fiber_run_func.function_name);
 	fiber_run_func.function_name = NULL;
 
-	zend_hash_destroy(&fibers);
 	zend_hash_destroy(&schedulers);
 	
 	zend_string_free(scheduler_run_name);
@@ -858,19 +836,5 @@ void zend_fiber_ce_unregister()
 
 void zend_fiber_shutdown()
 {
-	zend_fiber *fiber;
-
-	fiber = FIBER_G(root_fiber);
-
-	if (fiber == NULL) {
-		return;
-	}
-
 	zend_fiber_cleanup();
-
-	FIBER_G(root_fiber) = NULL;
-	FIBER_G(current_fiber) = NULL;
-
-	zval_ptr_dtor(&fiber->continuation->value);
-	zval_ptr_dtor(&fiber->continuation->closure);
 }
