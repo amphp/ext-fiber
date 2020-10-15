@@ -41,6 +41,7 @@ static zend_op_array fiber_run_func;
 static zend_try_catch_element fiber_terminate_try_catch_array = { 0, 1, 0, 0 };
 static zend_op fiber_run_op[2];
 
+static HashTable fibers;
 static HashTable schedulers;
 static zend_string *scheduler_run_name;
 static zend_string *fiber_continue_name;
@@ -97,9 +98,7 @@ static zend_bool zend_fiber_switch_to(zend_fiber *fiber)
 
 	previous = FIBER_G(current_fiber);
 
-	if (previous == NULL) {
-		previous = zend_fiber_create_root();
-	}
+	ZEND_ASSERT(previous != NULL);
 
 	FIBER_G(current_fiber) = fiber;
 
@@ -185,10 +184,9 @@ static int fiber_run_opcode_handler(zend_execute_data *exec)
 	if (EG(exception)) {
 		if (fiber->status == ZEND_FIBER_STATUS_SHUTDOWN) {
 			zend_clear_exception();
-			return ZEND_USER_OPCODE_RETURN;
+		} else {
+			fiber->status = ZEND_FIBER_STATUS_THREW;
 		}
-
-		fiber->status = ZEND_FIBER_STATUS_THREW;
 	} else {
 		fiber->status = ZEND_FIBER_STATUS_RETURNED;
 	}
@@ -239,6 +237,8 @@ static zend_object *zend_fiber_object_create(zend_class_entry *ce)
 
 	ZVAL_UNDEF(&fiber->continuation->value);
 
+	zend_hash_index_add_ptr(&fibers, fiber->std.handle, fiber);
+
 	return &fiber->std;
 }
 
@@ -262,7 +262,81 @@ static void zend_fiber_object_destroy(zend_object *object)
 
 	zend_fiber_destroy(fiber->context);
 
+	zend_hash_index_del(&fibers, fiber->std.handle);
+
 	zend_object_std_dtor(&fiber->std);
+}
+
+
+static void zend_fiber_cleanup_unfinished_execution(zend_execute_data *exec, uint32_t catch_op_num)
+{
+	zend_op_array *op_array = &exec->func->op_array;
+
+	if (exec->opline != op_array->opcodes) {
+		uint32_t op_num = exec->opline - op_array->opcodes - 1;
+
+		zend_cleanup_unfinished_execution(exec, op_num, catch_op_num);
+	}
+}
+
+
+static void zend_fiber_dtor_unfinished(zend_fiber *fiber)
+{
+	zend_execute_data *exec = fiber->exec;
+	uint32_t op_num, try_catch_offset = -1;
+	int i;
+
+	do {
+		if (exec->func == NULL) {
+			continue;
+		}
+
+		// -1 required because we want the last run opcode, not the next to-be-run one.
+		op_num = exec->opline - exec->func->op_array.opcodes - 1;
+
+		// Find the innermost try/catch that we are inside of, moving up the call stack if the current function
+		// does not contain a try/catch block.
+		for (i = 0; i < exec->func->op_array.last_try_catch; i++) {
+			zend_try_catch_element *try_catch = &exec->func->op_array.try_catch_array[i];
+			if (op_num < try_catch->try_op) {
+				break;
+			}
+			if (op_num < try_catch->catch_op || op_num < try_catch->finally_end) {
+				try_catch_offset = i;
+			}
+		}
+	} while (try_catch_offset == (uint32_t) -1 && (exec = exec->prev_execute_data) != NULL);
+
+	while (try_catch_offset != (uint32_t) -1) {
+		zend_try_catch_element *try_catch = &exec->func->op_array.try_catch_array[try_catch_offset];
+
+		if (op_num < try_catch->finally_op || try_catch_offset == 0) {
+			zval *fast_call = ZEND_CALL_VAR(exec, exec->func->op_array.opcodes[try_catch->finally_end].op1.var);
+			Z_OPLINE_NUM_P(fast_call) = (uint32_t) -1;
+
+			zend_fiber_cleanup_unfinished_execution(exec, try_catch->finally_op);
+			// -1 to throw exception from just before the finally block.
+			exec->opline = &exec->func->op_array.opcodes[try_catch->finally_op] - 1;
+			zend_throw_error(zend_ce_fiber_error, "Fiber destroyed");
+			return;
+		}
+
+		if (op_num < try_catch->finally_end) {
+			zval *fast_call = ZEND_CALL_VAR(exec, exec->func->op_array.opcodes[try_catch->finally_end].op1.var);
+			if (Z_OPLINE_NUM_P(fast_call) != (uint32_t) -1) {
+				zend_op *retval_op = &exec->func->op_array.opcodes[Z_OPLINE_NUM_P(fast_call)];
+				if (retval_op->op2_type & (IS_TMP_VAR | IS_VAR)) {
+					zval_ptr_dtor(ZEND_CALL_VAR(exec, retval_op->op2.var));
+				}
+			}
+
+			if (Z_OBJ_P(fast_call)) {
+				OBJ_RELEASE(Z_OBJ_P(fast_call));
+			}
+		}
+
+		try_catch_offset--;
+	}
 }
 
 
@@ -375,6 +449,14 @@ static void zend_fiber_cleanup()
 		}
 
 		zend_hash_index_del(&schedulers, handle);
+	} ZEND_HASH_FOREACH_END();
+
+	ZEND_HASH_FOREACH_PTR(&fibers, fiber) {
+		if (fiber->status == ZEND_FIBER_STATUS_SUSPENDED) {
+			fiber->status = ZEND_FIBER_STATUS_SHUTDOWN;
+			GC_ADDREF(&fiber->std);
+			zend_fiber_switch_to(fiber);
+		}
 	} ZEND_HASH_FOREACH_END();
 }
 
@@ -550,7 +632,6 @@ ZEND_METHOD(Fiber, continue)
 	fiber->status = ZEND_FIBER_STATUS_RUNNING;
 
 	if (UNEXPECTED(fiber->link != scheduler)) {
-		GC_ADDREF(&fiber->std);
 		zend_throw_error(zend_ce_fiber_error, "Fiber resumed by a scheduler other than that provided to Fiber::await()");
 		return;
 	}
@@ -652,8 +733,8 @@ ZEND_METHOD(Fiber, await)
 	}
 
 	if (fiber->status == ZEND_FIBER_STATUS_SHUTDOWN) {
-		// This occurs on exit if the fiber never resumed.
-		zend_throw_unwind_exit();
+		// This occurs on exit if the fiber never resumed, it has been GC'ed, so do not add a ref.
+		zend_fiber_dtor_unfinished(fiber);
 		return;
 	}
 
@@ -666,7 +747,6 @@ ZEND_METHOD(Fiber, await)
 			return; // Exception is UnwindExit, so ignore as we are exiting anyway.
 		}
 
-		fiber->status = ZEND_FIBER_STATUS_SHUTDOWN;
 		zend_fiber_scheduler_uncaught_exception_handler(EG(exception));
 		return;
 	}
@@ -822,6 +902,7 @@ void zend_fiber_ce_register()
 	zend_ce_fiber_error->ce_flags |= ZEND_ACC_FINAL;
 	zend_ce_fiber_error->create_object = zend_ce_error->create_object;
 
+	zend_hash_init(&fibers, 0, NULL, NULL, 1);
 	zend_hash_init(&schedulers, 0, NULL, zend_fiber_scheduler_hash_index_dtor, 1);
 	
 	scheduler_run_name = zend_string_init("run", sizeof("run") - 1, 1);
@@ -833,6 +914,7 @@ void zend_fiber_ce_unregister()
 	zend_string_free(fiber_run_func.function_name);
 	fiber_run_func.function_name = NULL;
 
+	zend_hash_destroy(&fibers);
 	zend_hash_destroy(&schedulers);
 	
 	zend_string_free(scheduler_run_name);
