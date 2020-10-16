@@ -227,7 +227,6 @@ static zend_object *zend_fiber_object_create(zend_class_entry *ce)
 	zend_fiber *fiber;
 
 	fiber = (zend_fiber *) zend_fiber_object_initialize(ce, 1);
-	GC_ADDREF(&fiber->std);
 
 	return &fiber->std;
 }
@@ -385,7 +384,11 @@ static void zend_fiber_observer_end(zend_execute_data *execute_data, zval *retva
 		if (fiber->status == ZEND_FIBER_STATUS_SUSPENDED) {
 			fiber->status = ZEND_FIBER_STATUS_RUNNING;
 			zend_fiber_switch_to(fiber);
+
+			ZEND_ASSERT(fiber->status & ZEND_FIBER_STATUS_FINISHED);
 		}
+
+		zend_hash_index_del(&schedulers, handle);
 	} ZEND_HASH_FOREACH_END();
 }
 
@@ -833,5 +836,15 @@ void zend_fiber_ce_unregister()
 
 void zend_fiber_shutdown()
 {
+	zend_fiber *fiber;
+
 	zend_fiber_cleanup();
+
+	fiber = FIBER_G(root_fiber);
+
+	if (fiber == NULL) {
+		return;
+	}
+
+	GC_DELREF(&fiber->std);
 }
