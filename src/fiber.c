@@ -190,11 +190,9 @@ static int fiber_run_opcode_handler(zend_execute_data *exec)
 			zend_clear_exception();
 		} else {
 			fiber->status = ZEND_FIBER_STATUS_THREW;
-			GC_ADDREF(&fiber->std);
 		}
 	} else {
 		fiber->status = ZEND_FIBER_STATUS_RETURNED;
-		GC_ADDREF(&fiber->std);
 	}
 
 	return ZEND_USER_OPCODE_RETURN;
@@ -265,6 +263,8 @@ static void zend_fiber_object_destroy(zend_object *object)
 		fiber->status = ZEND_FIBER_STATUS_SHUTDOWN;
 
 		zend_fiber_switch_to(fiber);
+	} else if (fiber->status == ZEND_FIBER_STATUS_INIT) {
+		zval_ptr_dtor(&fiber->fci.function_name);
 	}
 
 	if (fiber->continuation != NULL) {
@@ -275,8 +275,6 @@ static void zend_fiber_object_destroy(zend_object *object)
 	zend_fiber_destroy(fiber->context);
 
 	zend_object_std_dtor(&fiber->std);
-
-	efree(fiber);
 }
 
 
@@ -644,7 +642,6 @@ ZEND_METHOD(Fiber, await)
 
 	if (fiber->status == ZEND_FIBER_STATUS_SHUTDOWN) {
 		// This occurs on exit if the fiber never resumed.
-		zval_ptr_dtor(&closure);
 		zend_throw_unwind_exit();
 		return;
 	}
