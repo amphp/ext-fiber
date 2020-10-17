@@ -81,7 +81,7 @@ static const zend_uchar ZEND_FIBER_STATUS_RETURNED = 0x4;
 static const zend_uchar ZEND_FIBER_STATUS_THREW = 0x8;
 static const zend_uchar ZEND_FIBER_STATUS_SHUTDOWN = 0x10;
 
-static const zend_uchar ZEND_FIBER_STATUS_FINISHED = 0xc;
+static const zend_uchar ZEND_FIBER_STATUS_FINISHED = 0x1c;
 
 typedef void (* zend_fiber_func)();
 
