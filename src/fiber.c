@@ -540,7 +540,7 @@ static ZEND_COLD zend_function *zend_fiber_get_constructor(zend_object *object)
 ZEND_METHOD(Fiber, run)
 {
 	zend_fiber *fiber;
-	zval *params;
+	zval context, *params;
 	uint32_t param_count;
 	
 	fiber = FIBER_G(current_fiber);
@@ -551,6 +551,7 @@ ZEND_METHOD(Fiber, run)
 	}
 
 	fiber = (zend_fiber *) zend_fiber_object_create(zend_ce_fiber);
+	ZVAL_OBJ(&context, &fiber->std);
 
 	ZEND_PARSE_PARAMETERS_START_EX(ZEND_PARSE_PARAMS_THROW, 1, -1)
 		Z_PARAM_FUNC_EX(fiber->fci, fiber->fci_cache, 1, 0)
@@ -567,11 +568,13 @@ ZEND_METHOD(Fiber, run)
 	fiber->stack_size = FIBER_G(stack_size);
 
 	if (fiber->context == NULL) {
+		zval_ptr_dtor(&context);
 		zend_throw_error(zend_ce_fiber_error, "Failed to create native fiber context");
 		return;
 	}
 
 	if (!zend_fiber_create(fiber->context, zend_fiber_run, fiber->stack_size)) {
+		zval_ptr_dtor(&context);
 		zend_throw_error(zend_ce_fiber_error, "Failed to create native fiber");
 		return;
 	}
@@ -583,11 +586,15 @@ ZEND_METHOD(Fiber, run)
 
 	fiber->status = ZEND_FIBER_STATUS_RUNNING;
 
+	Z_ADDREF(context);
+
 	if (!zend_fiber_switch_to(fiber)) {
 		fiber->status = ZEND_FIBER_STATUS_INIT;
 		zend_throw_error(zend_ce_fiber_error, "Failed switching to fiber");
 		return;
 	}
+
+	zval_ptr_dtor(&context);
 }
 /* }}} */
 
