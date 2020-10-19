@@ -316,7 +316,7 @@ static void zend_fiber_cleanup_unfinished()
 	while (try_catch_offset != (uint32_t) -1) {
 		zend_try_catch_element *try_catch = &exec->func->op_array.try_catch_array[try_catch_offset];
 
-		if (op_num < try_catch->finally_op || try_catch_offset == 0) {
+		if (op_num < try_catch->catch_op || op_num < try_catch->finally_op) {
 			op_num = op_num < try_catch->catch_op ? try_catch->catch_op : try_catch->finally_op;
 			zend_fiber_cleanup_unfinished_execution(exec, op_num);
 			exec->opline = &exec->func->op_array.opcodes[op_num];
@@ -342,6 +342,8 @@ static void zend_fiber_cleanup_unfinished()
 
 		try_catch_offset--;
 	}
+
+	zend_throw_error(zend_ce_fiber_error, "Fiber destroyed");
 }
 
 
