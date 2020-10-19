@@ -177,6 +177,7 @@ static int fiber_run_opcode_handler(zend_execute_data *exec)
 
 	fiber = FIBER_G(current_fiber);
 	ZEND_ASSERT(fiber != NULL && fiber != FIBER_G(root_fiber));
+	ZEND_ASSERT(fiber->exec == exec && "Fiber execute data corrupted");
 
 	fiber->status = ZEND_FIBER_STATUS_RUNNING;
 	fiber->fci.retval = &retval;
@@ -184,6 +185,7 @@ static int fiber_run_opcode_handler(zend_execute_data *exec)
 	zend_call_function(&fiber->fci, &fiber->fci_cache);
 
 	zval_ptr_dtor(&fiber->fci.function_name);
+	zval_ptr_dtor(&retval);
 
 	if (EG(exception)) {
 		if (fiber->status == ZEND_FIBER_STATUS_SHUTDOWN) {
@@ -208,7 +210,7 @@ static zend_bool zend_fiber_resume(zend_fiber *fiber, zend_fiber *scheduler)
 {
 	zend_bool result;
 
-	ZEND_ASSERT(zend_fiber_is_scheduler(scheduler));
+	ZEND_ASSERT(!zend_fiber_is_scheduler(fiber) && zend_fiber_is_scheduler(scheduler));
 
 	if (scheduler->link == fiber) {
 		// Suspend from scheduler to fiber that resumed the scheduler.
@@ -284,9 +286,9 @@ static void zend_fiber_cleanup_unfinished_execution(zend_execute_data *exec, uin
 }
 
 
-static void zend_fiber_dtor_unfinished(zend_fiber *fiber)
+static void zend_fiber_cleanup_unfinished()
 {
-	zend_execute_data *exec = fiber->exec;
+	zend_execute_data *exec = EG(current_execute_data);
 	uint32_t op_num, try_catch_offset = -1;
 	int i;
 
@@ -318,9 +320,11 @@ static void zend_fiber_dtor_unfinished(zend_fiber *fiber)
 			zval *fast_call = ZEND_CALL_VAR(exec, exec->func->op_array.opcodes[try_catch->finally_end].op1.var);
 			Z_OPLINE_NUM_P(fast_call) = (uint32_t) -1;
 
-			zend_fiber_cleanup_unfinished_execution(exec, try_catch->finally_op);
-			// -1 to throw exception from just before the finally block.
+			// -1 to resume execution at the end of the catch block.
+			zend_fiber_cleanup_unfinished_execution(exec, try_catch->finally_op - 1);
 			exec->opline = &exec->func->op_array.opcodes[try_catch->finally_op] - 1;
+
+			// Throw exception at the current execution point, bubbling up to the finally block above.
 			zend_throw_error(zend_ce_fiber_error, "Fiber destroyed");
 			return;
 		}
@@ -503,9 +507,10 @@ void zend_fiber_error_observer(int type, const char *filename, uint32_t line, ze
 }
 
 
-static void zend_fiber_scheduler_uncaught_exception_handler(zend_object *exception)
+static void zend_fiber_scheduler_uncaught_exception_handler()
 {
 	zval param, retval, name, message;
+	zend_object *exception = EG(exception);
 
 	ZEND_ASSERT(instanceof_function(exception->ce, zend_ce_throwable));
 
@@ -745,7 +750,7 @@ ZEND_METHOD(Fiber, await)
 
 	if (fiber->status == ZEND_FIBER_STATUS_SHUTDOWN) {
 		// This occurs on exit if the fiber never resumed, it has been GC'ed, so do not add a ref.
-		zend_fiber_dtor_unfinished(fiber);
+		zend_fiber_cleanup_unfinished();
 		return;
 	}
 
@@ -758,7 +763,7 @@ ZEND_METHOD(Fiber, await)
 			return; // Exception is UnwindExit, so ignore as we are exiting anyway.
 		}
 
-		zend_fiber_scheduler_uncaught_exception_handler(EG(exception));
+		zend_fiber_scheduler_uncaught_exception_handler();
 		return;
 	}
 
