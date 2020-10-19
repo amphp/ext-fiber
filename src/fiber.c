@@ -288,6 +288,13 @@ static void zend_fiber_cleanup_unfinished_execution(zend_execute_data *exec, uin
 
 static void zend_fiber_cleanup_unfinished()
 {
+	zend_clear_exception();
+	zend_throw_unwind_exit();
+	return;
+
+	// @TODO The code below attempts to execute finally blocks, but throws an exception that can still be caught.
+	// Not sure if this should be fixed or continue throwing UnwindExit above.
+
 	zend_execute_data *exec = EG(current_execute_data);
 	uint32_t op_num, try_catch_offset = -1;
 	int i;
