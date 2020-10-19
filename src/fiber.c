@@ -78,8 +78,6 @@ static zend_fiber *zend_fiber_create_root()
 	zend_fiber *root_fiber;
 
 	root_fiber = (zend_fiber *) zend_fiber_object_create(zend_ce_fiber);
-	root_fiber->stack_size = 0;
-	root_fiber->stack = NULL;
 	root_fiber->context = zend_fiber_create_root_context();
 
 	root_fiber->status = ZEND_FIBER_STATUS_RUNNING;
@@ -93,7 +91,10 @@ static zend_fiber *zend_fiber_create_root()
 static zend_bool zend_fiber_switch_to(zend_fiber *fiber)
 {
 	zend_fiber *previous;
+	zend_vm_stack stack;
 	size_t stack_page_size;
+	zend_execute_data *exec;
+	uint32_t jit_trace_num;
 	zend_bool result;
 
 	previous = FIBER_G(current_fiber);
@@ -102,13 +103,13 @@ static zend_bool zend_fiber_switch_to(zend_fiber *fiber)
 
 	FIBER_G(current_fiber) = fiber;
 
-	ZEND_FIBER_BACKUP_EG(previous->stack, stack_page_size, previous->exec, previous->jit_trace_num);
+	ZEND_FIBER_BACKUP_EG(stack, stack_page_size, exec, jit_trace_num);
 
 	result = zend_fiber_switch_context(previous->context, fiber->context);
 
 	FIBER_G(current_fiber) = previous;
 
-	ZEND_FIBER_RESTORE_EG(previous->stack, stack_page_size, previous->exec, previous->jit_trace_num);
+	ZEND_FIBER_RESTORE_EG(stack, stack_page_size, exec, jit_trace_num);
 
 	return result;
 }
@@ -116,16 +117,19 @@ static zend_bool zend_fiber_switch_to(zend_fiber *fiber)
 
 static zend_bool zend_fiber_suspend(zend_fiber *fiber)
 {
+	zend_vm_stack stack;
 	size_t stack_page_size;
+	zend_execute_data *exec;
+	uint32_t jit_trace_num;
 	zend_bool result;
 
 	ZEND_ASSERT(fiber != FIBER_G(root_fiber)); // Root fiber should not be suspended.
 
-	ZEND_FIBER_BACKUP_EG(fiber->stack, stack_page_size, fiber->exec, fiber->jit_trace_num);
+	ZEND_FIBER_BACKUP_EG(stack, stack_page_size, exec, jit_trace_num);
 
 	result = zend_fiber_suspend_context(fiber->context);
 
-	ZEND_FIBER_RESTORE_EG(fiber->stack, stack_page_size, fiber->exec, fiber->jit_trace_num);
+	ZEND_FIBER_RESTORE_EG(stack, stack_page_size, exec, jit_trace_num);
 
 	return result;
 }
