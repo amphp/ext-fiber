@@ -454,11 +454,12 @@ static void zend_fiber_scheduler_uncaught_exception_handler()
 	zval param, retval, name, message;
 	zend_object *exception = EG(exception);
 
-	ZEND_ASSERT(instanceof_function(exception->ce, zend_ce_throwable));
+	ZVAL_STR(&name, exception->ce->name);
+	ZVAL_COPY(&message, zend_read_property(exception->ce, exception, "message", sizeof("message") - 1, 0, &retval));
 
 	if (Z_TYPE(EG(user_exception_handler)) != IS_UNDEF) {
-		GC_ADDREF(exception);
 		ZVAL_OBJ(&param, exception);
+		Z_ADDREF(param);
 
 		zend_clear_exception();
 
@@ -468,14 +469,10 @@ static void zend_fiber_scheduler_uncaught_exception_handler()
 		zval_ptr_dtor(&retval);
 	}
 
-	ZVAL_STR(&name, exception->ce->name);
-	ZVAL_COPY(&message, zend_read_property(exception->ce, exception, "message", sizeof("message") - 1, 0, &retval));
-
 	zend_error(E_ERROR, "Uncaught %s thrown from FiberScheduler::run(): %s", Z_STRVAL(name), Z_STRVAL(message));
 
 	zval_ptr_dtor(&name);
 	zval_ptr_dtor(&message);
-	zval_ptr_dtor(&retval);
 }
 
 

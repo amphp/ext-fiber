@@ -26,6 +26,7 @@ run-*
 tests/*.diff
 tests/*.exp
 tests/*.log
+tests/*.mem
 tests/*.out
 tests/*.php
 tests/*.sh
