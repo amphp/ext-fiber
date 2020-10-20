@@ -44,6 +44,9 @@ ZEND_BEGIN_MODULE_GLOBALS(fiber)
 	/* Flag if a fatal error occurred during fiber execution. */
 	zend_bool fatal_error;
 
+	/* ZEND_CATCH handler that may be declared by another extension. */
+	user_opcode_handler_t catch_handler;
+
 ZEND_END_MODULE_GLOBALS(fiber)
 
 extern ZEND_DECLARE_MODULE_GLOBALS(fiber)

@@ -282,6 +282,10 @@ static int zend_fiber_catch_handler(zend_execute_data *exec)
 		}
 	}
 
+	if (FIBER_G(catch_handler)) {
+		return FIBER_G(catch_handler)(exec);
+	}
+
 	return ZEND_USER_OPCODE_DISPATCH;
 }
 
@@ -838,6 +842,7 @@ void zend_fiber_ce_register()
 	fiber_run_func.last_try_catch = 1;
 	fiber_run_func.try_catch_array = &fiber_terminate_try_catch_array;
 
+	FIBER_G(catch_handler) = zend_get_user_opcode_handler(ZEND_CATCH);
 	zend_set_user_opcode_handler(ZEND_CATCH, zend_fiber_catch_handler);
 
 	INIT_CLASS_ENTRY(ce, "Fiber", fiber_methods);
@@ -877,6 +882,8 @@ void zend_fiber_ce_register()
 
 void zend_fiber_ce_unregister()
 {
+	zend_set_user_opcode_handler(ZEND_CATCH, FIBER_G(catch_handler));
+
 	zend_string_free(fiber_run_func.function_name);
 	fiber_run_func.function_name = NULL;
 
