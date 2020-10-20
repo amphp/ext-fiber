@@ -42,12 +42,8 @@ static zend_op_array fiber_run_func;
 static zend_try_catch_element fiber_terminate_try_catch_array = { 0, 1, 0, 0 };
 static zend_op fiber_run_op[2];
 
-static HashTable fibers;
-static HashTable schedulers;
 static zend_string *scheduler_run_name;
 static zend_string *fiber_continue_name;
-
-static zend_bool zend_fiber_fatal_error = 0;
 
 #define ZEND_FIBER_BACKUP_EG(stack, stack_page_size, exec, trace_num) do { \
 	stack = EG(vm_stack); \
@@ -244,7 +240,7 @@ static zend_object *zend_fiber_object_create(zend_class_entry *ce)
 
 	ZVAL_UNDEF(&fiber->continuation->value);
 
-	zend_hash_index_add_ptr(&fibers, fiber->std.handle, fiber);
+	zend_hash_index_add_ptr(&FIBER_G(fibers), fiber->std.handle, fiber);
 
 	return &fiber->std;
 }
@@ -269,7 +265,7 @@ static void zend_fiber_object_destroy(zend_object *object)
 
 	zend_fiber_destroy(fiber->context);
 
-	zend_hash_index_del(&fibers, fiber->std.handle);
+	zend_hash_index_del(&FIBER_G(fibers), fiber->std.handle);
 
 	zend_object_std_dtor(&fiber->std);
 }
@@ -350,14 +346,14 @@ static zend_fiber *zend_fiber_get_scheduler(zval *scheduler)
 
 	ZEND_ASSERT(instanceof_function(Z_OBJCE_P(scheduler), zend_ce_fiber_scheduler));
 
-	fiber = zend_hash_index_find_ptr(&schedulers, handle);
+	fiber = zend_hash_index_find_ptr(&FIBER_G(schedulers), handle);
 
 	if (fiber != NULL) {
 		if (EXPECTED(!(fiber->status & ZEND_FIBER_STATUS_FINISHED))) {
 			return fiber;
 		}
 
-		zend_hash_index_del(&schedulers, handle);
+		zend_hash_index_del(&FIBER_G(schedulers), handle);
 	}
 
 	fiber = zend_fiber_create_from_scheduler(scheduler);
@@ -367,7 +363,7 @@ static zend_fiber *zend_fiber_get_scheduler(zval *scheduler)
 		return NULL;
 	}
 
-	zend_hash_index_add_ptr(&schedulers, handle, fiber);
+	zend_hash_index_add_ptr(&FIBER_G(schedulers), handle, fiber);
 
 	return fiber;
 }
@@ -392,16 +388,16 @@ static void zend_fiber_cleanup()
 	zend_fiber *fiber;
 	uint32_t handle;
 
-	ZEND_HASH_FOREACH_NUM_KEY_PTR(&schedulers, handle, fiber) {
+	ZEND_HASH_FOREACH_NUM_KEY_PTR(&FIBER_G(schedulers), handle, fiber) {
 		if (fiber->status == ZEND_FIBER_STATUS_SUSPENDED) {
 			fiber->status = ZEND_FIBER_STATUS_SHUTDOWN;
 			zend_fiber_switch_to(fiber);
 		}
 
-		zend_hash_index_del(&schedulers, handle);
+		zend_hash_index_del(&FIBER_G(schedulers), handle);
 	} ZEND_HASH_FOREACH_END();
 
-	ZEND_HASH_FOREACH_PTR(&fibers, fiber) {
+	ZEND_HASH_FOREACH_PTR(&FIBER_G(fibers), fiber) {
 		if (fiber->status == ZEND_FIBER_STATUS_SUSPENDED) {
 			fiber->status = ZEND_FIBER_STATUS_SHUTDOWN;
 			GC_ADDREF(&fiber->std);
@@ -416,11 +412,11 @@ static void zend_fiber_observer_end(zend_execute_data *execute_data, zval *retva
 	zend_fiber *fiber;
 	uint32_t handle;
 
-	if (zend_fiber_fatal_error) {
+	if (FIBER_G(fatal_error)) {
 		return;
 	}
 
-	ZEND_HASH_FOREACH_NUM_KEY_PTR(&schedulers, handle, fiber) {
+	ZEND_HASH_FOREACH_NUM_KEY_PTR(&FIBER_G(schedulers), handle, fiber) {
 		if (fiber->status == ZEND_FIBER_STATUS_SUSPENDED) {
 			fiber->status = ZEND_FIBER_STATUS_RUNNING;
 			zend_fiber_switch_to(fiber);
@@ -428,7 +424,7 @@ static void zend_fiber_observer_end(zend_execute_data *execute_data, zval *retva
 			ZEND_ASSERT(fiber->status & ZEND_FIBER_STATUS_FINISHED);
 		}
 
-		zend_hash_index_del(&schedulers, handle);
+		zend_hash_index_del(&FIBER_G(schedulers), handle);
 	} ZEND_HASH_FOREACH_END();
 }
 
@@ -445,7 +441,7 @@ zend_observer_fcall_handlers zend_fiber_observer_fcall_init(zend_execute_data *e
 
 void zend_fiber_error_observer(int type, const char *filename, uint32_t line, zend_string *message)
 {
-	zend_fiber_fatal_error = type & E_FATAL_ERRORS && !(type & E_DONT_BAIL);
+	FIBER_G(fatal_error) = type & E_FATAL_ERRORS && !(type & E_DONT_BAIL);
 }
 
 
@@ -710,7 +706,7 @@ ZEND_METHOD(Fiber, await)
 	}
 
 	if (UNEXPECTED(scheduler->status & ZEND_FIBER_STATUS_FINISHED)) {
-		zend_hash_index_del(&schedulers, Z_OBJ_HANDLE_P(fiber_scheduler));
+		zend_hash_index_del(&FIBER_G(schedulers), Z_OBJ_HANDLE_P(fiber_scheduler));
 		zend_throw_error(zend_ce_fiber_error, "FiberScheduler::run() returned before resuming the fiber");
 		return;
 	}
@@ -872,9 +868,9 @@ void zend_fiber_ce_register()
 	zend_ce_fiber_exit->ce_flags |= ZEND_ACC_FINAL;
 	zend_ce_fiber_exit->create_object = zend_ce_error->create_object;
 
-	zend_hash_init(&fibers, 0, NULL, NULL, 1);
-	zend_hash_init(&schedulers, 0, NULL, zend_fiber_scheduler_hash_index_dtor, 1);
-	
+	zend_hash_init(&FIBER_G(fibers), 0, NULL, NULL, 1);
+	zend_hash_init(&FIBER_G(schedulers), 0, NULL, zend_fiber_scheduler_hash_index_dtor, 1);
+
 	scheduler_run_name = zend_string_init("run", sizeof("run") - 1, 1);
 	fiber_continue_name = zend_string_init("continue", sizeof("continue") - 1, 1);
 }
@@ -884,12 +880,12 @@ void zend_fiber_ce_unregister()
 	zend_string_free(fiber_run_func.function_name);
 	fiber_run_func.function_name = NULL;
 
-	zend_hash_destroy(&fibers);
-	zend_hash_destroy(&schedulers);
-	
+	zend_hash_destroy(&FIBER_G(fibers));
+	zend_hash_destroy(&FIBER_G(schedulers));
+
 	zend_string_free(scheduler_run_name);
 	scheduler_run_name = NULL;
-	
+
 	zend_string_free(fiber_continue_name);
 	fiber_continue_name = NULL;
 }

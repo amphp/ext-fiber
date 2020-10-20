@@ -70,6 +70,8 @@ PHP_MINIT_FUNCTION(fiber)
 	zend_observer_fcall_register(zend_fiber_observer_fcall_init);
 	zend_observer_error_register(zend_fiber_error_observer);
 
+	FIBER_G(fatal_error) = 0;
+
 	REGISTER_INI_ENTRIES();
 
 	return SUCCESS;

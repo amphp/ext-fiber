@@ -35,6 +35,15 @@ ZEND_BEGIN_MODULE_GLOBALS(fiber)
 	/* Default fiber C stack size. */
 	zend_long stack_size;
 
+	/* Currently executing fibers. */
+	HashTable fibers;
+
+	/* Active fiber schedulers. */
+	HashTable schedulers;
+
+	/* Flag if a fatal error occurred during fiber execution. */
+	zend_bool fatal_error;
+
 ZEND_END_MODULE_GLOBALS(fiber)
 
 extern ZEND_DECLARE_MODULE_GLOBALS(fiber)
