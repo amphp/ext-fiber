@@ -45,6 +45,8 @@ final class Loop implements FiberScheduler
 
     private function tick(): void
     {
+        $now = $this->now();
+
         $deferQueue = $this->deferQueue;
         $this->deferQueue = [];
 
@@ -59,11 +61,11 @@ final class Loop implements FiberScheduler
 
         $timeout = $this->getTimeout();
 
-        if ($timeout > 0) {
+        if (empty($this->deferQueue) && $timeout > 0) {
             usleep((int) ($timeout * 1000));
         }
 
-        while ($timer = $this->timerQueue->extract($this->now())) {
+        while ($timer = $this->timerQueue->extract($now)) {
             $timer();
         }
     }

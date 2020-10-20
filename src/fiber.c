@@ -392,6 +392,21 @@ static void zend_fiber_cleanup()
 	zend_fiber *fiber;
 	uint32_t handle;
 
+	if (FIBER_G(fatal_error)) {
+		ZEND_HASH_FOREACH_NUM_KEY_PTR(&FIBER_G(schedulers), handle, fiber) {
+			zend_hash_index_del(&FIBER_G(schedulers), handle);
+		} ZEND_HASH_FOREACH_END();
+
+		ZEND_HASH_FOREACH_PTR(&FIBER_G(fibers), fiber) {
+			if (fiber->status == ZEND_FIBER_STATUS_SUSPENDED) {
+				fiber->status = ZEND_FIBER_STATUS_SHUTDOWN;
+				GC_ADDREF(&fiber->std);
+			}
+		} ZEND_HASH_FOREACH_END();
+
+		return;
+	}
+
 	ZEND_HASH_FOREACH_NUM_KEY_PTR(&FIBER_G(schedulers), handle, fiber) {
 		if (fiber->status == ZEND_FIBER_STATUS_SUSPENDED) {
 			fiber->status = ZEND_FIBER_STATUS_SHUTDOWN;
