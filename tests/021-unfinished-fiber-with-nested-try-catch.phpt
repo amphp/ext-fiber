@@ -3,8 +3,6 @@ Fiber that is never resumed with finally block
 --SKIPIF--
 <?php
 if (!extension_loaded('fiber')) echo "ext-fiber not loaded";
-// Throwing UnwindExit, finally blocks not executed.
-echo "SKIP Throwing UnwindExit";
 --FILE--
 <?php
 

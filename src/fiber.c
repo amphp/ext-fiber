@@ -32,6 +32,7 @@ ZEND_API zend_class_entry *zend_ce_fiber_scheduler;
 
 static zend_class_entry *zend_ce_fiber;
 static zend_class_entry *zend_ce_fiber_error;
+static zend_class_entry *zend_ce_fiber_exit;
 static zend_object_handlers zend_fiber_handlers;
 
 static zend_object *zend_fiber_object_create(zend_class_entry *ce);
@@ -274,83 +275,18 @@ static void zend_fiber_object_destroy(zend_object *object)
 }
 
 
-static void zend_fiber_cleanup_unfinished_execution(zend_execute_data *exec, uint32_t catch_op_num)
+static int zend_fiber_catch_handler(zend_execute_data *exec)
 {
-	zend_op_array *op_array = &exec->func->op_array;
+	zend_fiber *fiber = FIBER_G(current_fiber);
 
-	if (exec->opline != op_array->opcodes) {
-		uint32_t op_num = exec->opline - op_array->opcodes - 1;
-
-		zend_cleanup_unfinished_execution(exec, op_num, catch_op_num);
-	}
-}
-
-
-static void zend_fiber_cleanup_unfinished()
-{
-	zend_clear_exception();
-	zend_throw_unwind_exit();
-	return;
-
-	// @TODO The code below attempts to execute finally blocks, but throws an exception that can still be caught.
-	// Not sure if this should be fixed or continue throwing UnwindExit above.
-
-	zend_execute_data *exec = EG(current_execute_data);
-	uint32_t op_num, try_catch_offset = -1;
-	int i;
-
-	do {
-		if (exec->func == NULL) {
-			continue;
+	if (fiber != NULL && UNEXPECTED(fiber->status == ZEND_FIBER_STATUS_SHUTDOWN)) {
+		if (EG(exception) && EG(exception)->ce == zend_ce_fiber_exit) {
+			zend_rethrow_exception(exec);
+			return ZEND_USER_OPCODE_CONTINUE;
 		}
-
-		// -1 required because we want the last run opcode, not the next to-be-run one.
-		op_num = exec->opline - exec->func->op_array.opcodes - 1;
-
-		// Find the innermost try/catch that we are inside of, moving up the call stack if the current function
-		// does not contain a try/catch block.
-		for (i = 0; i < exec->func->op_array.last_try_catch; i++) {
-			zend_try_catch_element *try_catch = &exec->func->op_array.try_catch_array[i];
-			if (op_num < try_catch->try_op) {
-				break;
-			}
-			if (op_num < try_catch->catch_op || op_num < try_catch->finally_end) {
-				try_catch_offset = i;
-			}
-		}
-	} while (try_catch_offset == (uint32_t) -1 && (exec = exec->prev_execute_data) != NULL);
-
-	while (try_catch_offset != (uint32_t) -1) {
-		zend_try_catch_element *try_catch = &exec->func->op_array.try_catch_array[try_catch_offset];
-
-		if (op_num < try_catch->catch_op || op_num < try_catch->finally_op) {
-			op_num = op_num < try_catch->catch_op ? try_catch->catch_op : try_catch->finally_op;
-			zend_fiber_cleanup_unfinished_execution(exec, op_num);
-			exec->opline = &exec->func->op_array.opcodes[op_num];
-
-			// Throw exception at the current execution point, bubbling up to the finally block above.
-			zend_throw_error(zend_ce_fiber_error, "Fiber destroyed");
-			return;
-		}
-
-		if (op_num < try_catch->finally_end) {
-			zval *fast_call = ZEND_CALL_VAR(exec, exec->func->op_array.opcodes[try_catch->finally_end].op1.var);
-			if (Z_OPLINE_NUM_P(fast_call) != (uint32_t) -1) {
-				zend_op *retval_op = &exec->func->op_array.opcodes[Z_OPLINE_NUM_P(fast_call)];
-				if (retval_op->op2_type & (IS_TMP_VAR | IS_VAR)) {
-					zval_ptr_dtor(ZEND_CALL_VAR(exec, retval_op->op2.var));
-				}
-			}
-
-			if (Z_OBJ_P(fast_call)) {
-				OBJ_RELEASE(Z_OBJ_P(fast_call));
-			}
-		}
-
-		try_catch_offset--;
 	}
 
-	zend_throw_error(zend_ce_fiber_error, "Fiber destroyed");
+	return ZEND_USER_OPCODE_DISPATCH;
 }
 
 
@@ -756,7 +692,7 @@ ZEND_METHOD(Fiber, await)
 
 	if (fiber->status == ZEND_FIBER_STATUS_SHUTDOWN) {
 		// This occurs on exit if the fiber never resumed, it has been GC'ed, so do not add a ref.
-		zend_fiber_cleanup_unfinished();
+		zend_throw_error(zend_ce_fiber_exit, "Fiber destroyed");
 		return;
 	}
 
@@ -813,7 +749,13 @@ ZEND_METHOD(Fiber, __wakeup)
 /* {{{ proto FiberError::__construct(string $message) */
 ZEND_METHOD(FiberError, __construct)
 {
-	zend_throw_error(NULL, "FiberError cannot be constructed manually");
+	zend_object *object = Z_OBJ_P(getThis());
+
+	zend_throw_error(
+		NULL,
+		"The \"%s\" class is reserved for internal use and cannot be manually instantiated",
+		object->ce->name->val
+	);
 }
 /* }}} */
 
@@ -862,7 +804,6 @@ static const zend_function_entry scheduler_methods[] = {
 };
 
 ZEND_BEGIN_ARG_INFO(arginfo_fiber_error_create, 0)
-	ZEND_ARG_TYPE_INFO(0, message, IS_STRING, 0)
 ZEND_END_ARG_INFO()
 
 static const zend_function_entry fiber_error_methods[] = {
@@ -901,6 +842,8 @@ void zend_fiber_ce_register()
 	fiber_run_func.last_try_catch = 1;
 	fiber_run_func.try_catch_array = &fiber_terminate_try_catch_array;
 
+	zend_set_user_opcode_handler(ZEND_CATCH, zend_fiber_catch_handler);
+
 	INIT_CLASS_ENTRY(ce, "Fiber", fiber_methods);
 	zend_ce_fiber = zend_register_internal_class(&ce);
 	zend_ce_fiber->ce_flags |= ZEND_ACC_FINAL;
@@ -923,6 +866,11 @@ void zend_fiber_ce_register()
 	zend_ce_fiber_error = zend_register_internal_class_ex(&ce, zend_ce_error);
 	zend_ce_fiber_error->ce_flags |= ZEND_ACC_FINAL;
 	zend_ce_fiber_error->create_object = zend_ce_error->create_object;
+
+	INIT_CLASS_ENTRY(ce, "FiberExit", fiber_error_methods);
+	zend_ce_fiber_exit = zend_register_internal_class_ex(&ce, zend_ce_exception);
+	zend_ce_fiber_exit->ce_flags |= ZEND_ACC_FINAL;
+	zend_ce_fiber_exit->create_object = zend_ce_error->create_object;
 
 	zend_hash_init(&fibers, 0, NULL, NULL, 1);
 	zend_hash_init(&schedulers, 0, NULL, zend_fiber_scheduler_hash_index_dtor, 1);
