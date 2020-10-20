@@ -1,5 +1,5 @@
 --TEST--
-Fiber that is never resumed with finally block
+Fiber that is never resumed with throw in finally block
 --SKIPIF--
 <?php
 if (!extension_loaded('fiber')) echo "ext-fiber not loaded";
@@ -25,18 +25,20 @@ $loop->defer(function () use ($loop): void {
                 echo "exit exception caught!\n";
             } finally {
                 echo "inner finally\n";
+                throw new \Exception("finally exception");
             }
+        } catch (Exception $exception) {
+            echo $exception->getMessage(), "\n";
+            echo \get_class($exception->getPrevious()), "\n";
         } finally {
             echo "outer finally\n";
         }
 
         try {
             echo Fiber::await(new Promise($loop), $loop);
-        } finally {
-            echo "unreached\n";
+        } catch (FiberError $exception) {
+            echo $exception->getMessage(), "\n";
         }
-
-        echo "end of fiber should not be reached\n";
     });
 });
 
@@ -48,4 +50,7 @@ echo "done\n";
 fiber
 done
 inner finally
+finally exception
+FiberExit
 outer finally
+Cannot await in a fiber that is not running

@@ -30,7 +30,7 @@ Fiber::await(new Success($loop), $loop);
 
 echo "done\n";
 
---EXPECTF--
+--EXPECT--
 fiber
 done
 finally
