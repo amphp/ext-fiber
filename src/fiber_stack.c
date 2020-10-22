@@ -14,14 +14,13 @@
 #include "config.h"
 #endif
 
-#ifdef ZEND_FIBER_VALGRIND
-#include "valgrind/valgrind.h"
-#endif
-
 #include "php.h"
 #include "zend.h"
-
 #include "fiber_stack.h"
+
+#ifdef HAVE_VALGRIND
+#include "valgrind/valgrind.h"
+#endif
 
 zend_bool zend_fiber_stack_allocate(zend_fiber_stack *stack, unsigned int size)
 {

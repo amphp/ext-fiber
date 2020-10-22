@@ -14,11 +14,13 @@
 #ifndef FIBER_STACK_H
 #define FIBER_STACK_H
 
+#include "php_config.h"
+
 typedef struct _zend_fiber_stack {
 	void *pointer;
 	size_t size;
 
-#ifdef ZEND_FIBER_VALGRIND
+#ifdef HAVE_VALGRIND
 	int valgrind;
 #endif
 } zend_fiber_stack;
