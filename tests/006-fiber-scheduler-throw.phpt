@@ -18,12 +18,15 @@ $promise = new Promise($loop);
 echo Fiber::await($promise, $loop);
 
 --EXPECTF--
-Warning: Uncaught Exception: test in %s:%d
+Fatal error: Uncaught Exception: test in %s:%d
 Stack trace:
-#0 %s/Loop.php(%d): {closure}()
-#1 %s/Loop.php(%d): Loop->tick()
+#0 %s(%d): {closure}()
+#1 %s(%d): Loop->tick()
 #2 (0): Loop->run()
 #3 {main}
-  thrown in %s on line %d
 
-Fatal error: Uncaught Exception thrown from FiberScheduler::run(): test in %s on line %d
+Next FiberExit: Uncaught Exception thrown from Loop::run(): test in %s:%d
+Stack trace:
+#0 %s(%d): Fiber::await(Object(Promise), Object(Loop))
+#1 {main}
+  thrown in %s on line %d

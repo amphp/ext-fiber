@@ -27,7 +27,7 @@ $loop2->defer(function () use ($loop1, $loop2): void {
 echo Fiber::await($promise, $loop2);
 
 --EXPECTF--
-Warning: Uncaught FiberError: Fiber resumed by a scheduler other than that provided to Fiber::await() in %s:%d
+Fatal error: Uncaught FiberExit: Fiber resumed by a scheduler other than that provided to Fiber::await() in %s:%d
 Stack trace:
 #0 %s(%d): Fiber->continue(NULL, NULL)
 #1 %s(%d): Success->{closure}()
@@ -35,5 +35,3 @@ Stack trace:
 #3 (0): Loop->run()
 #4 {main}
   thrown in %s on line %d
-
-Fatal error: Uncaught FiberError thrown from FiberScheduler::run(): Fiber resumed by a scheduler other than that provided to Fiber::await() in %s on line %d

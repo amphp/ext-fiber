@@ -22,6 +22,4 @@ $promise = new Promise($loop);
 echo Fiber::await($promise, $loop);
 
 --EXPECTF--
-Caught Exception: test
-
-Fatal error: Uncaught Error thrown from FiberScheduler::run(): test in %s on line %d
+Caught Exception: Uncaught Error thrown from Loop::run(): test

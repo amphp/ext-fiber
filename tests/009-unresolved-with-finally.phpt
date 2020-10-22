@@ -19,7 +19,7 @@ try {
 
 --EXPECTF--
 finally
-Fatal error: Uncaught FiberError: FiberScheduler::run() returned before resuming the fiber in %s:%d
+Fatal error: Uncaught FiberExit: Loop::run() returned before resuming the fiber in %s:%d
 Stack trace:
 #0 %s(%d): Fiber::await(Object(Promise), Object(Loop))
 #1 {main}
