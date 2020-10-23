@@ -74,6 +74,8 @@ static zend_fiber *zend_fiber_create_root()
 {
 	zend_fiber *root_fiber;
 
+	ZEND_ASSERT(FIBER_G(root_fiber) == NULL);
+
 	root_fiber = (zend_fiber *) zend_fiber_object_create(zend_ce_fiber);
 	root_fiber->context = zend_fiber_create_root_context();
 
@@ -303,7 +305,7 @@ static zend_fiber *zend_fiber_create_from_scheduler(zval *scheduler)
 	if (zend_fcall_info_init(&closure, 0, &fiber->fci, &fiber->fci_cache, NULL, NULL) == FAILURE) {
 		efree(fiber);
 		zval_ptr_dtor(&closure);
-		zend_throw_error(zend_ce_fiber_error, "Failed initializing FiberScheduler::run() fcall info");
+		zend_throw_error(zend_ce_fiber_exit, "Failed initializing FiberScheduler::run() fcall info");
 		return NULL;
 	}
 
@@ -317,14 +319,14 @@ static zend_fiber *zend_fiber_create_from_scheduler(zval *scheduler)
 
 	if (fiber->context == NULL) {
 		efree(fiber);
-		zend_throw_error(zend_ce_fiber_error, "Failed creating scheduler fiber context");
+		zend_throw_error(zend_ce_fiber_exit, "Failed creating scheduler fiber context");
 		return NULL;
 	}
 
 	if (!zend_fiber_create(fiber->context, zend_fiber_run, fiber->stack_size)) {
 		zend_fiber_destroy(fiber->context);
 		efree(fiber);
-		zend_throw_error(zend_ce_fiber_error, "Failed creating scheduler fiber");
+		zend_throw_error(zend_ce_fiber_exit, "Failed creating scheduler fiber");
 		return NULL;
 	}
 
@@ -349,11 +351,12 @@ static zend_fiber *zend_fiber_get_scheduler(zval *scheduler)
 	fiber = zend_hash_index_find_ptr(&FIBER_G(schedulers), handle);
 
 	if (fiber != NULL) {
-		if (EXPECTED(!(fiber->status & ZEND_FIBER_STATUS_FINISHED))) {
-			return fiber;
+		if (UNEXPECTED(fiber->status & ZEND_FIBER_STATUS_FINISHED)) {
+			zend_throw_error(zend_ce_fiber_exit, "%s::run() returned unexpectedly", Z_OBJCE_P(scheduler)->name->val);
+			return NULL;
 		}
 
-		zend_hash_index_del(&FIBER_G(schedulers), handle);
+		return fiber;
 	}
 
 	fiber = zend_fiber_create_from_scheduler(scheduler);
@@ -403,6 +406,13 @@ static void zend_fiber_cleanup()
 		return;
 	}
 
+	ZEND_HASH_FOREACH_NUM_KEY_PTR(&FIBER_G(schedulers), handle, fiber) {
+		if (fiber->status == ZEND_FIBER_STATUS_SUSPENDED) {
+			fiber->status = ZEND_FIBER_STATUS_RUNNING;
+			zend_fiber_switch_to(fiber);
+		}
+	} ZEND_HASH_FOREACH_END();
+
 	ZEND_HASH_FOREACH_PTR(&FIBER_G(fibers), fiber) {
 		if (fiber->status == ZEND_FIBER_STATUS_SUSPENDED) {
 			fiber->status = ZEND_FIBER_STATUS_SHUTDOWN;
@@ -422,44 +432,12 @@ static void zend_fiber_cleanup()
 }
 
 
-static void zend_fiber_observer_end(zend_execute_data *execute_data, zval *retval)
+void zend_fiber_error_observer(int type, const char *filename, uint32_t line, zend_string *message)
 {
-	zend_fiber *fiber;
-	uint32_t handle;
-
 	if (FIBER_G(fatal_error)) {
 		return;
 	}
 
-	ZEND_HASH_FOREACH_NUM_KEY_PTR(&FIBER_G(schedulers), handle, fiber) {
-		if (fiber->status == ZEND_FIBER_STATUS_SUSPENDED) {
-			fiber->status = ZEND_FIBER_STATUS_RUNNING;
-			zend_fiber_switch_to(fiber);
-
-			if (!(fiber->status & ZEND_FIBER_STATUS_FINISHED)) {
-				fiber->status = ZEND_FIBER_STATUS_SHUTDOWN;
-				GC_ADDREF(&fiber->std);
-				zend_fiber_switch_to(fiber);
-			}
-		}
-
-		zend_hash_index_del(&FIBER_G(schedulers), handle);
-	} ZEND_HASH_FOREACH_END();
-}
-
-
-zend_observer_fcall_handlers zend_fiber_observer_fcall_init(zend_execute_data *execute_data)
-{
-	if (!execute_data->func->common.function_name && !execute_data->prev_execute_data) {
-		return (zend_observer_fcall_handlers){NULL, zend_fiber_observer_end};
-	}
-
-	return (zend_observer_fcall_handlers){NULL, NULL};
-}
-
-
-void zend_fiber_error_observer(int type, const char *filename, uint32_t line, zend_string *message)
-{
 	FIBER_G(fatal_error) = type & E_FATAL_ERRORS && !(type & E_DONT_BAIL);
 }
 
@@ -724,14 +702,11 @@ ZEND_METHOD(Fiber, await)
 	}
 
 	if (UNEXPECTED(scheduler->status & ZEND_FIBER_STATUS_FINISHED)) {
-		zval scheduler_name;
-		ZVAL_STR(&scheduler_name, Z_OBJCE_P(fiber_scheduler)->name);
-
-		zend_hash_index_del(&FIBER_G(schedulers), Z_OBJ_HANDLE_P(fiber_scheduler));
-
-		zend_throw_error(zend_ce_fiber_exit, "%s::run() returned before resuming the fiber", Z_STRVAL(scheduler_name));
-
-		zval_ptr_dtor(&scheduler_name);
+		zend_throw_error(
+			zend_ce_fiber_exit,
+			"%s::run() returned before resuming the fiber",
+			Z_OBJCE_P(fiber_scheduler)->name->val
+		);
 		return;
 	}
 
