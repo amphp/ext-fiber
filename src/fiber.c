@@ -386,25 +386,10 @@ static void zend_fiber_scheduler_hash_index_dtor(zval *ptr)
 }
 
 
-static void zend_fiber_cleanup()
+static void zend_fiber_finish_schedulers()
 {
 	zend_fiber *fiber;
 	uint32_t handle;
-
-	if (FIBER_G(fatal_error)) {
-		ZEND_HASH_FOREACH_PTR(&FIBER_G(fibers), fiber) {
-			if (fiber->status == ZEND_FIBER_STATUS_SUSPENDED) {
-				fiber->status = ZEND_FIBER_STATUS_SHUTDOWN;
-				GC_ADDREF(&fiber->std);
-			}
-		} ZEND_HASH_FOREACH_END();
-
-		ZEND_HASH_FOREACH_NUM_KEY_PTR(&FIBER_G(schedulers), handle, fiber) {
-			zend_hash_index_del(&FIBER_G(schedulers), handle);
-		} ZEND_HASH_FOREACH_END();
-
-		return;
-	}
 
 	ZEND_HASH_FOREACH_NUM_KEY_PTR(&FIBER_G(schedulers), handle, fiber) {
 		if (fiber->status == ZEND_FIBER_STATUS_SUSPENDED) {
@@ -412,6 +397,13 @@ static void zend_fiber_cleanup()
 			zend_fiber_switch_to(fiber);
 		}
 	} ZEND_HASH_FOREACH_END();
+}
+
+
+static void zend_fiber_cleanup()
+{
+	zend_fiber *fiber;
+	uint32_t handle;
 
 	ZEND_HASH_FOREACH_PTR(&FIBER_G(fibers), fiber) {
 		if (fiber->status == ZEND_FIBER_STATUS_SUSPENDED) {
@@ -432,6 +424,24 @@ static void zend_fiber_cleanup()
 }
 
 
+static void zend_fiber_cleanup_after_fatal_error()
+{
+	zend_fiber *fiber;
+	uint32_t handle;
+
+	ZEND_HASH_FOREACH_PTR(&FIBER_G(fibers), fiber) {
+		if (fiber->status == ZEND_FIBER_STATUS_SUSPENDED) {
+			fiber->status = ZEND_FIBER_STATUS_SHUTDOWN;
+			GC_ADDREF(&fiber->std);
+		}
+	} ZEND_HASH_FOREACH_END();
+
+	ZEND_HASH_FOREACH_NUM_KEY_PTR(&FIBER_G(schedulers), handle, fiber) {
+		zend_hash_index_del(&FIBER_G(schedulers), handle);
+	} ZEND_HASH_FOREACH_END();
+}
+
+
 void zend_fiber_error_observer(int type, const char *filename, uint32_t line, zend_string *message)
 {
 	if (FIBER_G(fatal_error)) {
@@ -439,6 +449,16 @@ void zend_fiber_error_observer(int type, const char *filename, uint32_t line, ze
 	}
 
 	FIBER_G(fatal_error) = type & E_FATAL_ERRORS && !(type & E_DONT_BAIL);
+
+	if (FIBER_G(uncaught_exception)) {
+		return;
+	}
+
+	FIBER_G(uncaught_exception) = type & E_FATAL_ERRORS && type & E_DONT_BAIL;
+
+	if (FIBER_G(uncaught_exception)) {
+		zend_fiber_cleanup();
+	}
 }
 
 
@@ -481,6 +501,11 @@ ZEND_METHOD(Fiber, run)
 	zend_fiber *fiber;
 	zval context, *params;
 	uint32_t param_count;
+
+	if (UNEXPECTED(FIBER_G(uncaught_exception))) {
+		zend_throw_error(zend_ce_fiber_exit, "Cannot create a new fiber during shutdown from an uncaught exception");
+		return;
+	}
 	
 	fiber = FIBER_G(current_fiber);
 	
@@ -599,6 +624,11 @@ ZEND_METHOD(Fiber, await)
 	zend_execute_data *exec;
 	zend_function *func;
 	zval *awaitable, *fiber_scheduler, *error, closure, context, method_name, retval;
+
+	if (UNEXPECTED(FIBER_G(uncaught_exception))) {
+		zend_throw_error(zend_ce_fiber_exit, "Cannot await during shutdown from an uncaught exception");
+		return;
+	}
 
 	fiber = FIBER_G(current_fiber);
 
@@ -896,7 +926,12 @@ void zend_fiber_shutdown()
 {
 	zend_fiber *fiber;
 
-	zend_fiber_cleanup();
+	if (FIBER_G(fatal_error)) {
+		zend_fiber_cleanup_after_fatal_error();
+	} else if (!FIBER_G(uncaught_exception)) {
+		zend_fiber_finish_schedulers();
+		zend_fiber_cleanup();
+	}
 
 	fiber = FIBER_G(root_fiber);
 
