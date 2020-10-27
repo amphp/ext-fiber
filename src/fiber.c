@@ -207,17 +207,13 @@ static int fiber_run_opcode_handler(zend_execute_data *exec)
 
 static zend_bool zend_fiber_resume(zend_fiber *fiber, zend_fiber *scheduler)
 {
-	zend_bool result;
-
 	ZEND_ASSERT(!zend_fiber_is_scheduler(fiber) && zend_fiber_is_scheduler(scheduler));
 
 	if (scheduler->link == fiber) {
 		// Suspend from scheduler to fiber that resumed the scheduler.
 		scheduler->status = ZEND_FIBER_STATUS_SUSPENDED;
 		scheduler->link = NULL;
-		result = zend_fiber_suspend(scheduler);
-		scheduler->status = ZEND_FIBER_STATUS_RUNNING;
-		return result;
+		return zend_fiber_suspend(scheduler);
 	}
 
 	// Another fiber started the scheduler, so switch to resuming fiber.
@@ -400,7 +396,7 @@ static void zend_fiber_finish_schedulers()
 }
 
 
-static void zend_fiber_cleanup()
+static void zend_fiber_clean_shutdown()
 {
 	zend_fiber *fiber;
 	uint32_t handle;
@@ -424,7 +420,7 @@ static void zend_fiber_cleanup()
 }
 
 
-static void zend_fiber_cleanup_after_fatal_error()
+static void zend_fiber_forced_shutdown()
 {
 	zend_fiber *fiber;
 	uint32_t handle;
@@ -457,7 +453,7 @@ void zend_fiber_error_observer(int type, const char *filename, uint32_t line, ze
 	FIBER_G(uncaught_exception) = type & E_FATAL_ERRORS && type & E_DONT_BAIL;
 
 	if (FIBER_G(uncaught_exception)) {
-		zend_fiber_cleanup();
+		zend_fiber_clean_shutdown();
 	}
 }
 
@@ -614,6 +610,13 @@ ZEND_METHOD(Fiber, continue)
 		zend_throw_error(zend_ce_fiber_exit, "Failed resuming fiber");
 		return;
 	}
+
+	if (scheduler->status == ZEND_FIBER_STATUS_SHUTDOWN) {
+		zend_throw_error(zend_ce_fiber_exit, "Fiber destroyed");
+		return;
+	}
+
+	scheduler->status = ZEND_FIBER_STATUS_RUNNING;
 }
 
 
@@ -927,17 +930,15 @@ void zend_fiber_shutdown()
 	zend_fiber *fiber;
 
 	if (FIBER_G(fatal_error)) {
-		zend_fiber_cleanup_after_fatal_error();
+		zend_fiber_forced_shutdown();
 	} else if (!FIBER_G(uncaught_exception)) {
 		zend_fiber_finish_schedulers();
-		zend_fiber_cleanup();
+		zend_fiber_clean_shutdown();
 	}
 
 	fiber = FIBER_G(root_fiber);
 
-	if (fiber == NULL) {
-		return;
+	if (fiber != NULL) {
+		GC_DELREF(&fiber->std);
 	}
-
-	GC_DELREF(&fiber->std);
 }
