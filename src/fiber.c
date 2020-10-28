@@ -440,20 +440,20 @@ static void zend_fiber_forced_shutdown()
 
 void zend_fiber_error_observer(int type, const char *filename, uint32_t line, zend_string *message)
 {
-	if (FIBER_G(fatal_error)) {
-		return;
+	if (!(type & E_FATAL_ERRORS)) {
+		return; // Non-fatal error, nothing to do.
 	}
 
-	FIBER_G(fatal_error) = type & E_FATAL_ERRORS && !(type & E_DONT_BAIL);
-
-	if (FIBER_G(uncaught_exception)) {
-		return;
+	if (FIBER_G(shutdown)) {
+		return; // Already shut down, nothing to do.
 	}
 
-	FIBER_G(uncaught_exception) = type & E_FATAL_ERRORS && type & E_DONT_BAIL;
+	FIBER_G(shutdown) = 1;
 
-	if (FIBER_G(uncaught_exception)) {
+	if (type & E_DONT_BAIL) {
+		// Uncaught exception, do a clean shutdown now and a forced on actual shutdown.
 		zend_fiber_clean_shutdown();
+		return;
 	}
 }
 
@@ -498,7 +498,7 @@ ZEND_METHOD(Fiber, run)
 	zval context, *params;
 	uint32_t param_count;
 
-	if (UNEXPECTED(FIBER_G(uncaught_exception))) {
+	if (UNEXPECTED(FIBER_G(shutdown))) {
 		zend_throw_error(zend_ce_fiber_exit, "Cannot create a new fiber during shutdown from an uncaught exception");
 		return;
 	}
@@ -628,7 +628,7 @@ ZEND_METHOD(Fiber, await)
 	zend_function *func;
 	zval *awaitable, *fiber_scheduler, *error, closure, context, method_name, retval;
 
-	if (UNEXPECTED(FIBER_G(uncaught_exception))) {
+	if (UNEXPECTED(FIBER_G(shutdown))) {
 		zend_throw_error(zend_ce_fiber_exit, "Cannot await during shutdown from an uncaught exception");
 		return;
 	}
@@ -929,9 +929,9 @@ void zend_fiber_shutdown()
 {
 	zend_fiber *fiber;
 
-	if (FIBER_G(fatal_error)) {
+	if (FIBER_G(shutdown)) {
 		zend_fiber_forced_shutdown();
-	} else if (!FIBER_G(uncaught_exception)) {
+	} else {
 		zend_fiber_finish_schedulers();
 		zend_fiber_clean_shutdown();
 	}
@@ -941,4 +941,6 @@ void zend_fiber_shutdown()
 	if (fiber != NULL) {
 		GC_DELREF(&fiber->std);
 	}
+
+	FIBER_G(shutdown) = 1;
 }
