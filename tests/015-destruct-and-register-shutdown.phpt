@@ -29,5 +29,17 @@ $object = new class($loop) {
     }
 };
 
---EXPECT--
-12
+--EXPECTF--
+Fatal error: Uncaught FiberExit: Cannot await during shutdown in %s:%d
+Stack trace:
+#0 %s(%d): Fiber::await(Object(Success), Object(Loop))
+#1 [internal function]: {closure}()
+#2 {main}
+  thrown in %s on line %d
+
+Fatal error: Uncaught FiberExit: Cannot await during shutdown in %s:%d
+Stack trace:
+#0 %s(%d): Fiber::await(Object(Promise), Object(Loop))
+#1 [internal function]: class@anonymous->__destruct()
+#2 {main}
+  thrown in %s on line %d

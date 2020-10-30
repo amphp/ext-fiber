@@ -24,7 +24,7 @@ Stack trace:
 #0 {main}
   thrown in %s on line %d
 
-Fatal error: Uncaught FiberExit: Cannot await during shutdown from an uncaught exception in %s:%d
+Fatal error: Uncaught FiberExit: Cannot await during shutdown in %s:%d
 Stack trace:
 #0 %s(%d): Fiber::await(Object(Success), Object(Loop))
 #1 [internal function]: {closure}()

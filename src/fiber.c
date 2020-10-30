@@ -382,20 +382,6 @@ static void zend_fiber_scheduler_hash_index_dtor(zval *ptr)
 }
 
 
-static void zend_fiber_finish_schedulers()
-{
-	zend_fiber *fiber;
-	uint32_t handle;
-
-	ZEND_HASH_FOREACH_NUM_KEY_PTR(&FIBER_G(schedulers), handle, fiber) {
-		if (fiber->status == ZEND_FIBER_STATUS_SUSPENDED) {
-			fiber->status = ZEND_FIBER_STATUS_RUNNING;
-			zend_fiber_switch_to(fiber);
-		}
-	} ZEND_HASH_FOREACH_END();
-}
-
-
 static void zend_fiber_clean_shutdown()
 {
 	zend_fiber *fiber;
@@ -435,6 +421,34 @@ static void zend_fiber_forced_shutdown()
 	ZEND_HASH_FOREACH_NUM_KEY_PTR(&FIBER_G(schedulers), handle, fiber) {
 		zend_hash_index_del(&FIBER_G(schedulers), handle);
 	} ZEND_HASH_FOREACH_END();
+}
+
+
+static void zend_fiber_observer_end(zend_execute_data *execute_data, zval *retval)
+{
+	zend_fiber *fiber;
+	uint32_t handle;
+
+	ZEND_HASH_FOREACH_NUM_KEY_PTR(&FIBER_G(schedulers), handle, fiber) {
+		if (fiber->status == ZEND_FIBER_STATUS_SUSPENDED) {
+			fiber->status = ZEND_FIBER_STATUS_RUNNING;
+			zend_fiber_switch_to(fiber);
+		}
+	} ZEND_HASH_FOREACH_END();
+
+	zend_fiber_clean_shutdown();
+
+	FIBER_G(shutdown) = 1;
+}
+
+
+zend_observer_fcall_handlers zend_fiber_observer_fcall_init(zend_execute_data *execute_data)
+{
+	if (!execute_data->func->common.function_name && !execute_data->prev_execute_data) {
+		return (zend_observer_fcall_handlers){NULL, zend_fiber_observer_end};
+	}
+
+	return (zend_observer_fcall_handlers){NULL, NULL};
 }
 
 
@@ -499,7 +513,7 @@ ZEND_METHOD(Fiber, run)
 	uint32_t param_count;
 
 	if (UNEXPECTED(FIBER_G(shutdown))) {
-		zend_throw_error(zend_ce_fiber_exit, "Cannot create a new fiber during shutdown from an uncaught exception");
+		zend_throw_error(zend_ce_fiber_exit, "Cannot create a new fiber during shutdown");
 		return;
 	}
 	
@@ -629,7 +643,7 @@ ZEND_METHOD(Fiber, await)
 	zval *awaitable, *fiber_scheduler, *error, closure, context, method_name, retval;
 
 	if (UNEXPECTED(FIBER_G(shutdown))) {
-		zend_throw_error(zend_ce_fiber_exit, "Cannot await during shutdown from an uncaught exception");
+		zend_throw_error(zend_ce_fiber_exit, "Cannot await during shutdown");
 		return;
 	}
 
@@ -931,9 +945,6 @@ void zend_fiber_shutdown()
 
 	if (FIBER_G(shutdown)) {
 		zend_fiber_forced_shutdown();
-	} else {
-		zend_fiber_finish_schedulers();
-		zend_fiber_clean_shutdown();
 	}
 
 	fiber = FIBER_G(root_fiber);
