@@ -23,10 +23,6 @@
 #include "php_fiber.h"
 #include "fiber.h"
 
-#ifndef ZEND_PARSE_PARAMETERS_NONE
-#define ZEND_PARSE_PARAMETERS_NONE() zend_parse_parameters_none()
-#endif
-
 ZEND_API zend_class_entry *zend_ce_awaitable;
 ZEND_API zend_class_entry *zend_ce_fiber_scheduler;
 
