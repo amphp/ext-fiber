@@ -507,7 +507,7 @@ ZEND_METHOD(Fiber, run)
 	uint32_t param_count;
 
 	if (UNEXPECTED(FIBER_G(shutdown))) {
-		zend_throw_error(zend_ce_fiber_exit, "Cannot create a new fiber during shutdown");
+		zend_throw_error(zend_ce_fiber_error, "Cannot create a new fiber during shutdown");
 		return;
 	}
 	
@@ -637,7 +637,7 @@ ZEND_METHOD(Fiber, await)
 	zval *awaitable, *fiber_scheduler, *error, closure, context, method_name, retval;
 
 	if (UNEXPECTED(FIBER_G(shutdown))) {
-		zend_throw_error(zend_ce_fiber_exit, "Cannot await during shutdown");
+		zend_throw_error(zend_ce_fiber_error, "Cannot await during shutdown");
 		return;
 	}
 

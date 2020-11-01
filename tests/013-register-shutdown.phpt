@@ -14,7 +14,7 @@ register_shutdown_function(fn() => print Fiber::await(new Success($loop, 2), $lo
 Fiber::await(new Success($loop), $loop);
 
 --EXPECTF--
-Fatal error: Uncaught FiberExit: Cannot await during shutdown in %s:%d
+Fatal error: Uncaught FiberError: Cannot await during shutdown in %s:%d
 Stack trace:
 #0 %s(%d): Fiber::await(Object(Success), Object(Loop))
 #1 [internal function]: {closure}()
