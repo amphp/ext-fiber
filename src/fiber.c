@@ -423,9 +423,8 @@ static void zend_fiber_forced_shutdown()
 static void zend_fiber_observer_end(zend_execute_data *execute_data, zval *retval)
 {
 	zend_fiber *fiber;
-	uint32_t handle;
 
-	ZEND_HASH_FOREACH_NUM_KEY_PTR(&FIBER_G(schedulers), handle, fiber) {
+	ZEND_HASH_FOREACH_PTR(&FIBER_G(schedulers), fiber) {
 		if (fiber->status == ZEND_FIBER_STATUS_SUSPENDED) {
 			fiber->status = ZEND_FIBER_STATUS_RUNNING;
 			zend_fiber_switch_to(fiber);
