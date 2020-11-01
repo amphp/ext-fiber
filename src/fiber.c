@@ -431,9 +431,9 @@ static void zend_fiber_observer_end(zend_execute_data *execute_data, zval *retva
 		}
 	} ZEND_HASH_FOREACH_END();
 
-	zend_fiber_clean_shutdown();
-
 	FIBER_G(shutdown) = 1;
+
+	zend_fiber_clean_shutdown();
 }
 
 
@@ -460,9 +460,8 @@ void zend_fiber_error_observer(int type, const char *filename, uint32_t line, ze
 	FIBER_G(shutdown) = 1;
 
 	if (type & E_DONT_BAIL) {
-		// Uncaught exception, do a clean shutdown now and a forced on actual shutdown.
+		// Uncaught exception, do a clean shutdown now.
 		zend_fiber_clean_shutdown();
-		return;
 	}
 }
 

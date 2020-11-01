@@ -53,4 +53,4 @@ inner finally
 finally exception
 FiberExit
 outer finally
-Cannot await in a fiber that is not running
+Cannot await during shutdown
