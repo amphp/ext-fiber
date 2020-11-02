@@ -79,6 +79,9 @@ static zend_fiber *zend_fiber_create_root()
 
 	FIBER_G(root_fiber) = root_fiber;
 
+	// Add a second reference to prevent garbage collection of the root fiber.
+	GC_ADDREF(&root_fiber->std);
+
 	return root_fiber;
 }
 
@@ -1047,6 +1050,9 @@ void zend_fiber_shutdown()
 	fiber = FIBER_G(root_fiber);
 
 	if (fiber != NULL) {
+		/* Root fiber has two internal references to prevent
+		 * garbage collection from the removal of a single reference. */
+		GC_DELREF(&fiber->std);
 		GC_DELREF(&fiber->std);
 	}
 
