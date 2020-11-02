@@ -1,6 +1,6 @@
 <?php
 
-final class Success implements Awaitable
+final class Success implements Future
 {
     private Loop $loop;
 
@@ -8,16 +8,16 @@ final class Success implements Awaitable
 
     public function __construct(Loop $loop, mixed $value = null)
     {
-        if ($value instanceof Awaitable) {
-            throw new \Error("Cannot use an Awaitable as success value");
+        if ($value instanceof Future) {
+            throw new \Error("Cannot use a Future as success value");
         }
 
         $this->loop = $loop;
         $this->value = $value;
     }
 
-    public function onResolve(callable $onResolve): void
+    public function __invoke(Fiber $fiber): void
     {
-        $this->loop->defer(fn() => $onResolve(null, $this->value));
+        $this->loop->defer(fn() => $fiber->resume($this->value));
     }
 }

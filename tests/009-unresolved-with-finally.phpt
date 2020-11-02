@@ -12,7 +12,7 @@ $loop = new Loop;
 $promise = new Promise($loop);
 
 try {
-    echo Fiber::await($promise, $loop);
+    echo Fiber::suspend($promise, $loop);
 } finally {
     echo 'finally';
 }
@@ -21,6 +21,6 @@ try {
 finally
 Fatal error: Uncaught FiberExit: Loop::run() returned before resuming the fiber in %s:%d
 Stack trace:
-#0 %s(%d): Fiber::await(Object(Promise), Object(Loop))
+#0 %s(%d): Fiber::suspend(Object(Promise), Object(Loop))
 #1 {main}
   thrown in %s on line %d

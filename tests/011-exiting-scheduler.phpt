@@ -18,7 +18,7 @@ $loop->defer(function (): void {
     exit;
 });
 
-echo Fiber::await(new Promise($loop), $loop);
+echo Fiber::suspend(new Promise($loop), $loop);
 
 --EXPECT--
 exit

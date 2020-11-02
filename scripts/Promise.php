@@ -1,26 +1,27 @@
 <?php
 
-final class Promise implements Awaitable
+final class Promise implements Future
 {
     private Loop $loop;
 
-    private array $onResolve = [];
+    /** @var Fiber[] */
+    private array $fibers = [];
 
-    private Awaitable $result;
+    private Future $result;
 
     public function __construct(Loop $loop)
     {
         $this->loop = $loop;
     }
 
-    public function onResolve(callable $onResolve): void
+    public function __invoke(Fiber $fiber): void
     {
         if (isset($this->result)) {
-            $this->result->onResolve($onResolve);
+            ($this->result)($fiber);
             return;
         }
 
-        $this->onResolve[] = $onResolve;
+        $this->fibers[] = $fiber;
     }
 
     public function resolve(mixed $value = null): void
@@ -29,13 +30,13 @@ final class Promise implements Awaitable
             throw new Error("Promise already resolved");
         }
 
-        $this->result = $value instanceof Awaitable ? $value : new Success($this->loop, $value);
+        $this->result = $value instanceof Future ? $value : new Success($this->loop, $value);
 
-        $onResolve = $this->onResolve;
-        $this->onResolve = [];
+        $fibers = $this->fibers;
+        $this->fibers = [];
 
-        foreach ($onResolve as $callback) {
-            $this->result->onResolve($callback);
+        foreach ($fibers as $fiber) {
+            ($this->result)($fiber);
         }
     }
 

@@ -23,12 +23,12 @@
 #include "php_fiber.h"
 #include "fiber.h"
 
-ZEND_API zend_class_entry *zend_ce_awaitable;
+ZEND_API zend_class_entry *zend_ce_fiber;
 ZEND_API zend_class_entry *zend_ce_fiber_scheduler;
 
-static zend_class_entry *zend_ce_fiber;
 static zend_class_entry *zend_ce_fiber_error;
 static zend_class_entry *zend_ce_fiber_exit;
+
 static zend_object_handlers zend_fiber_handlers;
 
 static zend_object *zend_fiber_object_create(zend_class_entry *ce);
@@ -499,6 +499,42 @@ static ZEND_COLD zend_function *zend_fiber_get_constructor(zend_object *object)
 }
 
 
+/* {{{ proto bool Fiber::isSuspended() */
+ZEND_METHOD(Fiber, isSuspended)
+{
+	ZEND_PARSE_PARAMETERS_NONE();
+
+	zend_fiber *fiber = (zend_fiber *) Z_OBJ_P(getThis());
+
+	RETURN_BOOL(fiber->status == ZEND_FIBER_STATUS_SUSPENDED);
+}
+/* }}} */
+
+
+/* {{{ proto bool Fiber::isRunning() */
+ZEND_METHOD(Fiber, isRunning)
+{
+	ZEND_PARSE_PARAMETERS_NONE();
+
+	zend_fiber *fiber = (zend_fiber *) Z_OBJ_P(getThis());
+
+	RETURN_BOOL(fiber->status == ZEND_FIBER_STATUS_RUNNING);
+}
+/* }}} */
+
+
+/* {{{ proto bool Fiber::isTerminated() */
+ZEND_METHOD(Fiber, isTerminated)
+{
+	ZEND_PARSE_PARAMETERS_NONE();
+
+	zend_fiber *fiber = (zend_fiber *) Z_OBJ_P(getThis());
+
+	RETURN_BOOL(fiber->status & ZEND_FIBER_STATUS_FINISHED);
+}
+/* }}} */
+
+
 /* {{{ proto void Fiber::run(callable $callback, mixed ...$args) */
 ZEND_METHOD(Fiber, run)
 {
@@ -522,7 +558,7 @@ ZEND_METHOD(Fiber, run)
 	ZVAL_OBJ(&context, &fiber->std);
 
 	ZEND_PARSE_PARAMETERS_START_EX(ZEND_PARSE_PARAMS_THROW, 1, -1)
-		Z_PARAM_FUNC_EX(fiber->fci, fiber->fci_cache, 1, 0)
+		Z_PARAM_FUNC_EX(fiber->fci, fiber->fci_cache, 0, 0)
 		Z_PARAM_VARIADIC('+', params, param_count)
 	ZEND_PARSE_PARAMETERS_END();
 
@@ -567,14 +603,14 @@ ZEND_METHOD(Fiber, run)
 /* }}} */
 
 
-/* {{{ proto void Fiber::continue(?Throwable $exception, mixed $value) */
-ZEND_METHOD(Fiber, continue)
+/* {{{ proto void Fiber::resume(mixed $value = null) */
+ZEND_METHOD(Fiber, resume)
 {
 	zend_fiber *fiber, *scheduler;
-	zval *value = NULL, *exception = NULL;
+	zval *value = NULL;
 	
-	ZEND_PARSE_PARAMETERS_START_EX(ZEND_PARSE_PARAMS_THROW, 2, 2)
-		Z_PARAM_OBJECT_OF_CLASS_EX(exception, zend_ce_throwable, 1, 0)
+	ZEND_PARSE_PARAMETERS_START_EX(ZEND_PARSE_PARAMS_THROW, 0, 1)
+		Z_PARAM_OPTIONAL
 		Z_PARAM_ZVAL(value);
 	ZEND_PARSE_PARAMETERS_END();
 
@@ -592,22 +628,16 @@ ZEND_METHOD(Fiber, continue)
 		return;
 	}
 
-	if (exception != NULL) {
-		if (value != NULL && Z_TYPE_P(value) != IS_NULL) {
-			zend_throw_error(zend_ce_fiber_error, "$value must be NULL when $exception is not NULL");
-			return;
-		}
-		
-		Z_ADDREF_P(exception);
-		fiber->continuation->error = exception;
-	} else {
+	if (value != NULL) {
 		ZVAL_COPY(&fiber->continuation->value, value);
+	} else {
+		ZVAL_NULL(&fiber->continuation->value);
 	}
 
 	fiber->status = ZEND_FIBER_STATUS_RUNNING;
 
 	if (UNEXPECTED(fiber->link != scheduler)) {
-		zend_throw_error(zend_ce_fiber_exit, "Fiber resumed by a scheduler other than that provided to Fiber::await()");
+		zend_throw_error(zend_ce_fiber_exit, "Fiber resumed by a scheduler other than that provided to Fiber::suspend()");
 		return;
 	}
 
@@ -626,18 +656,72 @@ ZEND_METHOD(Fiber, continue)
 
 	scheduler->status = ZEND_FIBER_STATUS_RUNNING;
 }
+/* }}} */
 
 
-/* {{{ proto mixed Fiber::await(Awaitable $awaitable, FiberScheduler $scheduler) */
-ZEND_METHOD(Fiber, await)
+/* {{{ proto void Fiber::throw(Throwable $exception) */
+ZEND_METHOD(Fiber, throw)
+{
+	zend_fiber *fiber, *scheduler;
+	zval *exception;
+
+	ZEND_PARSE_PARAMETERS_START_EX(ZEND_PARSE_PARAMS_THROW, 1, 1)
+		Z_PARAM_OBJECT_OF_CLASS_EX(exception, zend_ce_throwable, 1, 0)
+	ZEND_PARSE_PARAMETERS_END();
+
+	scheduler = FIBER_G(current_fiber);
+
+	if (UNEXPECTED(scheduler == NULL || !zend_fiber_is_scheduler(scheduler))) {
+		zend_throw_error(zend_ce_fiber_error, "Fibers can only be resumed within a scheduler");
+		return;
+	}
+
+	fiber = (zend_fiber *) Z_OBJ_P(getThis());
+
+	if (UNEXPECTED(fiber->status != ZEND_FIBER_STATUS_SUSPENDED)) {
+		zend_throw_error(zend_ce_fiber_error, "Cannot resume running fiber");
+		return;
+	}
+
+	Z_ADDREF_P(exception);
+	fiber->continuation->error = exception;
+
+	fiber->status = ZEND_FIBER_STATUS_RUNNING;
+
+	if (UNEXPECTED(fiber->link != scheduler)) {
+		zend_throw_error(zend_ce_fiber_exit, "Fiber resumed by a scheduler other than that provided to Fiber::suspend()");
+		return;
+	}
+
+	fiber->link = NULL;
+
+	if (!zend_fiber_resume(fiber, scheduler)) {
+		fiber->status = ZEND_FIBER_STATUS_SUSPENDED;
+		zend_throw_error(zend_ce_fiber_exit, "Failed resuming fiber");
+		return;
+	}
+
+	if (scheduler->status == ZEND_FIBER_STATUS_SHUTDOWN) {
+		zend_throw_error(zend_ce_fiber_exit, "Fiber destroyed");
+		return;
+	}
+
+	scheduler->status = ZEND_FIBER_STATUS_RUNNING;
+}
+/* }}} */
+
+
+/* {{{ proto mixed Fiber::suspend(callable(Fiber):void $enqueue, FiberScheduler $scheduler) */
+ZEND_METHOD(Fiber, suspend)
 {
 	zend_fiber *fiber, *scheduler;
 	zend_execute_data *exec;
-	zend_function *func;
-	zval *awaitable, *fiber_scheduler, *error, closure, context, method_name, retval;
+	zend_fcall_info fci;
+	zend_fcall_info_cache fci_cache;
+	zval *fiber_scheduler, *error, context, retval;
 
 	if (UNEXPECTED(FIBER_G(shutdown))) {
-		zend_throw_error(zend_ce_fiber_error, "Cannot await during shutdown");
+		zend_throw_error(zend_ce_fiber_error, "Cannot suspend during shutdown");
 		return;
 	}
 
@@ -654,18 +738,18 @@ ZEND_METHOD(Fiber, await)
 		FIBER_G(current_fiber) = fiber;
 	} else {
 		if (UNEXPECTED(zend_fiber_is_scheduler(fiber))) {
-			zend_throw_error(zend_ce_fiber_error, "Cannot await in a scheduler");
+			zend_throw_error(zend_ce_fiber_error, "Cannot suspend in a scheduler");
 			return;
 		}
 
 		if (UNEXPECTED(fiber->status != ZEND_FIBER_STATUS_RUNNING)) {
-			zend_throw_error(zend_ce_fiber_error, "Cannot await in a fiber that is not running");
+			zend_throw_error(zend_ce_fiber_error, "Cannot suspend in a fiber that is not running");
 			return;
 		}
 	}
 
 	ZEND_PARSE_PARAMETERS_START_EX(ZEND_PARSE_PARAMS_THROW, 2, 2)
-		Z_PARAM_OBJECT_OF_CLASS(awaitable, zend_ce_awaitable)
+		Z_PARAM_FUNC_EX(fci, fci_cache, 0, 0)
 		Z_PARAM_OBJECT_OF_CLASS(fiber_scheduler, zend_ce_fiber_scheduler)
 	ZEND_PARSE_PARAMETERS_END();
 
@@ -681,20 +765,17 @@ ZEND_METHOD(Fiber, await)
 	ZVAL_OBJ(&context, &fiber->std);
 	Z_ADDREF(context);
 
-	func = zend_hash_find_ptr(&zend_ce_fiber->function_table, fiber_continue_name);
-	zend_create_fake_closure(&closure, func, func->op_array.scope, zend_ce_fiber, &context);
+	fci.params = &context;
+	fci.param_count = 1;
+	fci.retval = &retval;
+
+	zend_call_function(&fci, &fci_cache);
 
 	zval_ptr_dtor(&context);
-
-	ZVAL_STRING(&method_name, "onResolve");
-	call_user_function(NULL, awaitable, &method_name, &retval, 1, &closure);
-
 	zval_ptr_dtor(&retval);
-	zval_ptr_dtor(&method_name);
-	zval_ptr_dtor(&closure);
 
 	if (UNEXPECTED(EG(exception))) {
-		// Exception thrown from Awaitable::onResolve().
+		// Exception thrown from callback.
 		fiber->status = ZEND_FIBER_STATUS_RUNNING;
 		return;
 	}
@@ -801,13 +882,19 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_fiber_run, 0, 0, IS_VOID, 0)
 	ZEND_ARG_VARIADIC_INFO(0, arguments)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_INFO_EX(arginfo_fiber_continue, 0, 0, 2)
-	 ZEND_ARG_OBJ_INFO(0, exception, Throwable, 1)
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_fiber_status, 0, 0, _IS_BOOL, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_fiber_resume, 0, 0, 0)
 	ZEND_ARG_INFO(0, value)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_INFO_EX(arginfo_fiber_await, 0, 0, 2)
-	ZEND_ARG_OBJ_INFO(0, awaitable, Awaitable, 0)
+ZEND_BEGIN_ARG_INFO_EX(arginfo_fiber_throw, 0, 0, 1)
+	ZEND_ARG_OBJ_INFO(0, exception, Throwable, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_fiber_suspend, 0, 0, 2)
+	ZEND_ARG_CALLABLE_INFO(0, enqueue, 0)
 	ZEND_ARG_OBJ_INFO(0, scheduler, FiberScheduler, 0)
 ZEND_END_ARG_INFO()
 
@@ -816,18 +903,13 @@ ZEND_END_ARG_INFO()
 
 static const zend_function_entry fiber_methods[] = {
 	ZEND_ME(Fiber, run, arginfo_fiber_run, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-	ZEND_ME(Fiber, continue, arginfo_fiber_continue, ZEND_ACC_PRIVATE)
-	ZEND_ME(Fiber, await, arginfo_fiber_await, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+	ZEND_ME(Fiber, isSuspended, arginfo_fiber_status, ZEND_ACC_PUBLIC)
+	ZEND_ME(Fiber, isRunning, arginfo_fiber_status, ZEND_ACC_PUBLIC)
+	ZEND_ME(Fiber, isTerminated, arginfo_fiber_status, ZEND_ACC_PUBLIC)
+	ZEND_ME(Fiber, resume, arginfo_fiber_resume, ZEND_ACC_PUBLIC)
+	ZEND_ME(Fiber, throw, arginfo_fiber_throw, ZEND_ACC_PUBLIC)
+	ZEND_ME(Fiber, suspend, arginfo_fiber_suspend, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
 	ZEND_ME(Fiber, __wakeup, arginfo_fiber_void, ZEND_ACC_PUBLIC)
-	ZEND_FE_END
-};
-
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_awaitable_onResolve, 0, 1, IS_VOID, 0)
-	ZEND_ARG_CALLABLE_INFO(0, onResolve, 0)
-ZEND_END_ARG_INFO()
-
-static const zend_function_entry awaitable_methods[] = {
-	ZEND_ABSTRACT_ME(Awaitable, onResolve, arginfo_awaitable_onResolve)
 	ZEND_FE_END
 };
 
@@ -892,9 +974,6 @@ void zend_fiber_ce_register()
 	zend_fiber_handlers.free_obj = zend_fiber_object_destroy;
 	zend_fiber_handlers.clone_obj = NULL;
 	zend_fiber_handlers.get_constructor = zend_fiber_get_constructor;
-
-	INIT_CLASS_ENTRY(ce, "Awaitable", awaitable_methods);
-	zend_ce_awaitable = zend_register_internal_interface(&ce);
 
 	INIT_CLASS_ENTRY(ce, "FiberScheduler", scheduler_methods);
 	zend_ce_fiber_scheduler = zend_register_internal_interface(&ce);

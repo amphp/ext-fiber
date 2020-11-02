@@ -15,7 +15,7 @@ $loop->defer(function (): void {
 
 $promise = new Promise($loop);
 
-echo Fiber::await($promise, $loop);
+echo Fiber::suspend($promise, $loop);
 
 --EXPECTF--
 Fatal error: Uncaught Exception: test in %s:%d
@@ -27,6 +27,6 @@ Stack trace:
 
 Next FiberExit: Uncaught Exception thrown from Loop::run(): test in %s:%d
 Stack trace:
-#0 %s(%d): Fiber::await(Object(Promise), Object(Loop))
+#0 %s(%d): Fiber::suspend(Object(Promise), Object(Loop))
 #1 {main}
   thrown in %s on line %d

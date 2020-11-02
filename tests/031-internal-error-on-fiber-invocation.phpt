@@ -13,7 +13,7 @@ $loop->defer(function (): void {
     Fiber::run(function (int $x) {});
 });
 
-Fiber::await(new Promise($loop), $loop);
+Fiber::suspend(new Promise($loop), $loop);
 
 --EXPECTF--
 Fatal error: Uncaught ArgumentCountError: Too few arguments to function {closure}(), 0 passed and exactly 1 expected in %s:%d
@@ -23,6 +23,6 @@ Stack trace:
 
 Next FiberExit: Uncaught ArgumentCountError thrown from Loop::run(): Too few arguments to function {closure}(), 0 passed and exactly 1 expected in %s:%d
 Stack trace:
-#0 %s(%d): Fiber::await(Object(Promise), Object(Loop))
+#0 %s(%d): Fiber::suspend(Object(Promise), Object(Loop))
 #1 {main}
   thrown in %s on line %d

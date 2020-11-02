@@ -17,7 +17,7 @@ $loop->delay($timeout, fn() => $promise->resolve('test'));
 
 $start = $loop->now();
 
-echo Fiber::await($promise, $loop);
+echo Fiber::suspend($promise, $loop);
 
 if ($loop->now() - $start < $timeout) {
     throw new Exception(sprintf('Test took less than %dms', $timeout));

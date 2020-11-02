@@ -24,7 +24,6 @@ void zend_fiber_ce_unregister();
 
 void zend_fiber_shutdown();
 
-extern ZEND_API zend_class_entry *zend_ce_awaitable;
 extern ZEND_API zend_class_entry *zend_ce_fiber_scheduler;
 
 typedef void* zend_fiber_context;

@@ -11,7 +11,7 @@ $loop = new Loop;
 
 $promise = new Success($loop, 'test');
 
-echo Fiber::await($promise, $loop);
+echo Fiber::suspend($promise, $loop);
 
 --EXPECT--
 test

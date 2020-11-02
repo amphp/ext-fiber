@@ -11,7 +11,7 @@ $loop = new Loop;
 
 $promise = new Failure($loop, new Exception('test'));
 
-echo Fiber::await($promise, $loop);
+echo Fiber::suspend($promise, $loop);
 
 --EXPECTF--
 Fatal error: Uncaught Exception: test in %s.php:%d

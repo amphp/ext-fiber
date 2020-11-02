@@ -12,7 +12,7 @@ $loop = new Loop;
 $promise = new Failure($loop, new Exception('test'));
 
 try {
-    echo Fiber::await($promise, $loop);
+    echo Fiber::suspend($promise, $loop);
 } catch (Exception $exception) {
     echo $exception->getMessage();
 }

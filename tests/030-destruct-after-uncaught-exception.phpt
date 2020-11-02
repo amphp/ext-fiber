@@ -21,12 +21,12 @@ $object = new class($loop) {
     {
         $promise = new Promise($this->loop);
         $this->loop->delay(10, fn() => $promise->resolve(1));
-        Fiber::await($promise, $this->loop);
+        Fiber::suspend($promise, $this->loop);
         echo "unreacahble";
     }
 };
 
-Fiber::await(new Success($loop), $loop);
+Fiber::suspend(new Success($loop), $loop);
 
 throw new Exception('test');
 
@@ -36,9 +36,9 @@ Stack trace:
 #0 {main}
   thrown in %s on line %d
 
-Fatal error: Uncaught FiberError: Cannot await during shutdown in %s:%d
+Fatal error: Uncaught FiberError: Cannot suspend during shutdown in %s:%d
 Stack trace:
-#0 %s(%d): Fiber::await(Object(Promise), Object(Loop))
+#0 %s(%d): Fiber::suspend(Object(Promise), Object(Loop))
 #1 [internal function]: class@anonymous->__destruct()
 #2 {main}
   thrown in %s on line %d

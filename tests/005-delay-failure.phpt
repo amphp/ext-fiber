@@ -18,8 +18,8 @@ $loop->delay($timeout, fn() => $promise->fail(new Exception('test')));
 $start = $loop->now();
 
 try {
-    echo Fiber::await($promise, $loop);
-    throw new Exception('Fiber::await() did not throw');
+    echo Fiber::suspend($promise, $loop);
+    throw new Exception('Fiber::suspend() did not throw');
 } catch (Exception $exception) {
     echo $exception->getMessage();
 }

@@ -15,7 +15,7 @@ $loop->defer(function (): void {
     });
 });
 
-Fiber::await(new Success($loop), $loop);
+Fiber::suspend(new Success($loop), $loop);
 
 echo "done\n";
 

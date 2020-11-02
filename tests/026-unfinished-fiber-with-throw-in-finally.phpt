@@ -16,7 +16,7 @@ $loop->defer(function () use ($loop): void {
             try {
                 try {
                     echo "fiber\n";
-                    echo Fiber::await(new Promise($loop), $loop);
+                    echo Fiber::suspend(new Promise($loop), $loop);
                     echo "after await\n";
                 } catch (Throwable $exception) {
                      echo "inner exit exception caught!\n";
@@ -35,14 +35,14 @@ $loop->defer(function () use ($loop): void {
         }
 
         try {
-            echo Fiber::await(new Promise($loop), $loop);
+            echo Fiber::suspend(new Promise($loop), $loop);
         } catch (FiberError $exception) {
             echo $exception->getMessage(), "\n";
         }
     });
 });
 
-Fiber::await(new Success($loop), $loop);
+Fiber::suspend(new Success($loop), $loop);
 
 echo "done\n";
 
@@ -53,4 +53,4 @@ inner finally
 finally exception
 FiberExit
 outer finally
-Cannot await during shutdown
+Cannot suspend during shutdown

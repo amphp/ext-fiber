@@ -1,6 +1,6 @@
 <?php
 
-final class Failure implements Awaitable
+final class Failure implements Future
 {
     private Loop $loop;
 
@@ -12,8 +12,8 @@ final class Failure implements Awaitable
         $this->exception = $exception;
     }
 
-    public function onResolve(callable $onResolve): void
+    public function __invoke(Fiber $fiber): void
     {
-        $this->loop->defer(fn() => $onResolve($this->exception, null));
+        $this->loop->defer(fn() => $fiber->throw($this->exception));
     }
 }
