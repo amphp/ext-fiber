@@ -423,17 +423,41 @@ static void zend_fiber_forced_shutdown()
 static void zend_fiber_observer_end(zend_execute_data *execute_data, zval *retval)
 {
 	zend_fiber *fiber;
+	zval exception;
 
-	ZEND_HASH_FOREACH_PTR(&FIBER_G(schedulers), fiber) {
-		if (fiber->status == ZEND_FIBER_STATUS_SUSPENDED) {
-			fiber->status = ZEND_FIBER_STATUS_RUNNING;
-			zend_fiber_switch_to(fiber);
+	ZVAL_UNDEF(&exception);
+
+	if (EG(exception)) {
+		if (!zend_is_unwind_exit(EG(exception))) {
+			ZVAL_OBJ(&exception, EG(exception));
+			Z_ADDREF(exception);
+			zend_clear_exception();
 		}
-	} ZEND_HASH_FOREACH_END();
+	} else {
+		ZEND_HASH_FOREACH_PTR(&FIBER_G(schedulers), fiber) {
+			if (fiber->status == ZEND_FIBER_STATUS_SUSPENDED) {
+				fiber->status = ZEND_FIBER_STATUS_RUNNING;
+				zend_fiber_switch_to(fiber);
+			}
+
+			if (EG(exception)) {
+				zend_throw_error(zend_ce_fiber_exit, "Exception thrown from scheduler during shutdown");
+
+				ZVAL_OBJ(&exception, EG(exception));
+				Z_ADDREF(exception);
+				zend_clear_exception();
+				break;
+			}
+		} ZEND_HASH_FOREACH_END();
+	}
 
 	FIBER_G(shutdown) = 1;
 
 	zend_fiber_clean_shutdown();
+
+	if (Z_TYPE(exception) == IS_OBJECT) {
+		zend_throw_exception_object(&exception);
+	}
 }
 
 
