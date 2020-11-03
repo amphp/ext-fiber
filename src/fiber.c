@@ -156,7 +156,7 @@ static void zend_fiber_run()
 	EG(current_execute_data) = fiber->exec;
 	EG(jit_trace_num) = 0;
 
-	execute_ex(fiber->exec);
+	zend_execute_ex(fiber->exec);
 
 	zend_vm_stack_destroy();
 	fiber->stack = NULL;
