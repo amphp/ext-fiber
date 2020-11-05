@@ -29,7 +29,7 @@ echo Fiber::suspend($promise, $loop2);
 --EXPECTF--
 Fatal error: Uncaught FiberExit: Fiber resumed by a scheduler other than that provided to Fiber::suspend() in %s:%d
 Stack trace:
-#0 %s(%d): Fiber->resume(NULL)
+#0 %s(%d): Continuation->resume(NULL)
 #1 %s(%d): Success->{closure}()
 #2 %s(%d): Loop->tick()
 #3 (0): Loop->run()

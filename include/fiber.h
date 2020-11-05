@@ -24,13 +24,15 @@ void zend_fiber_ce_unregister();
 
 void zend_fiber_shutdown();
 
+extern ZEND_API zend_class_entry *zend_ce_fiber;
 extern ZEND_API zend_class_entry *zend_ce_fiber_scheduler;
+extern ZEND_API zend_class_entry *zend_ce_continuation;
 
 typedef void* zend_fiber_context;
 
-typedef struct _zend_fiber_continuation zend_fiber_continuation;
+typedef struct _zend_fiber_values zend_fiber_values;
 
-struct _zend_fiber_continuation {
+struct _zend_fiber_values {
 	/* Value to return from suspend when resuming the fiber (will be populated by resume()). */
 	zval value;
 
@@ -51,7 +53,7 @@ struct _zend_fiber {
 	zend_fiber *link;
 
 	/* Continuation variables for non-scheduler fibers. */
-	zend_fiber_continuation *continuation;
+	zend_fiber_values *continuation;
 
 	/* Callback and info / cache to be used when fiber is started. */
 	zend_fcall_info fci;
@@ -68,6 +70,19 @@ struct _zend_fiber {
 
 	/* Max size of the C stack being used by the fiber. */
 	size_t stack_size;
+};
+
+typedef struct _zend_continuation zend_continuation;
+
+struct _zend_continuation {
+	/* Continuation PHP object handle. */
+	zend_object std;
+
+	/* Suspended fiber to resume. */
+	zend_fiber *fiber;
+
+	/* Flag to indicate if the continuation has been used. */
+	zend_bool used;
 };
 
 static const zend_uchar ZEND_FIBER_STATUS_INIT = 0;

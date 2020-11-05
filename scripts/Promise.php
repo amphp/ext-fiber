@@ -4,8 +4,8 @@ final class Promise implements Future
 {
     private Loop $loop;
 
-    /** @var Fiber[] */
-    private array $fibers = [];
+    /** @var Continuation[] */
+    private array $continuations = [];
 
     private Future $result;
 
@@ -14,14 +14,14 @@ final class Promise implements Future
         $this->loop = $loop;
     }
 
-    public function __invoke(Fiber $fiber): void
+    public function __invoke(Continuation $continuation): void
     {
         if (isset($this->result)) {
-            ($this->result)($fiber);
+            ($this->result)($continuation);
             return;
         }
 
-        $this->fibers[] = $fiber;
+        $this->continuations[] = $continuation;
     }
 
     public function resolve(mixed $value = null): void
@@ -32,11 +32,11 @@ final class Promise implements Future
 
         $this->result = $value instanceof Future ? $value : new Success($this->loop, $value);
 
-        $fibers = $this->fibers;
-        $this->fibers = [];
+        $continuations = $this->continuations;
+        $this->continuations = [];
 
-        foreach ($fibers as $fiber) {
-            ($this->result)($fiber);
+        foreach ($continuations as $continuation) {
+            ($this->result)($continuation);
         }
     }
 
