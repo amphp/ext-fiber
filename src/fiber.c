@@ -266,6 +266,10 @@ static void zend_fiber_object_destroy(zend_object *object)
 		zend_fiber_switch_to(fiber);
 	} else if (!(fiber->status & ZEND_FIBER_STATUS_FINISHED)) {
 		zval_ptr_dtor(&fiber->fci.function_name);
+
+		if (fiber->status == ZEND_FIBER_STATUS_INIT) {
+			efree(fiber->stack);
+		}
 	}
 
 	zval_ptr_dtor(&fiber->continuation->value);
@@ -384,6 +388,10 @@ static void zend_fiber_scheduler_hash_index_dtor(zval *ptr)
 
 	if (!(fiber->status & ZEND_FIBER_STATUS_FINISHED)) {
 		zval_ptr_dtor(&fiber->fci.function_name);
+
+		if (fiber->status == ZEND_FIBER_STATUS_INIT) {
+			efree(fiber->stack);
+		}
 	}
 
 	zend_fiber_destroy(fiber->context);
