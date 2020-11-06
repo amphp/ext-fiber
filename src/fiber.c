@@ -44,7 +44,6 @@ static zend_try_catch_element fiber_terminate_try_catch_array = { 0, 1, 0, 0 };
 static zend_op fiber_run_op[2];
 
 static zend_string *scheduler_run_name;
-static zend_string *fiber_continue_name;
 
 #define ZEND_FIBER_BACKUP_EG(stack, stack_page_size, exec, trace_num) do { \
 	stack = EG(vm_stack); \
@@ -1086,7 +1085,6 @@ void zend_fiber_ce_register()
 	zend_hash_init(&FIBER_G(schedulers), 0, NULL, zend_fiber_scheduler_hash_index_dtor, 1);
 
 	scheduler_run_name = zend_string_init("run", sizeof("run") - 1, 1);
-	fiber_continue_name = zend_string_init("continue", sizeof("continue") - 1, 1);
 }
 
 void zend_fiber_ce_unregister()
@@ -1101,9 +1099,6 @@ void zend_fiber_ce_unregister()
 
 	zend_string_free(scheduler_run_name);
 	scheduler_run_name = NULL;
-
-	zend_string_free(fiber_continue_name);
-	fiber_continue_name = NULL;
 }
 
 void zend_fiber_shutdown()
