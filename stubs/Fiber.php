@@ -14,12 +14,12 @@ final class Fiber
      * Suspend execution of the fiber. A Continuation object is provided as the first argument to the given callback.
      * The fiber may be resumed with {@see Continuation::resume()} or {@see Continuation::throw()}.
      *
-     * @param callable(Fiber):void $enqueue
+     * @param callable(Continuation):void $enqueue
      * @param FiberScheduler $scheduler
      *
      * @return mixed Value provided to {@see Continuation::resume()}.
      *
-     * @throws FiberError Thrown if within {@see FiberScheduler::run()}.
+     * @throws FiberError Thrown if within {@see FiberScheduler::run()} or within a callback given to this method.
      * @throws Throwable Exception provided to {@see Continuation::throw()}.
      */
     public static function suspend(callable $enqueue, FiberScheduler $scheduler): mixed { }

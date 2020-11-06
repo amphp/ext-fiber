@@ -3,9 +3,10 @@
 final class Continuation
 {
     /**
-     * @return bool True if either {@see resume()} or {@see throw()} has been called previously.
+     * @return bool True if the continuation is still pending, that is, if neither {@see resume()} or {@see throw()}
+     *              has been called.
      */
-    public function continued(): bool { }
+    public function isPending(): bool { }
 
     /**
      * Resumes the fiber, returning the given value from {@see Fiber::suspend()}.

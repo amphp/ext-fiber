@@ -930,14 +930,14 @@ ZEND_METHOD(Continuation, throw)
 /* }}} */
 
 
-/* {{{ proto bool Continuation::continued() */
-ZEND_METHOD(Continuation, continued)
+/* {{{ proto bool Continuation::isPending() */
+ZEND_METHOD(Continuation, isPending)
 {
 	ZEND_PARSE_PARAMETERS_NONE();
 
 	zend_continuation *continuation = (zend_continuation *) Z_OBJ_P(getThis());
 
-	RETURN_BOOL(continuation->used);
+	RETURN_BOOL(!continuation->used);
 }
 /* }}} */
 
@@ -976,7 +976,7 @@ static const zend_function_entry fiber_methods[] = {
 	ZEND_FE_END
 };
 
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_continuation_continued, 0, 0, _IS_BOOL, 0)
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_continuation_isPending, 0, 0, _IS_BOOL, 0)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_continuation_resume, 0, 0, IS_VOID, 0)
@@ -988,7 +988,7 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_continuation_throw, 0, 0, IS_VOI
 ZEND_END_ARG_INFO()
 
 static const zend_function_entry continuation_methods[] = {
-	ZEND_ME(Continuation, continued, arginfo_continuation_continued, ZEND_ACC_PUBLIC)
+	ZEND_ME(Continuation, isPending, arginfo_continuation_isPending, ZEND_ACC_PUBLIC)
 	ZEND_ME(Continuation, resume, arginfo_continuation_resume, ZEND_ACC_PUBLIC)
 	ZEND_ME(Continuation, throw, arginfo_continuation_throw, ZEND_ACC_PUBLIC)
 	ZEND_FE_END
