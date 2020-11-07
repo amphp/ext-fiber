@@ -11,6 +11,60 @@ final class TimerQueue
     /** @var int[] */
     private array $pointers = [];
 
+    /**
+     * @param int $node Rebuild the data array from the given node upward.
+     *
+     * @return void
+     */
+    private function heapifyUp(int $node): void
+    {
+        $entry = $this->data[$node];
+        while ($node !== 0 && $entry->expiration < $this->data[$parent = ($node - 1) >> 1]->expiration) {
+            $temp = $this->data[$parent];
+            $this->data[$node] = $temp;
+            $this->pointers[$temp->id] = $node;
+
+            $this->data[$parent] = $entry;
+            $this->pointers[$entry->id] = $parent;
+
+            $node = $parent;
+        }
+    }
+
+    /**
+     * @param int $node Rebuild the data array from the given node downward.
+     *
+     * @return void
+     */
+    private function heapifyDown(int $node): void
+    {
+        $length = \count($this->data);
+        while (($child = ($node << 1) + 1) < $length) {
+            if ($this->data[$child]->expiration < $this->data[$node]->expiration
+                && ($child + 1 >= $length || $this->data[$child]->expiration < $this->data[$child + 1]->expiration)
+            ) {
+                // Left child is less than parent and right child.
+                $swap = $child;
+            } elseif ($child + 1 < $length && $this->data[$child + 1]->expiration < $this->data[$node]->expiration) {
+                // Right child is less than parent and left child.
+                $swap = $child + 1;
+            } else { // Left and right child are greater than parent.
+                break;
+            }
+
+            $left = $this->data[$node];
+            $right = $this->data[$swap];
+
+            $this->data[$node] = $right;
+            $this->pointers[$right->id] = $node;
+
+            $this->data[$swap] = $left;
+            $this->pointers[$left->id] = $swap;
+
+            $node = $swap;
+        }
+    }
+
     public function insert(string $id, callable $callback, int $expiration): void
     {
         assert(!isset($this->pointers[$id]));
@@ -21,16 +75,7 @@ final class TimerQueue
         $this->data[$node] = $entry;
         $this->pointers[$id] = $node;
 
-        while ($node !== 0 && $entry->expiration < $this->data[$parent = ($node - 1) >> 1]->expiration) {
-            $temp = $this->data[$parent];
-            $this->data[$node] = $temp;
-            $this->pointers[$temp->id] = $node;
-
-            $this->data[$parent] = $entry;
-            $this->pointers[$id] = $parent;
-
-            $node = $parent;
-        }
+        $this->heapifyUp($node);
     }
 
     public function remove(string $id): void
@@ -62,7 +107,7 @@ final class TimerQueue
     /**
      * Returns the expiration time value at the top of the heap. Time complexity: O(1).
      *
-     * @return int|null Expiration time of the watcher at the top of the heap or null if the heap is empty.
+     * @return int|null Expiration time of the timer at the top of the heap or null if the heap is empty.
      */
     public function peek(): ?int
     {
@@ -76,35 +121,19 @@ final class TimerQueue
      */
     private function removeAndRebuild(int $node): void
     {
-        $length = count($this->data) - 1;
+        $length = \count($this->data) - 1;
         $id = $this->data[$node]->id;
         $left = $this->data[$node] = $this->data[$length];
         $this->pointers[$left->id] = $node;
         unset($this->data[$length], $this->pointers[$id]);
 
-        while (($child = ($node << 1) + 1) < $length) {
-            if ($this->data[$child]->expiration < $this->data[$node]->expiration
-                && ($child + 1 >= $length || $this->data[$child]->expiration < $this->data[$child + 1]->expiration)
-            ) {
-                // Left child is less than parent and right child.
-                $swap = $child;
-            } elseif ($child + 1 < $length && $this->data[$child + 1]->expiration < $this->data[$node]->expiration) {
-                // Right child is less than parent and left child.
-                $swap = $child + 1;
-            } else { // Left and right child are greater than parent.
-                break;
+        if ($node < $length) { // don't need to do anything if we removed the last element
+            $parent = ($node - 1) >> 1;
+            if ($parent >= 0 && $this->data[$node]->expiration < $this->data[$parent]->expiration) {
+                $this->heapifyUp($node);
+            } else {
+                $this->heapifyDown($node);
             }
-
-            $left = $this->data[$node];
-            $right = $this->data[$swap];
-
-            $this->data[$node] = $right;
-            $this->pointers[$right->id] = $node;
-
-            $this->data[$swap] = $left;
-            $this->pointers[$left->id] = $swap;
-
-            $node = $swap;
         }
     }
 }
