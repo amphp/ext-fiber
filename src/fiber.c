@@ -494,29 +494,25 @@ zend_observer_fcall_handlers zend_fiber_observer_fcall_init(zend_execute_data *e
 
 static ZEND_COLD void zend_fiber_uncaught_exception_handler()
 {
-	zval retval, message;
+	zval retval;
 	zend_object *exception = EG(exception);
 
 	if (zend_is_unwind_exit(EG(exception)) || EG(exception)->ce == zend_ce_fiber_exit) {
 		return; // Exception is UnwindExit or FiberExit, so ignore as we are exiting anyway.
 	}
 
-	ZVAL_COPY(&message, zend_read_property(exception->ce, exception, "message", sizeof("message") - 1, 0, &retval));
-
 	zend_throw_error(
 			zend_ce_fiber_exit,
 			"Uncaught %s thrown from Fiber::run(): %s",
 			exception->ce->name->val,
-			Z_STRVAL(message)
+			Z_STRVAL_P(zend_read_property(exception->ce, exception, "message", sizeof("message") - 1, 0, &retval))
 	);
-
-	zval_ptr_dtor(&message);
 }
 
 
 static ZEND_COLD void zend_fiber_scheduler_uncaught_exception_handler(zval *scheduler)
 {
-	zval retval, message;
+	zval retval;
 	zend_object *exception = EG(exception);
 
 	ZEND_ASSERT(instanceof_function(Z_OBJCE_P(scheduler), zend_ce_fiber_scheduler));
@@ -525,17 +521,13 @@ static ZEND_COLD void zend_fiber_scheduler_uncaught_exception_handler(zval *sche
 		return; // Exception is UnwindExit or FiberExit, so ignore as we are exiting anyway.
 	}
 
-	ZVAL_COPY(&message, zend_read_property(exception->ce, exception, "message", sizeof("message") - 1, 0, &retval));
-
 	zend_throw_error(
 		zend_ce_fiber_exit,
 		"Uncaught %s thrown from %s::run(): %s",
 		exception->ce->name->val,
 		Z_OBJCE_P(scheduler)->name->val,
-		Z_STRVAL(message)
+		Z_STRVAL_P(zend_read_property(exception->ce, exception, "message", sizeof("message") - 1, 0, &retval))
 	);
-
-	zval_ptr_dtor(&message);
 }
 
 
