@@ -511,27 +511,49 @@ void zend_fiber_error_observer(int type, const char *filename, uint32_t line, ze
 }
 
 
-static void zend_fiber_scheduler_uncaught_exception_handler(zval *scheduler)
+static ZEND_COLD void zend_fiber_uncaught_exception_handler()
 {
-	zval retval, exception_name, scheduler_name, message;
+	zval retval, message;
+	zend_object *exception = EG(exception);
+
+	if (zend_is_unwind_exit(EG(exception)) || EG(exception)->ce == zend_ce_fiber_exit) {
+		return; // Exception is UnwindExit or FiberExit, so ignore as we are exiting anyway.
+	}
+
+	ZVAL_COPY(&message, zend_read_property(exception->ce, exception, "message", sizeof("message") - 1, 0, &retval));
+
+	zend_throw_error(
+			zend_ce_fiber_exit,
+			"Uncaught %s thrown from Fiber::run(): %s",
+			exception->ce->name->val,
+			Z_STRVAL(message)
+	);
+
+	zval_ptr_dtor(&message);
+}
+
+
+static ZEND_COLD void zend_fiber_scheduler_uncaught_exception_handler(zval *scheduler)
+{
+	zval retval, message;
 	zend_object *exception = EG(exception);
 
 	ZEND_ASSERT(instanceof_function(Z_OBJCE_P(scheduler), zend_ce_fiber_scheduler));
 
-	ZVAL_STR(&exception_name, exception->ce->name);
-	ZVAL_STR(&scheduler_name, Z_OBJCE_P(scheduler)->name);
+	if (zend_is_unwind_exit(EG(exception)) || EG(exception)->ce == zend_ce_fiber_exit) {
+		return; // Exception is UnwindExit or FiberExit, so ignore as we are exiting anyway.
+	}
+
 	ZVAL_COPY(&message, zend_read_property(exception->ce, exception, "message", sizeof("message") - 1, 0, &retval));
 
 	zend_throw_error(
 		zend_ce_fiber_exit,
 		"Uncaught %s thrown from %s::run(): %s",
-		Z_STRVAL(exception_name),
-		Z_STRVAL(scheduler_name),
+		exception->ce->name->val,
+		Z_OBJCE_P(scheduler)->name->val,
 		Z_STRVAL(message)
 	);
 
-	zval_ptr_dtor(&exception_name);
-	zval_ptr_dtor(&scheduler_name);
 	zval_ptr_dtor(&message);
 }
 
@@ -644,6 +666,10 @@ ZEND_METHOD(Fiber, run)
 	}
 
 	zval_ptr_dtor(&context);
+
+	if (EG(exception)) {
+		zend_fiber_uncaught_exception_handler();
+	}
 }
 /* }}} */
 
@@ -752,14 +778,6 @@ ZEND_METHOD(Fiber, suspend)
 	
 	if (UNEXPECTED(EG(exception))) {
 		// Exception thrown from scheduler, invoke exception handler and bailout.
-		if (zend_is_unwind_exit(EG(exception))) {
-			return; // Exception is UnwindExit, so ignore as we are exiting anyway.
-		}
-
-		if (EG(exception)->ce && instanceof_function(EG(exception)->ce, zend_ce_fiber_exit)) {
-			return;
-		}
-
 		zend_fiber_scheduler_uncaught_exception_handler(fiber_scheduler);
 		return;
 	}
@@ -864,6 +882,11 @@ ZEND_METHOD(Continuation, resume)
 		return;
 	}
 
+	if (EG(exception)) {
+		zend_fiber_uncaught_exception_handler();
+		return;
+	}
+
 	scheduler->status = ZEND_FIBER_STATUS_RUNNING;
 }
 /* }}} */
@@ -922,6 +945,11 @@ ZEND_METHOD(Continuation, throw)
 
 	if (scheduler->status == ZEND_FIBER_STATUS_SHUTDOWN) {
 		zend_throw_error(zend_ce_fiber_exit, "Fiber destroyed");
+		return;
+	}
+
+	if (EG(exception)) {
+		zend_fiber_uncaught_exception_handler();
 		return;
 	}
 
@@ -1027,7 +1055,7 @@ void zend_fiber_ce_register()
 
 	zend_set_user_opcode_handler(opcode, fiber_run_opcode_handler);
 
-	ZEND_SECURE_ZERO(fiber_run_op, sizeof(fiber_run_op));
+	ZEND_SECURE_ZERO(fiber_run_op, sizeof(zend_op) * 2);
 	fiber_run_op[0].opcode = opcode;
 	zend_vm_set_opcode_handler_ex(fiber_run_op, 0, 0, 0);
 	fiber_run_op[1].opcode = opcode;
@@ -1036,7 +1064,7 @@ void zend_fiber_ce_register()
 	ZEND_SECURE_ZERO(&fiber_run_func, sizeof(fiber_run_func));
 	fiber_run_func.type = ZEND_USER_FUNCTION;
 	fiber_run_func.function_name = zend_string_init("Fiber::run", sizeof("Fiber::run") - 1, 1);
-	fiber_run_func.filename = ZSTR_EMPTY_ALLOC();
+	fiber_run_func.filename = zend_string_init("[fiber function]", sizeof("[fiber function]") - 1, 1);
 	fiber_run_func.opcodes = fiber_run_op;
 	fiber_run_func.last_try_catch = 1;
 	fiber_run_func.try_catch_array = &fiber_terminate_try_catch_array;
@@ -1093,6 +1121,9 @@ void zend_fiber_ce_unregister()
 
 	zend_string_free(fiber_run_func.function_name);
 	fiber_run_func.function_name = NULL;
+
+	zend_string_free(fiber_run_func.filename);
+	fiber_run_func.filename = NULL;
 
 	zend_hash_destroy(&FIBER_G(fibers));
 	zend_hash_destroy(&FIBER_G(schedulers));

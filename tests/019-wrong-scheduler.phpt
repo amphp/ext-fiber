@@ -32,6 +32,6 @@ Stack trace:
 #0 %s(%d): Continuation->resume(NULL)
 #1 %s(%d): Success->{closure}()
 #2 %s(%d): Loop->tick()
-#3 (0): Loop->run()
+#3 [fiber function](0): Loop->run()
 #4 {main}
   thrown in %s on line %d

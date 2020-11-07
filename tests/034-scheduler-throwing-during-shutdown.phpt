@@ -40,7 +40,7 @@ Fatal error: Uncaught Exception: test in %s:%d
 Stack trace:
 #0 %s(%d): {closure}()
 #1 %s(%d): Loop->tick()
-#2 (0): Loop->run()
+#2 [fiber function](0): Loop->run()
 #3 {main}
 
 Next FiberExit: Exception thrown from scheduler during shutdown in %s:%d
