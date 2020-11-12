@@ -1,5 +1,5 @@
 --TEST--
-Await on an Awaitable where the given FiberScheduler returns before resolving with a finally block
+FiberScheduler returns before resuming the fiber with a finally block
 --SKIPIF--
 <?php if (!extension_loaded('fiber')) echo "ext-fiber not loaded";
 --FILE--
@@ -7,12 +7,10 @@ Await on an Awaitable where the given FiberScheduler returns before resolving wi
 
 require dirname(__DIR__) . '/scripts/bootstrap.php';
 
-$loop = new Loop;
-
-$promise = new Promise($loop);
-
 try {
-    echo Fiber::suspend($promise, $loop);
+    echo Fiber::suspend(function (Continuation $continuation): void {
+        // Empty callback.
+    }, new Loop);
 } finally {
     echo 'finally';
 }
@@ -21,6 +19,6 @@ try {
 finally
 Fatal error: Uncaught FiberExit: Loop::run() returned before resuming the fiber in %s:%d
 Stack trace:
-#0 %s(%d): Fiber::suspend(Object(Promise), Object(Loop))
+#0 %s(%d): Fiber::suspend(Object(Closure), Object(Loop))
 #1 {main}
   thrown in %s on line %d

@@ -1,5 +1,5 @@
 --TEST--
-Fiber without call to await does not leak
+Fiber without call to suspend does not leak
 --SKIPIF--
 <?php if (!extension_loaded('fiber')) echo "ext-fiber not loaded";
 --FILE--
@@ -11,7 +11,7 @@ $loop = new Loop;
 
 $loop->defer(function (): void {
     Fiber::run(function (): void {
-        echo "no await\n";
+        echo "no suspend\n";
     });
 });
 
@@ -20,5 +20,5 @@ Fiber::suspend(new Success($loop), $loop);
 echo "done\n";
 
 --EXPECT--
-no await
+no suspend
 done

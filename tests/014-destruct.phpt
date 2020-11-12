@@ -1,5 +1,5 @@
 --TEST--
-Test await in object destructor
+Test suspend in object destructor
 --SKIPIF--
 <?php if (!extension_loaded('fiber')) echo "ext-fiber not loaded";
 --FILE--

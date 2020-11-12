@@ -1,5 +1,5 @@
 --TEST--
-Test await in both object destructor and register shutdown function
+Test suspend in both object destructor and register shutdown function
 --SKIPIF--
 <?php if (!extension_loaded('fiber')) echo "ext-fiber not loaded";
 --FILE--

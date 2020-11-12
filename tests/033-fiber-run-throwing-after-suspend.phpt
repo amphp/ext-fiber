@@ -1,5 +1,5 @@
 --TEST--
-Immediate throw from fiber after await
+Immediate throw from fiber after suspend
 --SKIPIF--
 <?php if (!extension_loaded('fiber')) echo "ext-fiber not loaded";
 --FILE--

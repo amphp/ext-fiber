@@ -1,5 +1,5 @@
 --TEST--
-Test await in function registered with register_shutdown_function
+Test suspend in function registered with register_shutdown_function
 --SKIPIF--
 <?php if (!extension_loaded('fiber')) echo "ext-fiber not loaded";
 --FILE--

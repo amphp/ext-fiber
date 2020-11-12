@@ -1,5 +1,5 @@
 --TEST--
-Await on resolved Awaitable
+Test resume
 --SKIPIF--
 <?php if (!extension_loaded('fiber')) echo "ext-fiber not loaded";
 --FILE--
@@ -9,9 +9,9 @@ require dirname(__DIR__) . '/scripts/bootstrap.php';
 
 $loop = new Loop;
 
-$promise = new Success($loop, 'test');
-
-echo Fiber::suspend($promise, $loop);
+echo Fiber::suspend(function (Continuation $continuation) use ($loop): void {
+    $loop->defer(fn() => $continuation->resume('test'));
+}, $loop);
 
 --EXPECT--
 test
