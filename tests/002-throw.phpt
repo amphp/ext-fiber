@@ -1,7 +1,7 @@
 --TEST--
 Test throw
 --SKIPIF--
-<?php if (!extension_loaded('fiber')) echo "ext-fiber not loaded";
+<?php include __DIR__ . '/include/skip-if.php';
 --FILE--
 <?php
 

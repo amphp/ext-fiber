@@ -1,7 +1,7 @@
 --TEST--
 Test UnwindExit from FiberScheduler calling exit is ignored
 --SKIPIF--
-<?php if (!extension_loaded('fiber')) echo "ext-fiber not loaded";
+<?php include __DIR__ . '/include/skip-if.php';
 --FILE--
 <?php
 

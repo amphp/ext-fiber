@@ -2,7 +2,7 @@
 Fiber that is never resumed with throw in finally block
 --SKIPIF--
 <?php
-if (!extension_loaded('fiber')) echo "ext-fiber not loaded";
+include __DIR__ . '/include/skip-if.php';
 --FILE--
 <?php
 
