@@ -85,6 +85,16 @@ struct _zend_continuation {
 	zend_bool used;
 };
 
+typedef struct _zend_fiber_reflection zend_fiber_reflection;
+
+struct _zend_fiber_reflection {
+	/* ReflectionFiber PHP object handle. */
+	zend_object std;
+
+	/* Fiber being reflected. */
+	zend_fiber *fiber;
+};
+
 static const zend_uchar ZEND_FIBER_STATUS_INIT = 0;
 static const zend_uchar ZEND_FIBER_STATUS_SUSPENDED = 0x1;
 static const zend_uchar ZEND_FIBER_STATUS_RUNNING = 0x2;
