@@ -4,7 +4,7 @@ require dirname(__DIR__) . '/scripts/bootstrap.php';
 
 $loop = new Loop;
 
-// Create three new fibers in the FiberScheduler using the async() function.
+// Create three new fibers using the async() function.
 async($loop, function () use ($loop): void {
     delay($loop, 1500);
     var_dump(1);

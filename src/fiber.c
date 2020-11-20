@@ -616,7 +616,27 @@ static ZEND_COLD zend_function *zend_reflection_fiber_get_constructor(zend_objec
 }
 
 
-/* {{{ proto void Fiber::run(callable $callback, mixed ...$args) */
+/* {{{ proto Fiber Fiber::create(callable $callback) */
+ZEND_METHOD(Fiber, create)
+{
+	zend_fiber *fiber;
+
+	fiber = (zend_fiber *) zend_fiber_object_create(zend_ce_fiber);
+
+	ZEND_PARSE_PARAMETERS_START_EX(ZEND_PARSE_PARAMS_THROW, 1, 1)
+		Z_PARAM_FUNC_EX(fiber->fci, fiber->fci_cache, 0, 0)
+	ZEND_PARSE_PARAMETERS_END();
+
+	// Keep a reference to closures or callable objects as long as the fiber lives.
+	Z_TRY_ADDREF(fiber->fci.function_name);
+
+	GC_ADDREF(&fiber->std);
+	RETURN_OBJ(&fiber->std);
+}
+/* }}} */
+
+
+/* {{{ proto void Fiber::run(mixed ...$args) */
 ZEND_METHOD(Fiber, run)
 {
 	zend_fiber *fiber, *scheduler;
@@ -624,27 +644,22 @@ ZEND_METHOD(Fiber, run)
 	uint32_t param_count;
 
 	if (UNEXPECTED(FIBER_G(shutdown))) {
-		zend_throw_error(zend_ce_fiber_error, "Cannot create a new fiber during shutdown");
+		zend_throw_error(zend_ce_fiber_error, "Cannot start a fiber during shutdown");
 		return;
 	}
 
 	scheduler = FIBER_G(current_fiber);
-	
+
 	if (scheduler == NULL || !zend_fiber_is_scheduler(scheduler)) {
-		zend_throw_error(NULL, "New fibers can only be created inside FiberScheduler::run()");
+		zend_throw_error(NULL, "New fibers can only be started inside FiberScheduler::run()");
 		return;
 	}
 
-	fiber = (zend_fiber *) zend_fiber_object_create(zend_ce_fiber);
-	ZVAL_OBJ(&context, &fiber->std);
+	fiber = (zend_fiber *) Z_OBJ_P(getThis());
 
-	ZEND_PARSE_PARAMETERS_START_EX(ZEND_PARSE_PARAMS_THROW, 1, -1)
-		Z_PARAM_FUNC_EX(fiber->fci, fiber->fci_cache, 0, 0)
+	ZEND_PARSE_PARAMETERS_START_EX(ZEND_PARSE_PARAMS_THROW, 0, -1)
 		Z_PARAM_VARIADIC('+', params, param_count)
 	ZEND_PARSE_PARAMETERS_END();
-
-	// Keep a reference to closures or callable objects as long as the fiber lives.
-	Z_TRY_ADDREF(fiber->fci.function_name);
 
 	fiber->fci.params = params;
 	fiber->fci.param_count = param_count;
@@ -671,8 +686,6 @@ ZEND_METHOD(Fiber, run)
 
 	fiber->status = ZEND_FIBER_STATUS_RUNNING;
 
-	Z_ADDREF(context);
-
 	scheduler->exec = execute_data;
 
 	if (!zend_fiber_switch_to(fiber)) {
@@ -680,8 +693,6 @@ ZEND_METHOD(Fiber, run)
 		zend_throw_error(zend_ce_fiber_exit, "Failed switching to fiber");
 		return;
 	}
-
-	zval_ptr_dtor(&context);
 
 	if (EG(exception)) {
 		zend_fiber_uncaught_exception_handler();
@@ -1004,6 +1015,25 @@ ZEND_METHOD(FiberError, __construct)
 /* }}} */
 
 
+/* {{{ proto ReflectionFiber ReflectionFiber::fromFiber(Fiber $fiber) */
+ZEND_METHOD(ReflectionFiber, fromFiber)
+{
+	zend_fiber_reflection *reflection;
+	zval *object;
+
+	ZEND_PARSE_PARAMETERS_START_EX(ZEND_PARSE_PARAMS_THROW, 1, 1)
+		Z_PARAM_OBJECT_OF_CLASS_EX(object, zend_ce_fiber, 0, 0)
+	ZEND_PARSE_PARAMETERS_END();
+
+	reflection = (zend_fiber_reflection *) zend_reflection_fiber_object_create(zend_ce_reflection_fiber);
+	reflection->fiber = (zend_fiber *) Z_OBJ_P(object);
+
+	GC_ADDREF(&reflection->fiber->std);
+
+	RETURN_OBJ(&reflection->std);}
+/* }}} */
+
+
 /* {{{ proto ReflectionFiber ReflectionFiber::fromContinuation(Continuation $continuation) */
 ZEND_METHOD(ReflectionFiber, fromContinuation)
 {
@@ -1053,8 +1083,8 @@ ZEND_METHOD(ReflectionFiber, fromFiberScheduler)
 
 
 #define REFLECTION_CHECK_VALID_FIBER(fiber) do { \
-        if (fiber == NULL || fiber->status & ZEND_FIBER_STATUS_FINISHED) { \
-            zend_throw_error(NULL, "Cannot fetch information from a terminated fiber"); \
+        if (fiber == NULL || fiber->status == ZEND_FIBER_STATUS_INIT || fiber->status & ZEND_FIBER_STATUS_FINISHED) { \
+            zend_throw_error(NULL, "Cannot fetch information from a fiber that has not been started or is terminated"); \
             return; \
         } \
     } while (0)
@@ -1181,8 +1211,11 @@ ZEND_METHOD(ReflectionFiber, isFiberScheduler)
 /* }}} */
 
 
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_fiber_run, 0, 1, IS_VOID, 0)
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_fiber_create, 0, 1, Fiber, 0)
 	ZEND_ARG_CALLABLE_INFO(0, callable, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_fiber_run, 0, 0, IS_VOID, 0)
 	ZEND_ARG_VARIADIC_INFO(0, arguments)
 ZEND_END_ARG_INFO()
 
@@ -1195,7 +1228,8 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_fiber_void, 0, 0, IS_VOID, 0)
 ZEND_END_ARG_INFO()
 
 static const zend_function_entry fiber_methods[] = {
-	ZEND_ME(Fiber, run, arginfo_fiber_run, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+	ZEND_ME(Fiber, create, arginfo_fiber_create, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+	ZEND_ME(Fiber, run, arginfo_fiber_run, ZEND_ACC_PUBLIC)
 	ZEND_ME(Fiber, suspend, arginfo_fiber_suspend, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
 	ZEND_ME(Fiber, __wakeup, arginfo_fiber_void, ZEND_ACC_PUBLIC)
 	ZEND_FE_END
@@ -1235,6 +1269,10 @@ static const zend_function_entry fiber_error_methods[] = {
 	ZEND_FE_END
 };
 
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO(arginfo_reflection_fiber_fromFiber, ReflectionFiber, 0)
+	ZEND_ARG_OBJ_INFO(0, fiber, Fiber, 0)
+ZEND_END_ARG_INFO()
+
 ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO(arginfo_reflection_fiber_fromContinuation, ReflectionFiber, 0)
 	ZEND_ARG_OBJ_INFO(0, continuation, Continuation, 0)
 ZEND_END_ARG_INFO()
@@ -1257,6 +1295,7 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_reflection_fiber_status, 0, 0, _
 ZEND_END_ARG_INFO()
 
 static const zend_function_entry reflection_fiber_methods[] = {
+	ZEND_ME(ReflectionFiber, fromFiber, arginfo_reflection_fiber_fromFiber, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
 	ZEND_ME(ReflectionFiber, fromContinuation, arginfo_reflection_fiber_fromContinuation, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
 	ZEND_ME(ReflectionFiber, fromFiberScheduler, arginfo_reflection_fiber_fromFiberScheduler, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
 	ZEND_ME(ReflectionFiber, getTrace, arginfo_reflection_fiber_getTrace, ZEND_ACC_PUBLIC)

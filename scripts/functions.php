@@ -4,13 +4,13 @@ function async(Loop $loop, callable $callback): Future
 {
     $promise = new Promise($loop);
 
-    $loop->defer(fn() => \Fiber::run(function () use ($promise, $callback): void {
+    $loop->defer(fn() => \Fiber::create(function () use ($promise, $callback): void {
         try {
             $promise->resolve($callback());
         } catch (\Throwable $exception) {
             $promise->fail($exception);
         }
-    }));
+    })->run());
 
     return $promise;
 }

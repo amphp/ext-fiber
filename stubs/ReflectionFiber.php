@@ -2,6 +2,8 @@
 
 final class ReflectionFiber
 {
+    public static function fromFiber(Fiber $fiber): self { }
+
     public static function fromContinuation(Continuation $continuation): self { }
 
     public static function fromFiberScheduler(FiberScheduler $scheduler): ?self { }

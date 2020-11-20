@@ -3,16 +3,22 @@
 final class Fiber
 {
     /**
-     * Can only be called within {@see FiberScheduler::run()}.
-     *
-     * @param callable $callback Function to invoke when starting the Fiber.
-     * @param mixed ...$args Function arguments.
+     * @param callable $callback Function to invoke when running the fiber.
      */
-    public static function run(callable $callback, mixed ...$args): void { }
+    public static function create(callable $callback): Fiber { }
+
+    /**
+     * Must be called within {@see FiberScheduler::run()}.
+     *
+     * @param mixed ...$args Arguments passed to fiber function.
+     */
+    public function run(mixed ...$args): void { }
 
     /**
      * Suspend execution of the fiber. A Continuation object is provided as the first argument to the given callback.
      * The fiber may be resumed with {@see Continuation::resume()} or {@see Continuation::throw()}.
+     *
+     * Cannot be called within {@see FiberScheduler::run()}.
      *
      * @param callable(Continuation):void $enqueue
      * @param FiberScheduler $scheduler
@@ -25,7 +31,7 @@ final class Fiber
     public static function suspend(callable $enqueue, FiberScheduler $scheduler): mixed { }
 
     /**
-     * Private constructor to force use of {@see run()}.
+     * Private constructor to force use of {@see create()}.
      */
     private function __construct() { }
 }

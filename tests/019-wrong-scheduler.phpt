@@ -14,11 +14,11 @@ $promise = new Promise($loop1);
 $loop1->defer(fn() => $promise->resolve());;
 
 $loop2->defer(function () use ($loop1, $loop2): void {
-    Fiber::run(function () use ($loop1): void {
+    Fiber::create(function () use ($loop1): void {
         $promise = new Promise($loop1);
         $loop1->delay(30, fn() => $promise->resolve());;
         Fiber::suspend($promise, $loop1);
-    });
+    })->run();
 
     $loop2->delay(100, fn() => 0);
 });

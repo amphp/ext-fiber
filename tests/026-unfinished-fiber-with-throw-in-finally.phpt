@@ -11,7 +11,7 @@ require dirname(__DIR__) . '/scripts/bootstrap.php';
 $loop = new Loop;
 
 $loop->defer(function () use ($loop): void {
-    Fiber::run(function () use ($loop): void {
+    Fiber::create(function () use ($loop): void {
         try {
             try {
                 try {
@@ -39,7 +39,7 @@ $loop->defer(function () use ($loop): void {
         } catch (FiberError $exception) {
             echo $exception->getMessage(), "\n";
         }
-    });
+    })->run();
 });
 
 Fiber::suspend(new Success($loop), $loop);

@@ -9,12 +9,12 @@ require dirname(__DIR__) . '/scripts/bootstrap.php';
 
 $loop = new Loop;
 
-$loop->defer(function () use ($loop): void {
-    Fiber::run(function () use ($loop): void {
-        Fiber::suspend(new Success($loop), $loop);
-        throw new Exception('test');
-    });
+$fiber = Fiber::create(function () use ($loop): void {
+    Fiber::suspend(new Success($loop), $loop);
+    throw new Exception('test');
 });
+
+$loop->defer(fn() => $fiber->run());
 
 Fiber::suspend(new Promise($loop), $loop);
 

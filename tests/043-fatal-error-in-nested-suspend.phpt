@@ -9,11 +9,11 @@ require dirname(__DIR__) . '/scripts/bootstrap.php';
 
 $loop = new Loop;
 
-$loop->defer(function () use ($loop): void {
-    Fiber::run(function () use ($loop): void {
-        Fiber::suspend(fn() => trigger_error("Fatal error in suspend callback", E_USER_ERROR), $loop);
-    });
+$fiber = Fiber::create(function () use ($loop): void {
+    Fiber::suspend(fn() => trigger_error("Fatal error in suspend callback", E_USER_ERROR), $loop);
 });
+
+$loop->defer(fn() => $fiber->run());
 
 Fiber::suspend(new Promise($loop), $loop);
 

@@ -7,7 +7,7 @@ require dirname(__DIR__) . '/scripts/bootstrap.php';
 $loop = new Loop;
 
 // Write data in a separate fiber after a 1 second delay.
-async($loop, function () use ($loop, $write): void {
+$fiber = Fiber::create(function () use ($loop, $write): void {
     \Fiber::suspend(function (Continuation $continuation) use ($loop): void {
         $loop->delay(1000, fn() => $continuation->resume());
     }, $loop);
@@ -16,6 +16,8 @@ async($loop, function () use ($loop, $write): void {
         $loop->write($write, 'Hello, world!', fn(int $bytes) => $continuation->resume($bytes));
     }, $loop);
 });
+
+$loop->defer(fn() => $fiber->run());
 
 echo "Waiting for data...\n";
 

@@ -9,9 +9,7 @@ require dirname(__DIR__) . '/scripts/bootstrap.php';
 
 $loop = new Loop;
 
-$loop->defer(function (): void {
-    Fiber::run(function (int $x) {});
-});
+$loop->defer(fn() => Fiber::create(function (int $x) {})->run());
 
 Fiber::suspend(new Promise($loop), $loop);
 
@@ -23,7 +21,7 @@ Stack trace:
 
 Next FiberExit: Uncaught ArgumentCountError thrown from Fiber::run(): Too few arguments to function {closure}(), 0 passed and exactly 1 expected in %s:%d
 Stack trace:
-#0 %s(%d): Fiber::run(Object(Closure))
+#0 %s(%d): Fiber->run()
 #1 %s(%d): {closure}()
 #2 %s(%d): Loop->tick()
 #3 [fiber function](0): Loop->run()
