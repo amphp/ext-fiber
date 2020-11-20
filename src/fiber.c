@@ -451,6 +451,10 @@ static void zend_fiber_observer_end(zend_execute_data *execute_data, zval *retva
 	zend_fiber *fiber;
 	zval exception;
 
+	if (FIBER_G(shutdown)) {
+		return;
+	}
+
 	ZVAL_UNDEF(&exception);
 
 	if (EG(exception)) {
@@ -494,6 +498,26 @@ zend_observer_fcall_handlers zend_fiber_observer_fcall_init(zend_execute_data *e
 	}
 
 	return (zend_observer_fcall_handlers){NULL, NULL};
+}
+
+
+void zend_fiber_error_observer(int type, const char *filename, uint32_t line, zend_string *message)
+{
+	if (!(type & E_FATAL_ERRORS)) {
+		return; // Non-fatal error, nothing to do.
+	}
+
+	if (FIBER_G(shutdown)) {
+		return; // Already shut down, nothing to do.
+	}
+
+	// Fatal error, mark as shutdown so schedulers are not continued on exit.
+	FIBER_G(shutdown) = 1;
+
+	if (type & E_DONT_BAIL) {
+		// Uncaught exception, do a clean shutdown now.
+		zend_fiber_clean_shutdown();
+	}
 }
 
 
