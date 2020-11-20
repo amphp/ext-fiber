@@ -1016,12 +1016,6 @@ ZEND_METHOD(ReflectionFiber, fromContinuation)
 	continuation = (zend_continuation *) Z_OBJ_P(object);
 
 	reflection = (zend_fiber_reflection *) zend_reflection_fiber_object_create(zend_ce_reflection_fiber);
-
-	if (continuation->fiber == NULL || continuation->fiber->status & ZEND_FIBER_STATUS_FINISHED) {
-		zend_throw_error(NULL, "Cannot create ReflectionFiber from a terminated fiber");
-		RETURN_THROWS();
-	}
-
 	reflection->fiber = continuation->fiber;
 
 	GC_ADDREF(&reflection->fiber->std);
@@ -1048,13 +1042,7 @@ ZEND_METHOD(ReflectionFiber, fromFiberScheduler)
 		RETURN_NULL();
 	}
 
-	if (fiber->status & ZEND_FIBER_STATUS_FINISHED) {
-		zend_throw_error(NULL, "Cannot create ReflectionFiber from a terminated fiber");
-		RETURN_THROWS();
-	}
-
 	reflection = (zend_fiber_reflection *) zend_reflection_fiber_object_create(zend_ce_reflection_fiber);
-
 	reflection->fiber = fiber;
 
 	RETURN_OBJ(&reflection->std);
