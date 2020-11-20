@@ -619,7 +619,7 @@ static ZEND_COLD zend_function *zend_reflection_fiber_get_constructor(zend_objec
 /* {{{ proto void Fiber::run(callable $callback, mixed ...$args) */
 ZEND_METHOD(Fiber, run)
 {
-	zend_fiber *fiber;
+	zend_fiber *fiber, *scheduler;
 	zval context, *params;
 	uint32_t param_count;
 
@@ -627,10 +627,10 @@ ZEND_METHOD(Fiber, run)
 		zend_throw_error(zend_ce_fiber_error, "Cannot create a new fiber during shutdown");
 		return;
 	}
+
+	scheduler = FIBER_G(current_fiber);
 	
-	fiber = FIBER_G(current_fiber);
-	
-	if (fiber == NULL || !zend_fiber_is_scheduler(fiber)) {
+	if (scheduler == NULL || !zend_fiber_is_scheduler(scheduler)) {
 		zend_throw_error(NULL, "New fibers can only be created inside FiberScheduler::run()");
 		return;
 	}
@@ -672,6 +672,8 @@ ZEND_METHOD(Fiber, run)
 	fiber->status = ZEND_FIBER_STATUS_RUNNING;
 
 	Z_ADDREF(context);
+
+	scheduler->exec = execute_data;
 
 	if (!zend_fiber_switch_to(fiber)) {
 		fiber->status = ZEND_FIBER_STATUS_INIT;
@@ -1063,7 +1065,6 @@ ZEND_METHOD(ReflectionFiber, getTrace)
 {
 	zend_fiber_reflection *reflection;
 	zend_long options = DEBUG_BACKTRACE_PROVIDE_OBJECT;
-	zend_execute_data *backup = EG(current_execute_data);
 
 	ZEND_PARSE_PARAMETERS_START_EX(ZEND_PARSE_PARAMS_THROW, 0, 1)
 		Z_PARAM_OPTIONAL
@@ -1074,9 +1075,14 @@ ZEND_METHOD(ReflectionFiber, getTrace)
 
 	REFLECTION_CHECK_VALID_FIBER(reflection->fiber);
 
-	EG(current_execute_data) = reflection->fiber->exec;
+	if (FIBER_G(current_fiber) != reflection->fiber) {
+		// No need to replace current execute data if within the current fiber.
+		EG(current_execute_data) = reflection->fiber->exec;
+	}
+
 	zend_fetch_debug_backtrace(return_value, 0, options, 0);
-	EG(current_execute_data) = backup;
+
+	EG(current_execute_data) = execute_data; // Restore original execute data.
 }
 /* }}} */
 

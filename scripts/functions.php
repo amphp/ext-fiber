@@ -34,3 +34,20 @@ function createSocketPair(): array
 
     return $sockets;
 }
+
+function formatStacktrace(array $trace): string
+{
+    return \implode("\n", \array_map(static function ($e, $i) {
+        $line = "#{$i} ";
+
+        if (isset($e["file"])) {
+            $line .= "{$e['file']}:{$e['line']} ";
+        }
+
+        if (isset($e["type"])) {
+            $line .= $e["class"] . $e["type"];
+        }
+
+        return $line . $e["function"] . "()";
+    }, $trace, \array_keys($trace)));
+}
