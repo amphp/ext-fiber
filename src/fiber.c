@@ -1125,29 +1125,6 @@ ZEND_METHOD(ReflectionFiber, getExecutingFile)
 /* }}} */
 
 
-/* {{{ proto object|null ReflectionFiber::getThis() */
-ZEND_METHOD(ReflectionFiber, getThis)
-{
-	zend_fiber_reflection *reflection;
-	zend_execute_data *exec;
-
-	ZEND_PARSE_PARAMETERS_NONE();
-
-	reflection = (zend_fiber_reflection *) Z_OBJ_P(getThis());
-
-	REFLECTION_CHECK_VALID_FIBER(reflection->fiber);
-
-	exec = reflection->fiber->exec->prev_execute_data;
-
-	if (Z_TYPE(exec->This) == IS_OBJECT) {
-		RETURN_OBJ_COPY(Z_OBJ(exec->This));
-	}
-
-	RETURN_NULL();
-}
-/* }}} */
-
-
 /* {{{ proto bool ReflectionFiber::isSuspended() */
 ZEND_METHOD(ReflectionFiber, isSuspended)
 {
@@ -1272,9 +1249,6 @@ ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_reflection_fiber_getExecutingFile, 0, 0, IS_STRING, 0)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_reflection_fiber_getThis, 0, 0, IS_OBJECT, 1)
-ZEND_END_ARG_INFO()
-
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_reflection_fiber_getTrace, 0, 0, IS_ARRAY, 0)
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, options, IS_LONG, 0, "DEBUG_BACKTRACE_PROVIDE_OBJECT")
 ZEND_END_ARG_INFO()
@@ -1288,7 +1262,6 @@ static const zend_function_entry reflection_fiber_methods[] = {
 	ZEND_ME(ReflectionFiber, getTrace, arginfo_reflection_fiber_getTrace, ZEND_ACC_PUBLIC)
 	ZEND_ME(ReflectionFiber, getExecutingLine, arginfo_reflection_fiber_getExecutingLine, ZEND_ACC_PUBLIC)
 	ZEND_ME(ReflectionFiber, getExecutingFile, arginfo_reflection_fiber_getExecutingFile, ZEND_ACC_PUBLIC)
-	ZEND_ME(ReflectionFiber, getThis, arginfo_reflection_fiber_getThis, ZEND_ACC_PUBLIC)
 	ZEND_ME(ReflectionFiber, isSuspended, arginfo_reflection_fiber_status, ZEND_ACC_PUBLIC)
 	ZEND_ME(ReflectionFiber, isRunning, arginfo_reflection_fiber_status, ZEND_ACC_PUBLIC)
 	ZEND_ME(ReflectionFiber, isTerminated, arginfo_reflection_fiber_status, ZEND_ACC_PUBLIC)

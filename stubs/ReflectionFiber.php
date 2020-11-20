@@ -10,8 +10,6 @@ final class ReflectionFiber
 
     public function getExecutingLine(): int { }
 
-    public function getThis(): ?object { }
-
     public function getTrace(int $options = DEBUG_BACKTRACE_PROVIDE_OBJECT): array { }
 
     public function isSuspended(): bool { }
