@@ -27,8 +27,4 @@ Stack trace:
 #2 %s(%d): Loop->tick()
 #3 [fiber function](0): Loop->run()
 #4 {main}
-
-Next FiberExit: Exception thrown from scheduler during shutdown in %s:%d
-Stack trace:
-#0 {main}
   thrown in %s on line %d

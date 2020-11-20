@@ -471,8 +471,6 @@ static void zend_fiber_observer_end(zend_execute_data *execute_data, zval *retva
 			}
 
 			if (EG(exception)) {
-				zend_throw_error(zend_ce_fiber_exit, "Exception thrown from scheduler during shutdown");
-
 				ZVAL_OBJ(&exception, EG(exception));
 				Z_ADDREF(exception);
 				zend_clear_exception();
