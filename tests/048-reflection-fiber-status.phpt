@@ -10,8 +10,7 @@ require dirname(__DIR__) . '/scripts/bootstrap.php';
 $loop = new Loop;
 
 $fiber = Fiber::create(function () use ($loop): void {
-    Fiber::suspend(function (Fiber $fiber) use (&$reflection, $loop): void {
-        $reflection = ReflectionFiber::fromFiber($fiber);
+    Fiber::suspend(function (Fiber $fiber) use ($loop): void {
         $loop->defer(fn() => $fiber->resume());
     }, $loop);
 });
