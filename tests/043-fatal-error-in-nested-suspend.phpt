@@ -13,7 +13,7 @@ $fiber = Fiber::create(function () use ($loop): void {
     Fiber::suspend(fn() => trigger_error("Fatal error in suspend callback", E_USER_ERROR), $loop);
 });
 
-$loop->defer(fn() => $fiber->run());
+$loop->defer(fn() => $fiber->start());
 
 Fiber::suspend(new Promise($loop), $loop);
 

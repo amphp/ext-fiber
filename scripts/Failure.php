@@ -12,8 +12,8 @@ final class Failure implements Future
         $this->exception = $exception;
     }
 
-    public function __invoke(Continuation $continuation): void
+    public function __invoke(Fiber $fiber): void
     {
-        $this->loop->defer(fn() => $continuation->throw($this->exception));
+        $this->loop->defer(fn() => $fiber->throw($this->exception));
     }
 }

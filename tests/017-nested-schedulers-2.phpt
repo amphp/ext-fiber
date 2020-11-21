@@ -27,7 +27,7 @@ $fiber = Fiber::create(function () use ($loop1, $loop2): void {
     echo Fiber::suspend($promise4, $loop1);
 });
 
-$loop1->defer(fn() => $fiber->run());
+$loop1->defer(fn() => $fiber->start());
 
 $fiber = Fiber::create(function () use ($loop1, $loop2): void {
     $promise5 = new Promise($loop1);
@@ -43,7 +43,7 @@ $fiber = Fiber::create(function () use ($loop1, $loop2): void {
     echo Fiber::suspend($promise7, $loop1);
 });
 
-$loop1->defer(fn() => $fiber->run());
+$loop1->defer(fn() => $fiber->start());
 
 Fiber::suspend(new Success($loop1), $loop1);
 

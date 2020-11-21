@@ -16,8 +16,8 @@ final class Success implements Future
         $this->value = $value;
     }
 
-    public function __invoke(Continuation $continuation): void
+    public function __invoke(Fiber $fiber): void
     {
-        $this->loop->defer(fn() => $continuation->resume($this->value));
+        $this->loop->defer(fn() => $fiber->resume($this->value));
     }
 }

@@ -10,9 +10,9 @@ require dirname(__DIR__) . '/scripts/bootstrap.php';
 $loop = new Loop;
 
 $fiber = Fiber::create(function () use ($loop): void {
-    Fiber::suspend(function (Continuation $continuation) use (&$reflection, $loop): void {
-        $reflection = ReflectionFiber::fromContinuation($continuation);
-        $loop->defer(fn() => $continuation->resume());
+    Fiber::suspend(function (Fiber $fiber) use (&$reflection, $loop): void {
+        $reflection = ReflectionFiber::fromFiber($fiber);
+        $loop->defer(fn() => $fiber->resume());
     }, $loop);
 });
 
@@ -22,14 +22,14 @@ var_dump($reflection->isRunning());
 var_dump($reflection->isSuspended());
 var_dump($reflection->isTerminated());
 
-$loop->defer(fn() => $fiber->run());
+$loop->defer(fn() => $fiber->start());
 
-Fiber::suspend(function (Continuation $continuation) use ($loop): void {
-    $reflection = ReflectionFiber::fromContinuation($continuation);
+Fiber::suspend(function (Fiber $fiber) use ($loop): void {
+    $reflection = ReflectionFiber::fromFiber($fiber);
     var_dump($reflection->isSuspended());
     var_dump($reflection->isRunning());
     var_dump($reflection->isTerminated());
-    $loop->delay(10, fn() => $continuation->resume());
+    $loop->delay(10, fn() => $fiber->resume());
 }, $loop);
 
 var_dump($reflection->isSuspended());

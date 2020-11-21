@@ -72,19 +72,6 @@ struct _zend_fiber {
 	size_t stack_size;
 };
 
-typedef struct _zend_continuation zend_continuation;
-
-struct _zend_continuation {
-	/* Continuation PHP object handle. */
-	zend_object std;
-
-	/* Suspended fiber to resume. */
-	zend_fiber *fiber;
-
-	/* Flag to indicate if the continuation has been used. */
-	zend_bool used;
-};
-
 typedef struct _zend_fiber_reflection zend_fiber_reflection;
 
 struct _zend_fiber_reflection {

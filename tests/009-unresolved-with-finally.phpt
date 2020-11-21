@@ -8,7 +8,7 @@ FiberScheduler returns before resuming the fiber with a finally block
 require dirname(__DIR__) . '/scripts/bootstrap.php';
 
 try {
-    echo Fiber::suspend(function (Continuation $continuation): void {
+    echo Fiber::suspend(function (Fiber $fiber): void {
         // Empty callback.
     }, new Loop);
 } finally {

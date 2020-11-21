@@ -13,8 +13,8 @@ $timeout = 100;
 
 $start = $loop->now();
 
-echo Fiber::suspend(function (Continuation $continuation) use ($loop, $timeout): void {
-    $loop->delay($timeout, fn() => $continuation->resume('test'));
+echo Fiber::suspend(function (Fiber $fiber) use ($loop, $timeout): void {
+    $loop->delay($timeout, fn() => $fiber->resume('test'));
 }, $loop);
 
 if ($loop->now() - $start < $timeout) {

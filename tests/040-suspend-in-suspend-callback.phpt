@@ -17,7 +17,7 @@ echo Fiber::suspend(function () use ($loop): void {
 Fatal error: Uncaught FiberError: Cannot suspend in a fiber that is not running in %s:%d
 Stack trace:
 #0 %s(%d): Fiber::suspend(Object(Closure), Object(Loop))
-#1 [internal function]: {closure}(Object(Continuation))
+#1 [internal function]: {closure}(Object(Fiber))
 #2 %s(%d): Fiber::suspend(Object(Closure), Object(Loop))
 #3 {main}
   thrown in %s on line %d

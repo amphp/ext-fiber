@@ -21,7 +21,7 @@ $fiber = Fiber::create(function () use ($loop): void {
     echo "end of fiber should not be reached\n";
 });
 
-$loop->defer(fn() => $fiber->run());
+$loop->defer(fn() => $fiber->start());
 
 Fiber::suspend(new Success($loop), $loop);
 

@@ -14,7 +14,7 @@ $fiber = Fiber::create(function () use ($loop): void {
     throw new Exception('test');
 });
 
-$loop->defer(fn() => $fiber->run());
+$loop->defer(fn() => $fiber->start());
 
 Fiber::suspend(new Promise($loop), $loop);
 
@@ -26,7 +26,7 @@ Stack trace:
 
 Next FiberExit: Uncaught Exception thrown from Fiber::run(): test in %s:%d
 Stack trace:
-#0 %s(%d): Continuation->resume(NULL)
+#0 %s(%d): Fiber->resume(NULL)
 #1 %s(%d): Success->{closure}()
 #2 %s(%d): Loop->tick()
 #3 [fiber function](0): Loop->run()

@@ -2,8 +2,8 @@
 
 class Promise
 {
-    /** @var Continuation[] */
-    private array $continuations = [];
+    /** @var Fiber[] */
+    private array $fibers = [];
     private Scheduler $scheduler;
     private bool $resolved = false;
     private ?\Throwable $error = null;
@@ -27,19 +27,19 @@ class Promise
         return $this->result;
     }
 
-    public function __invoke(Continuation $continuation): void
+    public function __invoke(Fiber $fiber): void
     {
         if ($this->resolved) {
             if ($this->error !== null) {
-                $this->scheduler->defer(fn() => $continuation->throw($this->error));
+                $this->scheduler->defer(fn() => $fiber->throw($this->error));
             } else {
-                $this->scheduler->defer(fn() => $continuation->resume($this->result));
+                $this->scheduler->defer(fn() => $fiber->resume($this->result));
             }
 
             return;
         }
 
-        $this->continuations[] = $continuation;
+        $this->fibers[] = $fiber;
     }
 
     public function resolve($value = null): void
@@ -66,11 +66,11 @@ class Promise
     {
         $this->resolved = true;
 
-        $continuations = $this->continuations;
-        $this->continuations = [];
+        $fibers = $this->fibers;
+        $this->fibers = [];
 
-        foreach ($continuations as $continuation) {
-            ($this)($continuation);
+        foreach ($fibers as $fiber) {
+            ($this)($fiber);
         }
     }
 }
@@ -101,8 +101,8 @@ class Scheduler implements FiberScheduler
 
         curl_multi_add_handle($this->curl, $curl);
 
-        Fiber::suspend(function (Continuation $continuation) use ($curl) {
-            $this->promises[(int) $curl] = $continuation;
+        Fiber::suspend(function (Fiber $fiber) use ($curl) {
+            $this->promises[(int) $curl] = $fiber;
         }, $this);
 
         // $status = curl_getinfo($curl, CURLINFO_RESPONSE_CODE);
@@ -131,7 +131,7 @@ class Scheduler implements FiberScheduler
             }
         });
 
-        $this->defer(fn() => $fiber->run());
+        $this->defer(fn() => $fiber->start());
 
         return $promise;
     }
@@ -167,8 +167,8 @@ class Scheduler implements FiberScheduler
                 continue;
             }
 
-            $continuation = $this->promises[(int) $info['handle']];
-            $continuation->resume();
+            $fiber = $this->promises[(int) $info['handle']];
+            $fiber->resume();
         }
     }
 }

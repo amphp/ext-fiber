@@ -7,7 +7,7 @@ FiberScheduler returns before resuming the fiber
 
 require dirname(__DIR__) . '/scripts/bootstrap.php';
 
-echo Fiber::suspend(function (Continuation $continuation): void {
+echo Fiber::suspend(function (Fiber $fiber): void {
     // Empty callback.
 }, new Loop);
 

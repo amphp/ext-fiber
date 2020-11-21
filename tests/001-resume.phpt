@@ -9,8 +9,8 @@ require dirname(__DIR__) . '/scripts/bootstrap.php';
 
 $loop = new Loop;
 
-echo Fiber::suspend(function (Continuation $continuation) use ($loop): void {
-    $loop->defer(fn() => $continuation->resume('test'));
+echo Fiber::suspend(function (Fiber $fiber) use ($loop): void {
+    $loop->defer(fn() => $fiber->resume('test'));
 }, $loop);
 
 --EXPECT--

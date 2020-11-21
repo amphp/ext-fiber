@@ -39,7 +39,7 @@ $loop->defer(function () use ($loop): void {
         } catch (FiberError $exception) {
             echo $exception->getMessage(), "\n";
         }
-    })->run();
+    })->start();
 });
 
 Fiber::suspend(new Success($loop), $loop);

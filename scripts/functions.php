@@ -10,14 +10,14 @@ function async(Loop $loop, callable $callback): Future
         } catch (\Throwable $exception) {
             $promise->fail($exception);
         }
-    })->run());
+    })->start());
 
     return $promise;
 }
 
 function delay(Loop $loop, int $timeout): void
 {
-    \Fiber::suspend(fn(Continuation $continuation) => $loop->delay($timeout, fn() => $continuation->resume()), $loop);
+    \Fiber::suspend(fn(Fiber $fiber) => $loop->delay($timeout, fn() => $fiber->resume()), $loop);
 }
 
 function createSocketPair(): array

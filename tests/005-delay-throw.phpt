@@ -14,8 +14,8 @@ $timeout = 100;
 $start = $loop->now();
 
 try {
-    echo Fiber::suspend(function (Continuation $continuation) use ($loop, $timeout): void {
-        $loop->delay($timeout, fn() => $continuation->throw(new Exception('test')));
+    echo Fiber::suspend(function (Fiber $fiber) use ($loop, $timeout): void {
+        $loop->delay($timeout, fn() => $fiber->throw(new Exception('test')));
     }, $loop);
     throw new Exception('Fiber::suspend() did not throw');
 } catch (Exception $exception) {

@@ -9,19 +9,19 @@ $fiber = Fiber::create(function () use ($loop): void {
     delay($loop, 1500);
     var_dump(1);
 });
-$loop->defer(fn() => $fiber->run());
+$loop->defer(fn() => $fiber->start());
 
 $fiber = Fiber::create(function () use ($loop): void {
     delay($loop, 1000);
     var_dump(2);
 });
-$loop->defer(fn() => $fiber->run());
+$loop->defer(fn() => $fiber->start());
 
 $fiber = Fiber::create(function () use ($loop): void {
     delay($loop, 2000);
     var_dump(3);
 });
-$loop->defer(fn() => $fiber->run());
+$loop->defer(fn() => $fiber->start());
 
 // Suspend the main thread to enter the FiberScheduler.
 delay($loop, 500);

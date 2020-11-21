@@ -12,7 +12,7 @@ $loop = new Loop;
 $loop->defer(function (): void {
     Fiber::create(function (): void {
         echo "no suspend\n";
-    })->run();
+    })->start();
 });
 
 Fiber::suspend(new Success($loop), $loop);

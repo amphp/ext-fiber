@@ -26,7 +26,6 @@
 
 ZEND_API zend_class_entry *zend_ce_fiber;
 ZEND_API zend_class_entry *zend_ce_fiber_scheduler;
-ZEND_API zend_class_entry *zend_ce_continuation;
 
 static zend_class_entry *zend_ce_reflection_fiber;
 
@@ -34,14 +33,10 @@ static zend_class_entry *zend_ce_fiber_error;
 static zend_class_entry *zend_ce_fiber_exit;
 
 static zend_object_handlers zend_fiber_handlers;
-static zend_object_handlers zend_continuation_handlers;
 static zend_object_handlers zend_reflection_fiber_handlers;
 
 static zend_object *zend_fiber_object_create(zend_class_entry *ce);
 static void zend_fiber_object_destroy(zend_object *object);
-
-static zend_object *zend_continuation_object_create(zend_class_entry *ce);
-static void zend_continuation_object_destroy(zend_object *object);
 
 static zend_op_array fiber_run_func;
 static zend_try_catch_element fiber_terminate_try_catch_array = { 0, 1, 0, 0 };
@@ -566,42 +561,6 @@ static ZEND_COLD zend_function *zend_fiber_get_constructor(zend_object *object)
 }
 
 
-static zend_object *zend_continuation_object_create(zend_class_entry *ce)
-{
-	zend_continuation *continuation;
-
-	continuation = emalloc(sizeof(zend_continuation));
-	memset(continuation, 0, sizeof(zend_continuation));
-
-	zend_object_std_init(&continuation->std, ce);
-	continuation->std.handlers = &zend_continuation_handlers;
-
-	return &continuation->std;
-}
-
-
-static void zend_continuation_object_destroy(zend_object *object)
-{
-	zend_continuation *continuation = (zend_continuation *) object;
-	zval fiber;
-
-	if (continuation->fiber != NULL) {
-		ZVAL_OBJ(&fiber, &continuation->fiber->std);
-		zval_ptr_dtor(&fiber);
-	}
-
-	zend_object_std_dtor(&continuation->std);
-}
-
-
-static ZEND_COLD zend_function *zend_continuation_get_constructor(zend_object *object)
-{
-	zend_throw_error(NULL, "The \"Continuation\" class is reserved for internal use and cannot be manually instantiated");
-
-	return NULL;
-}
-
-
 static zend_object *zend_reflection_fiber_object_create(zend_class_entry *ce)
 {
 	zend_fiber_reflection *reflection;
@@ -632,7 +591,7 @@ static void zend_reflection_fiber_object_destroy(zend_object *object)
 
 static ZEND_COLD zend_function *zend_reflection_fiber_get_constructor(zend_object *object)
 {
-	zend_throw_error(NULL, "The \"ReflectionFiber\" class is reserved for internal use and cannot be manually instantiated");
+	zend_throw_error(NULL, "Use the static constructors to create an instance of \"ReflectionFiber\"");
 
 	return NULL;
 }
@@ -658,8 +617,8 @@ ZEND_METHOD(Fiber, create)
 /* }}} */
 
 
-/* {{{ proto void Fiber::run(mixed ...$args) */
-ZEND_METHOD(Fiber, run)
+/* {{{ proto void Fiber::start(mixed ...$args) */
+ZEND_METHOD(Fiber, start)
 {
 	zend_fiber *fiber, *scheduler;
 	zval context, *params;
@@ -727,7 +686,6 @@ ZEND_METHOD(Fiber, run)
 ZEND_METHOD(Fiber, suspend)
 {
 	zend_fiber *fiber, *scheduler;
-	zend_continuation *continuation;
 	zend_fcall_info fci;
 	zend_fcall_info_cache fci_cache;
 	zval *fiber_scheduler, *error, context, retval;
@@ -774,13 +732,10 @@ ZEND_METHOD(Fiber, suspend)
 
 	fiber->exec = execute_data;
 
-	continuation = (zend_continuation *) zend_continuation_object_create(zend_ce_continuation);
-	continuation->fiber = fiber;
-	GC_ADDREF(&fiber->std);
+	ZVAL_OBJ(&context, &fiber->std);
+	Z_ADDREF(context);
 
    	fiber->status = ZEND_FIBER_STATUS_SUSPENDED;
-
-	ZVAL_OBJ(&context, &continuation->std);
 
 	fci.params = &context;
 	fci.param_count = 1;
@@ -857,24 +812,9 @@ ZEND_METHOD(Fiber, suspend)
 /* }}} */
 
 
-/* {{{ proto Fiber::__wakeup() */
-ZEND_METHOD(Fiber, __wakeup)
+/* {{{ proto void Fiber::resume(mixed $value = null) */
+ZEND_METHOD(Fiber, resume)
 {
-	/* Just specifying the zend_class_unserialize_deny handler is not enough,
-	 * because it is only invoked for C unserialization. For O the error has
-	 * to be thrown in __wakeup. */
-
-	ZEND_PARSE_PARAMETERS_NONE();
-
-	zend_throw_error(zend_ce_fiber_error, "Unserialization of 'Fiber' is not allowed");
-}
-/* }}} */
-
-
-/* {{{ proto void Continuation::resume(mixed $value = null) */
-ZEND_METHOD(Continuation, resume)
-{
-	zend_continuation *continuation;
 	zend_fiber *fiber, *scheduler;
 	zval *value = NULL;
 
@@ -890,14 +830,7 @@ ZEND_METHOD(Continuation, resume)
 		return;
 	}
 
-	continuation = (zend_continuation *) Z_OBJ_P(getThis());
-
-	if (UNEXPECTED(continuation->used)) {
-		zend_throw_error(zend_ce_fiber_error, "Continuation may only be used once");
-		return;
-	}
-
-	fiber = continuation->fiber;
+	fiber = (zend_fiber *) Z_OBJ_P(getThis());
 
 	if (UNEXPECTED(fiber->status != ZEND_FIBER_STATUS_SUSPENDED)) {
 		zend_throw_error(zend_ce_fiber_error, "Cannot resume running fiber");
@@ -917,7 +850,6 @@ ZEND_METHOD(Continuation, resume)
 		return;
 	}
 
-	continuation->used = 1;
 	fiber->link = NULL;
 
 	scheduler->exec = execute_data;
@@ -943,10 +875,9 @@ ZEND_METHOD(Continuation, resume)
 /* }}} */
 
 
-/* {{{ proto void Continuation::throw(Throwable $exception) */
-ZEND_METHOD(Continuation, throw)
+/* {{{ proto void Fiber::throw(Throwable $exception) */
+ZEND_METHOD(Fiber, throw)
 {
-	zend_continuation *continuation;
 	zend_fiber *fiber, *scheduler;
 	zval *exception;
 
@@ -961,14 +892,7 @@ ZEND_METHOD(Continuation, throw)
 		return;
 	}
 
-	continuation = (zend_continuation *) Z_OBJ_P(getThis());
-
-	if (UNEXPECTED(continuation->used)) {
-		zend_throw_error(zend_ce_fiber_error, "Continuation may only be used once");
-		return;
-	}
-
-	fiber = continuation->fiber;
+	fiber = (zend_fiber *) Z_OBJ_P(getThis());
 
 	if (UNEXPECTED(fiber->status != ZEND_FIBER_STATUS_SUSPENDED)) {
 		zend_throw_error(zend_ce_fiber_error, "Cannot resume running fiber");
@@ -985,7 +909,6 @@ ZEND_METHOD(Continuation, throw)
 		return;
 	}
 
-	continuation->used = 1;
 	fiber->link = NULL;
 
 	scheduler->exec = execute_data;
@@ -1011,14 +934,58 @@ ZEND_METHOD(Continuation, throw)
 /* }}} */
 
 
-/* {{{ proto bool Continuation::isPending() */
-ZEND_METHOD(Continuation, isPending)
+/* {{{ proto bool Fiber::isSuspended() */
+ZEND_METHOD(Fiber, isSuspended)
 {
+	zend_fiber *fiber;
+
 	ZEND_PARSE_PARAMETERS_NONE();
 
-	zend_continuation *continuation = (zend_continuation *) Z_OBJ_P(getThis());
+	fiber = (zend_fiber *) Z_OBJ_P(getThis());
 
-	RETURN_BOOL(!continuation->used);
+	RETURN_BOOL(fiber->status == ZEND_FIBER_STATUS_SUSPENDED);
+}
+/* }}} */
+
+
+/* {{{ proto bool Fiber::isRunning() */
+ZEND_METHOD(Fiber, isRunning)
+{
+	zend_fiber *fiber;
+
+	ZEND_PARSE_PARAMETERS_NONE();
+
+	fiber = (zend_fiber *) Z_OBJ_P(getThis());
+
+	RETURN_BOOL(fiber->status == ZEND_FIBER_STATUS_RUNNING);
+}
+/* }}} */
+
+
+/* {{{ proto bool Fiber::isTerminated() */
+ZEND_METHOD(Fiber, isTerminated)
+{
+	zend_fiber *fiber;
+
+	ZEND_PARSE_PARAMETERS_NONE();
+
+	fiber = (zend_fiber *) Z_OBJ_P(getThis());
+
+	RETURN_BOOL(fiber->status & ZEND_FIBER_STATUS_FINISHED);
+}
+/* }}} */
+
+
+/* {{{ proto Fiber::__wakeup() */
+ZEND_METHOD(Fiber, __wakeup)
+{
+	/* Just specifying the zend_class_unserialize_deny handler is not enough,
+	 * because it is only invoked for C unserialization. For O the error has
+	 * to be thrown in __wakeup. */
+
+	ZEND_PARSE_PARAMETERS_NONE();
+
+	zend_throw_error(zend_ce_fiber_error, "Unserialization of 'Fiber' is not allowed");
 }
 /* }}} */
 
@@ -1053,29 +1020,6 @@ ZEND_METHOD(ReflectionFiber, fromFiber)
 	GC_ADDREF(&reflection->fiber->std);
 
 	RETURN_OBJ(&reflection->std);}
-/* }}} */
-
-
-/* {{{ proto ReflectionFiber ReflectionFiber::fromContinuation(Continuation $continuation) */
-ZEND_METHOD(ReflectionFiber, fromContinuation)
-{
-	zend_fiber_reflection *reflection;
-	zend_continuation *continuation;
-	zval *object;
-
-	ZEND_PARSE_PARAMETERS_START_EX(ZEND_PARSE_PARAMS_THROW, 1, 1)
-		Z_PARAM_OBJECT_OF_CLASS_EX(object, zend_ce_continuation, 0, 0)
-	ZEND_PARSE_PARAMETERS_END();
-
-	continuation = (zend_continuation *) Z_OBJ_P(object);
-
-	reflection = (zend_fiber_reflection *) zend_reflection_fiber_object_create(zend_ce_reflection_fiber);
-	reflection->fiber = continuation->fiber;
-
-	GC_ADDREF(&reflection->fiber->std);
-
-	RETURN_OBJ(&reflection->std);
-}
 /* }}} */
 
 
@@ -1237,8 +1181,19 @@ ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_fiber_create, 0, 1, Fiber, 0)
 	ZEND_ARG_CALLABLE_INFO(0, callable, 0)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_fiber_run, 0, 0, IS_VOID, 0)
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_fiber_start, 0, 0, IS_VOID, 0)
 	ZEND_ARG_VARIADIC_INFO(0, arguments)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_fiber_resume, 0, 0, IS_VOID, 0)
+	ZEND_ARG_INFO(0, value)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_fiber_throw, 0, 0, IS_VOID, 1)
+	ZEND_ARG_OBJ_INFO(0, exception, Throwable, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_fiber_status, 0, 0, _IS_BOOL, 0)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_fiber_suspend, 0, 0, 2)
@@ -1251,27 +1206,14 @@ ZEND_END_ARG_INFO()
 
 static const zend_function_entry fiber_methods[] = {
 	ZEND_ME(Fiber, create, arginfo_fiber_create, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-	ZEND_ME(Fiber, run, arginfo_fiber_run, ZEND_ACC_PUBLIC)
+	ZEND_ME(Fiber, start, arginfo_fiber_start, ZEND_ACC_PUBLIC)
+	ZEND_ME(Fiber, resume, arginfo_fiber_resume, ZEND_ACC_PUBLIC)
+	ZEND_ME(Fiber, throw, arginfo_fiber_throw, ZEND_ACC_PUBLIC)
+	ZEND_ME(Fiber, isSuspended, arginfo_fiber_status, ZEND_ACC_PUBLIC)
+	ZEND_ME(Fiber, isRunning, arginfo_fiber_status, ZEND_ACC_PUBLIC)
+	ZEND_ME(Fiber, isTerminated, arginfo_fiber_status, ZEND_ACC_PUBLIC)
 	ZEND_ME(Fiber, suspend, arginfo_fiber_suspend, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
 	ZEND_ME(Fiber, __wakeup, arginfo_fiber_void, ZEND_ACC_PUBLIC)
-	ZEND_FE_END
-};
-
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_continuation_isPending, 0, 0, _IS_BOOL, 0)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_continuation_resume, 0, 0, IS_VOID, 0)
-	ZEND_ARG_INFO(0, value)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_continuation_throw, 0, 0, IS_VOID, 1)
-	ZEND_ARG_OBJ_INFO(0, exception, Throwable, 0)
-ZEND_END_ARG_INFO()
-
-static const zend_function_entry continuation_methods[] = {
-	ZEND_ME(Continuation, isPending, arginfo_continuation_isPending, ZEND_ACC_PUBLIC)
-	ZEND_ME(Continuation, resume, arginfo_continuation_resume, ZEND_ACC_PUBLIC)
-	ZEND_ME(Continuation, throw, arginfo_continuation_throw, ZEND_ACC_PUBLIC)
 	ZEND_FE_END
 };
 
@@ -1295,10 +1237,6 @@ ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO(arginfo_reflection_fiber_fromFiber, Reflecti
 	ZEND_ARG_OBJ_INFO(0, fiber, Fiber, 0)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO(arginfo_reflection_fiber_fromContinuation, ReflectionFiber, 0)
-	ZEND_ARG_OBJ_INFO(0, continuation, Continuation, 0)
-ZEND_END_ARG_INFO()
-
 ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO(arginfo_reflection_fiber_fromFiberScheduler, ReflectionFiber, 1)
 	ZEND_ARG_OBJ_INFO(0, scheduler, FiberScheduler, 0)
 ZEND_END_ARG_INFO()
@@ -1318,7 +1256,6 @@ ZEND_END_ARG_INFO()
 
 static const zend_function_entry reflection_fiber_methods[] = {
 	ZEND_ME(ReflectionFiber, fromFiber, arginfo_reflection_fiber_fromFiber, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-	ZEND_ME(ReflectionFiber, fromContinuation, arginfo_reflection_fiber_fromContinuation, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
 	ZEND_ME(ReflectionFiber, fromFiberScheduler, arginfo_reflection_fiber_fromFiberScheduler, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
 	ZEND_ME(ReflectionFiber, getTrace, arginfo_reflection_fiber_getTrace, ZEND_ACC_PUBLIC)
 	ZEND_ME(ReflectionFiber, getExecutingLine, arginfo_reflection_fiber_getExecutingLine, ZEND_ACC_PUBLIC)
@@ -1376,18 +1313,6 @@ void zend_fiber_ce_register()
 	zend_fiber_handlers.free_obj = zend_fiber_object_destroy;
 	zend_fiber_handlers.clone_obj = NULL;
 	zend_fiber_handlers.get_constructor = zend_fiber_get_constructor;
-
-	INIT_CLASS_ENTRY(ce, "Continuation", continuation_methods);
-	zend_ce_continuation = zend_register_internal_class(&ce);
-	zend_ce_continuation->ce_flags |= ZEND_ACC_FINAL;
-	zend_ce_continuation->create_object = zend_continuation_object_create;
-	zend_ce_continuation->serialize = zend_class_serialize_deny;
-	zend_ce_continuation->unserialize = zend_class_unserialize_deny;
-
-	zend_continuation_handlers = std_object_handlers;
-	zend_continuation_handlers.free_obj = zend_continuation_object_destroy;
-	zend_continuation_handlers.clone_obj = NULL;
-	zend_continuation_handlers.get_constructor = zend_continuation_get_constructor;
 
 	INIT_CLASS_ENTRY(ce, "FiberScheduler", scheduler_methods);
 	zend_ce_fiber_scheduler = zend_register_internal_interface(&ce);

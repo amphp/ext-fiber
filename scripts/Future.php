@@ -2,5 +2,5 @@
 
 interface Future
 {
-    public function __invoke(Continuation $continuation): void;
+    public function __invoke(Fiber $fiber): void;
 }

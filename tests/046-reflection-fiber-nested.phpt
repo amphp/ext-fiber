@@ -1,5 +1,5 @@
 --TEST--
-ReflectionFiber::fromContinuation() in nested fiber
+ReflectionFiber::fromFiber() in nested fiber
 --SKIPIF--
 <?php include __DIR__ . '/include/skip-if.php';
 --FILE--
@@ -10,15 +10,15 @@ require dirname(__DIR__) . '/scripts/bootstrap.php';
 $loop = new Loop;
 
 $fiber = Fiber::create(function () use ($loop): void {
-    Fiber::suspend(function (Continuation $continuation) use ($loop): void {
-        $reflection = ReflectionFiber::fromContinuation($continuation);
+    Fiber::suspend(function (Fiber $fiber) use ($loop): void {
+        $reflection = ReflectionFiber::fromFiber($fiber);
         var_dump($reflection->getExecutingFile());
         var_dump($reflection->getExecutingLine());
-        $loop->defer(fn() => $continuation->resume());
+        $loop->defer(fn() => $fiber->resume());
     }, $loop);
 });
 
-$loop->defer(fn() => $fiber->run());
+$loop->defer(fn() => $fiber->start());
 
 Fiber::suspend(new Success($loop), $loop);
 
