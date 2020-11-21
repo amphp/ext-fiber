@@ -5,7 +5,7 @@ final class Fiber
     /**
      * @param callable $callback Function to invoke when running the fiber.
      */
-    public static function create(callable $callback): Fiber { }
+    public static function create(callable $callback): self { }
 
     /**
      * Starts execution of the fiber. Returns when the fiber suspends or terminates.
