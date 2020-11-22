@@ -17,9 +17,9 @@ $fiber = Fiber::create(function () use ($loop1, $loop2): void {
     $promise4 = new Promise($loop1);
 
     $loop1->delay(20, fn() => $promise1->resolve(1));
-    $loop2->delay(5, fn() => $promise2->resolve(2));
+    $loop2->delay(10, fn() => $promise2->resolve(2));
     $loop2->delay(100, fn() => $promise3->resolve(3));
-    $loop1->delay(5, fn() => $promise4->resolve(4));
+    $loop1->delay(10, fn() => $promise4->resolve(4));
 
     echo Fiber::suspend($promise1, $loop1);
     echo Fiber::suspend($promise2, $loop2);
