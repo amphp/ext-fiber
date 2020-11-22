@@ -24,7 +24,7 @@ bool(false)
 bool(true)
 bool(false)
 
-Fatal error: Uncaught FiberError: Cannot resume running fiber in %s:%d
+Fatal error: Uncaught FiberError: Cannot resume a fiber that is not suspended in %s:%d
 Stack trace:
 #0 %s(%d): Fiber->resume()
 #1 %s(%d): {closure}()

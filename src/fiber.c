@@ -257,12 +257,9 @@ static void zend_fiber_object_destroy(zend_object *object)
 		fiber->status = ZEND_FIBER_STATUS_SHUTDOWN;
 
 		zend_fiber_switch_to(fiber);
-	} else if (!(fiber->status & ZEND_FIBER_STATUS_FINISHED)) {
+	} else if (fiber->status == ZEND_FIBER_STATUS_INIT) {
 		zval_ptr_dtor(&fiber->fci.function_name);
-
-		if (fiber->status == ZEND_FIBER_STATUS_INIT) {
-			efree(fiber->stack);
-		}
+		efree(fiber->stack);
 	}
 
 	zval_ptr_dtor(&fiber->continuation->value);
@@ -603,7 +600,6 @@ ZEND_METHOD(Fiber, create)
 	// Keep a reference to closures or callable objects as long as the fiber lives.
 	Z_TRY_ADDREF(fiber->fci.function_name);
 
-	GC_ADDREF(&fiber->std);
 	RETURN_OBJ(&fiber->std);
 }
 /* }}} */
@@ -624,11 +620,16 @@ ZEND_METHOD(Fiber, start)
 	scheduler = FIBER_G(current_fiber);
 
 	if (scheduler == NULL || !zend_fiber_is_scheduler(scheduler)) {
-		zend_throw_error(NULL, "New fibers can only be started inside FiberScheduler::run()");
+		zend_throw_error(zend_ce_fiber_error, "New fibers can only be started within a scheduler");
 		return;
 	}
 
 	fiber = (zend_fiber *) Z_OBJ_P(getThis());
+
+	if (fiber->status != ZEND_FIBER_STATUS_INIT) {
+		zend_throw_error(zend_ce_fiber_error, "Cannot start a fiber that has already been started");
+		return;
+	}
 
 	ZEND_PARSE_PARAMETERS_START_EX(ZEND_PARSE_PARAMS_THROW, 0, -1)
 		Z_PARAM_VARIADIC('+', params, param_count)
@@ -660,6 +661,8 @@ ZEND_METHOD(Fiber, start)
 	fiber->status = ZEND_FIBER_STATUS_RUNNING;
 
 	scheduler->exec = execute_data;
+
+	GC_ADDREF(&fiber->std);
 
 	if (!zend_fiber_switch_to(fiber)) {
 		fiber->status = ZEND_FIBER_STATUS_INIT;
@@ -825,7 +828,7 @@ ZEND_METHOD(Fiber, resume)
 	fiber = (zend_fiber *) Z_OBJ_P(getThis());
 
 	if (UNEXPECTED(fiber->status != ZEND_FIBER_STATUS_SUSPENDED)) {
-		zend_throw_error(zend_ce_fiber_error, "Cannot resume running fiber");
+		zend_throw_error(zend_ce_fiber_error, "Cannot resume a fiber that is not suspended");
 		return;
 	}
 
@@ -887,7 +890,7 @@ ZEND_METHOD(Fiber, throw)
 	fiber = (zend_fiber *) Z_OBJ_P(getThis());
 
 	if (UNEXPECTED(fiber->status != ZEND_FIBER_STATUS_SUSPENDED)) {
-		zend_throw_error(zend_ce_fiber_error, "Cannot resume running fiber");
+		zend_throw_error(zend_ce_fiber_error, "Cannot resume a fiber that is not suspended");
 		return;
 	}
 
