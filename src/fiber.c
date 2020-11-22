@@ -72,7 +72,6 @@ static zend_always_inline zend_bool zend_fiber_is_scheduler(zend_fiber *fiber)
 static zend_fiber *zend_fiber_create_root()
 {
 	zend_fiber *root_fiber;
-	zval context;
 
 	ZEND_ASSERT(FIBER_G(root_fiber) == NULL);
 
@@ -86,11 +85,6 @@ static zend_fiber *zend_fiber_create_root()
 
 	// Add a second reference to prevent garbage collection of the root fiber.
 	GC_ADDREF(&root_fiber->std);
-
-	// Assign to zval and immediately destroy for proper GC later.
-	ZVAL_OBJ(&context, &root_fiber->std);
-	Z_ADDREF(context);
-	zval_ptr_dtor(&context);
 
 	return root_fiber;
 }
@@ -578,11 +572,9 @@ static zend_object *zend_reflection_fiber_object_create(zend_class_entry *ce)
 static void zend_reflection_fiber_object_destroy(zend_object *object)
 {
 	zend_fiber_reflection *reflection = (zend_fiber_reflection *) object;
-	zval fiber;
 
 	if (reflection->fiber != NULL && !zend_fiber_is_scheduler(reflection->fiber)) {
-		ZVAL_OBJ(&fiber, &reflection->fiber->std);
-		zval_ptr_dtor(&fiber);
+		GC_DELREF(&reflection->fiber->std);
 	}
 
 	zend_object_std_dtor(&reflection->std);
