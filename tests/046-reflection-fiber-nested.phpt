@@ -23,5 +23,5 @@ $loop->defer(fn() => $fiber->start());
 Fiber::suspend(new Success($loop), $loop);
 
 --EXPECTF--
-string(%d) "%s/tests/%s.php"
+string(%d) "%s%etests%e%s.php"
 int(13)

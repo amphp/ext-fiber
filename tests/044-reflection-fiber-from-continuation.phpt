@@ -17,5 +17,5 @@ Fiber::suspend(function (Fiber $fiber) use ($loop): void {
 }, $loop);
 
 --EXPECTF--
-string(%d) "%s/tests/%s.php"
+string(%d) "%s%etests%e%s.php"
 int(12)

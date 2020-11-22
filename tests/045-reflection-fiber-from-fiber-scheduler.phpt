@@ -20,5 +20,5 @@ var_dump($reflection->getExecutingLine());
 
 --EXPECTF--
 NULL
-string(%d) "%s/scripts/Success.php"
+string(%d) "%s%escripts%eSuccess.php"
 int(21)
