@@ -14,8 +14,6 @@
 #ifndef FIBER_STACK_H
 #define FIBER_STACK_H
 
-#include "php_config.h"
-
 typedef struct _zend_fiber_stack {
 	void *pointer;
 	size_t size;
