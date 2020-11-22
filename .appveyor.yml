@@ -1,0 +1,34 @@
+# general configuration
+version: '{branch}.{build}'
+
+# environment configuration
+image: Visual Studio 2019
+clone_folder: C:\projects\ext-fiber
+environment:
+  BIN_SDK_VER: 2.2.0
+  matrix:
+    - PHP_VER: 8.0
+      TS: 0
+      VC: vs16
+      ARCH: x64
+      OPCACHE: 0
+    - PHP_VER: 8.0
+      TS: 1
+      VC: vs16
+      ARCH: x64
+      OPCACHE: 1
+cache:
+  - C:\build-cache -> .appveyor.yml, .appveyor\install.ps1
+install:
+  - ps: .appveyor\install.ps1
+
+# build configuration
+build_script:
+  - ps: .appveyor\build.ps1
+
+after_build:
+  - ps: .appveyor\package.ps1
+
+# tests configuration
+test_script:
+  - ps: .appveyor\test.ps1
