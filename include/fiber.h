@@ -24,8 +24,20 @@ void zend_fiber_ce_unregister();
 
 void zend_fiber_shutdown();
 
-extern ZEND_API zend_class_entry *zend_ce_fiber;
-extern ZEND_API zend_class_entry *zend_ce_fiber_scheduler;
+#ifdef PHP_WIN32
+# ifdef PHP_FIBER_EXPORTS
+#  define PHP_FIBER_API __declspec(dllexport)
+# else
+#  define PHP_FIBER_API __declspec(dllimport)
+# endif
+#elif defined(__GNUC__) && __GNUC__ >= 4
+# define PHP_FIBER_API __attribute__ ((visibility("default")))
+#else
+# define PHP_FIBER_API
+#endif
+
+extern PHP_FIBER_API zend_class_entry *zend_ce_fiber;
+extern PHP_FIBER_API zend_class_entry *zend_ce_fiber_scheduler;
 
 typedef void* zend_fiber_context;
 

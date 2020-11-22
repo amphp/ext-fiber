@@ -24,8 +24,8 @@
 #include "php_fiber.h"
 #include "fiber.h"
 
-ZEND_API zend_class_entry *zend_ce_fiber;
-ZEND_API zend_class_entry *zend_ce_fiber_scheduler;
+PHP_FIBER_API zend_class_entry *zend_ce_fiber;
+PHP_FIBER_API zend_class_entry *zend_ce_fiber_scheduler;
 
 static zend_class_entry *zend_ce_reflection_fiber;
 

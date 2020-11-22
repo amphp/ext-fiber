@@ -3,5 +3,5 @@ ARG_ENABLE('fiber', 'fiber support', 'yes');
 if (PHP_FIBER != 'no') {
 	AC_DEFINE('HAVE_FIBER', 1, 'fiber support enabled');
 
-	EXTENSION('fiber', 'src/php_fiber.c src/fiber.c src/fiber_winfib.c', null, '/DZEND_ENABLE_STATIC_TSRMLS_CACHE=1');
+	EXTENSION('fiber', 'src\\php_fiber.c src\\fiber.c src\\fiber_winfib.c', null, '/Iinclude /DZEND_ENABLE_STATIC_TSRMLS_CACHE=1  /DPHP_FIBER_EXPORTS=1');
 }
