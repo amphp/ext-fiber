@@ -589,12 +589,17 @@ static ZEND_COLD zend_function *zend_reflection_fiber_get_constructor(zend_objec
 ZEND_METHOD(Fiber, create)
 {
 	zend_fiber *fiber;
+	zend_fcall_info fci;
+	zend_fcall_info_cache fci_cache;
+
+	ZEND_PARSE_PARAMETERS_START_EX(ZEND_PARSE_PARAMS_THROW, 1, 1)
+		Z_PARAM_FUNC_EX(fci, fci_cache, 0, 0)
+	ZEND_PARSE_PARAMETERS_END();
 
 	fiber = (zend_fiber *) zend_fiber_object_create(zend_ce_fiber);
 
-	ZEND_PARSE_PARAMETERS_START_EX(ZEND_PARSE_PARAMS_THROW, 1, 1)
-		Z_PARAM_FUNC_EX(fiber->fci, fiber->fci_cache, 0, 0)
-	ZEND_PARSE_PARAMETERS_END();
+	fiber->fci = fci;
+	fiber->fci_cache = fci_cache;
 
 	// Keep a reference to closures or callable objects as long as the fiber lives.
 	Z_TRY_ADDREF(fiber->fci.function_name);

@@ -1,5 +1,5 @@
 --TEST--
-Resuming non-running fiber
+Start and resume outside of scheduler
 --SKIPIF--
 <?php include __DIR__ . '/include/skip-if.php';
 --FILE--
