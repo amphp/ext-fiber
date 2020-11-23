@@ -44,21 +44,21 @@ static zend_op fiber_run_op[2];
 
 static zend_string *scheduler_run_name;
 
-#define ZEND_FIBER_BACKUP_EG(stack, stack_page_size, exec, trace_num) do { \
+#define ZEND_FIBER_BACKUP_EG(stack, stack_page_size, execute_data, trace_num) do { \
 	stack = EG(vm_stack); \
 	stack->top = EG(vm_stack_top); \
 	stack->end = EG(vm_stack_end); \
 	stack_page_size = EG(vm_stack_page_size); \
-	exec = EG(current_execute_data); \
+	execute_data = EG(current_execute_data); \
 	trace_num = EG(jit_trace_num); \
 } while (0)
 
-#define ZEND_FIBER_RESTORE_EG(stack, stack_page_size, exec, trace_num) do { \
+#define ZEND_FIBER_RESTORE_EG(stack, stack_page_size, execute_data, trace_num) do { \
 	EG(vm_stack) = stack; \
 	EG(vm_stack_top) = stack->top; \
 	EG(vm_stack_end) = stack->end; \
 	EG(vm_stack_page_size) = stack_page_size; \
-	EG(current_execute_data) = exec; \
+	EG(current_execute_data) = execute_data; \
 	EG(jit_trace_num) = trace_num; \
 } while (0)
 
@@ -77,7 +77,7 @@ static zend_fiber *zend_fiber_create_root()
 
 	root_fiber = (zend_fiber *) zend_fiber_object_create(zend_ce_fiber);
 	root_fiber->context = zend_fiber_create_root_context();
-	root_fiber->exec = EG(current_execute_data);
+	root_fiber->execute_data = EG(current_execute_data);
 
 	root_fiber->status = ZEND_FIBER_STATUS_RUNNING;
 
@@ -95,7 +95,7 @@ static zend_bool zend_fiber_switch_to(zend_fiber *fiber)
 	zend_fiber *previous;
 	zend_vm_stack stack;
 	size_t stack_page_size;
-	zend_execute_data *exec;
+	zend_execute_data *execute_data;
 	uint32_t jit_trace_num;
 	zend_bool result;
 
@@ -105,13 +105,13 @@ static zend_bool zend_fiber_switch_to(zend_fiber *fiber)
 
 	FIBER_G(current_fiber) = fiber;
 
-	ZEND_FIBER_BACKUP_EG(stack, stack_page_size, exec, jit_trace_num);
+	ZEND_FIBER_BACKUP_EG(stack, stack_page_size, execute_data, jit_trace_num);
 
 	result = zend_fiber_switch_context(previous->context, fiber->context);
 
 	FIBER_G(current_fiber) = previous;
 
-	ZEND_FIBER_RESTORE_EG(stack, stack_page_size, exec, jit_trace_num);
+	ZEND_FIBER_RESTORE_EG(stack, stack_page_size, execute_data, jit_trace_num);
 
 	return result;
 }
@@ -121,17 +121,17 @@ static zend_bool zend_fiber_suspend(zend_fiber *fiber)
 {
 	zend_vm_stack stack;
 	size_t stack_page_size;
-	zend_execute_data *exec;
+	zend_execute_data *execute_data;
 	uint32_t jit_trace_num;
 	zend_bool result;
 
 	ZEND_ASSERT(fiber != FIBER_G(root_fiber)); // Root fiber should not be suspended.
 
-	ZEND_FIBER_BACKUP_EG(stack, stack_page_size, exec, jit_trace_num);
+	ZEND_FIBER_BACKUP_EG(stack, stack_page_size, execute_data, jit_trace_num);
 
 	result = zend_fiber_suspend_context(fiber->context);
 
-	ZEND_FIBER_RESTORE_EG(stack, stack_page_size, exec, jit_trace_num);
+	ZEND_FIBER_RESTORE_EG(stack, stack_page_size, execute_data, jit_trace_num);
 
 	return result;
 }
@@ -149,22 +149,22 @@ static void zend_fiber_run()
 	EG(vm_stack_end) = fiber->stack->end;
 	EG(vm_stack_page_size) = ZEND_FIBER_VM_STACK_SIZE;
 
-	fiber->exec = (zend_execute_data *) EG(vm_stack_top);
-	EG(vm_stack_top) = (zval *) fiber->exec + ZEND_CALL_FRAME_SLOT;
-	zend_vm_init_call_frame(fiber->exec, ZEND_CALL_TOP_FUNCTION, (zend_function *) &fiber_run_func, 0, NULL);
-	fiber->exec->opline = fiber_run_op;
-	fiber->exec->call = NULL;
-	fiber->exec->return_value = NULL;
-	fiber->exec->prev_execute_data = NULL;
+	fiber->execute_data = (zend_execute_data *) EG(vm_stack_top);
+	EG(vm_stack_top) = (zval *) fiber->execute_data + ZEND_CALL_FRAME_SLOT;
+	zend_vm_init_call_frame(fiber->execute_data, ZEND_CALL_TOP_FUNCTION, (zend_function *) &fiber_run_func, 0, NULL);
+	fiber->execute_data->opline = fiber_run_op;
+	fiber->execute_data->call = NULL;
+	fiber->execute_data->return_value = NULL;
+	fiber->execute_data->prev_execute_data = NULL;
 
-	EG(current_execute_data) = fiber->exec;
+	EG(current_execute_data) = fiber->execute_data;
 	EG(jit_trace_num) = 0;
 
-	zend_execute_ex(fiber->exec);
+	zend_execute_ex(fiber->execute_data);
 
 	zend_vm_stack_destroy();
 	fiber->stack = NULL;
-	fiber->exec = NULL;
+	fiber->execute_data = NULL;
 
 	zend_fiber_suspend_context(fiber->context);
 
@@ -172,14 +172,14 @@ static void zend_fiber_run()
 }
 
 
-static int fiber_run_opcode_handler(zend_execute_data *exec)
+static int fiber_run_opcode_handler(zend_execute_data *execute_data)
 {
 	zend_fiber *fiber;
 	zval retval;
 
 	fiber = FIBER_G(current_fiber);
 	ZEND_ASSERT(fiber != NULL && fiber != FIBER_G(root_fiber));
-	ZEND_ASSERT(fiber->exec == exec && "Fiber execute data corrupted");
+	ZEND_ASSERT(fiber->execute_data == execute_data && "Fiber execute data corrupted");
 
 	fiber->status = ZEND_FIBER_STATUS_RUNNING;
 	fiber->fci.retval = &retval;
@@ -255,7 +255,6 @@ static void zend_fiber_object_destroy(zend_object *object)
 
 	if (fiber->status == ZEND_FIBER_STATUS_SUSPENDED) {
 		fiber->status = ZEND_FIBER_STATUS_SHUTDOWN;
-
 		zend_fiber_switch_to(fiber);
 	} else if (fiber->status == ZEND_FIBER_STATUS_INIT) {
 		zval_ptr_dtor(&fiber->fci.function_name);
@@ -660,7 +659,7 @@ ZEND_METHOD(Fiber, start)
 
 	fiber->status = ZEND_FIBER_STATUS_RUNNING;
 
-	scheduler->exec = execute_data;
+	scheduler->execute_data = execute_data;
 
 	GC_ADDREF(&fiber->std);
 
@@ -725,7 +724,7 @@ ZEND_METHOD(Fiber, suspend)
 		return;
 	}
 
-	fiber->exec = execute_data;
+	fiber->execute_data = execute_data;
 
 	ZVAL_OBJ(&context, &fiber->std);
 	Z_ADDREF(context);
@@ -847,7 +846,7 @@ ZEND_METHOD(Fiber, resume)
 
 	fiber->link = NULL;
 
-	scheduler->exec = execute_data;
+	scheduler->execute_data = execute_data;
 
 	if (!zend_fiber_resume(fiber, scheduler)) {
 		fiber->status = ZEND_FIBER_STATUS_SUSPENDED;
@@ -906,7 +905,7 @@ ZEND_METHOD(Fiber, throw)
 
 	fiber->link = NULL;
 
-	scheduler->exec = execute_data;
+	scheduler->execute_data = execute_data;
 
 	if (!zend_fiber_resume(fiber, scheduler)) {
 		fiber->status = ZEND_FIBER_STATUS_SUSPENDED;
@@ -1068,7 +1067,7 @@ ZEND_METHOD(ReflectionFiber, getTrace)
 
 	if (FIBER_G(current_fiber) != reflection->fiber) {
 		// No need to replace current execute data if within the current fiber.
-		EG(current_execute_data) = reflection->fiber->exec;
+		EG(current_execute_data) = reflection->fiber->execute_data;
 	}
 
 	zend_fetch_debug_backtrace(return_value, 0, options, 0);
@@ -1082,7 +1081,7 @@ ZEND_METHOD(ReflectionFiber, getTrace)
 ZEND_METHOD(ReflectionFiber, getExecutingLine)
 {
 	zend_fiber_reflection *reflection;
-	zend_execute_data *exec;
+	zend_execute_data *prev_execute_data;
 
 	ZEND_PARSE_PARAMETERS_NONE();
 
@@ -1090,9 +1089,9 @@ ZEND_METHOD(ReflectionFiber, getExecutingLine)
 
 	REFLECTION_CHECK_VALID_FIBER(reflection->fiber);
 
-	exec = reflection->fiber->exec->prev_execute_data;
+	prev_execute_data = reflection->fiber->execute_data->prev_execute_data;
 
-	RETURN_LONG(exec->opline->lineno);
+	RETURN_LONG(prev_execute_data->opline->lineno);
 }
 /* }}} */
 
@@ -1101,7 +1100,7 @@ ZEND_METHOD(ReflectionFiber, getExecutingLine)
 ZEND_METHOD(ReflectionFiber, getExecutingFile)
 {
 	zend_fiber_reflection *reflection;
-	zend_execute_data *exec;
+	zend_execute_data *prev_execute_data;
 
 	ZEND_PARSE_PARAMETERS_NONE();
 
@@ -1109,9 +1108,9 @@ ZEND_METHOD(ReflectionFiber, getExecutingFile)
 
 	REFLECTION_CHECK_VALID_FIBER(reflection->fiber);
 
-	exec = reflection->fiber->exec->prev_execute_data;
+	prev_execute_data = reflection->fiber->execute_data->prev_execute_data;
 
-	RETURN_STR_COPY(exec->func->op_array.filename);
+	RETURN_STR_COPY(prev_execute_data->func->op_array.filename);
 }
 /* }}} */
 
