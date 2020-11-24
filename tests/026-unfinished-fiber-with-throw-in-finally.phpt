@@ -53,4 +53,4 @@ inner finally
 finally exception
 FiberExit
 outer finally
-Cannot suspend during shutdown
+Cannot suspend in a force closed fiber

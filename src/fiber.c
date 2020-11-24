@@ -414,7 +414,7 @@ static void zend_fiber_clean_shutdown()
 }
 
 
-static void zend_fiber_forced_shutdown()
+static void zend_fiber_shutdown_cleanup()
 {
 	zend_fiber *fiber;
 	uint32_t handle;
@@ -472,8 +472,6 @@ static void zend_fiber_observer_end(zend_execute_data *execute_data, zval *retva
 	}
 
 	shutdown: {
-		FIBER_G(shutdown) = 1;
-
 		zend_fiber_clean_shutdown();
 
 		if (Z_TYPE(exception) == IS_OBJECT) {
@@ -523,10 +521,10 @@ static ZEND_COLD void zend_fiber_uncaught_exception_handler()
 	}
 
 	zend_throw_error(
-			zend_ce_fiber_exit,
-			"Uncaught %s thrown from Fiber::run(): %s",
-			exception->ce->name->val,
-			Z_STRVAL_P(zend_read_property(exception->ce, exception, "message", sizeof("message") - 1, 0, &retval))
+		zend_ce_fiber_exit,
+		"Uncaught %s thrown from Fiber::run(): %s",
+		exception->ce->name->val,
+		Z_STRVAL_P(zend_read_property(exception->ce, exception, "message", sizeof("message") - 1, 0, &retval))
 	);
 }
 
@@ -710,22 +708,26 @@ ZEND_METHOD(Fiber, suspend)
 	if (fiber == NULL) {
 		fiber = zend_fiber_create_root();
 		
-		if (fiber == NULL) {
+		if (UNEXPECTED(fiber == NULL)) {
 			zend_throw_error(zend_ce_fiber_exit, "Could not create root fiber context");
 			return;
 		}
 		
 		FIBER_G(current_fiber) = fiber;
-	} else {
-		if (UNEXPECTED(zend_fiber_is_scheduler(fiber))) {
-			zend_throw_error(zend_ce_fiber_error, "Cannot suspend in a scheduler");
-			return;
-		}
+	}
 
-		if (UNEXPECTED(fiber->status != ZEND_FIBER_STATUS_RUNNING)) {
+	if (UNEXPECTED(zend_fiber_is_scheduler(fiber))) {
+		zend_throw_error(zend_ce_fiber_error, "Cannot suspend in a scheduler");
+		return;
+	}
+
+	if (UNEXPECTED(fiber->status != ZEND_FIBER_STATUS_RUNNING)) {
+		if (fiber->status == ZEND_FIBER_STATUS_SHUTDOWN) {
+			zend_throw_error(zend_ce_fiber_error, "Cannot suspend in a force closed fiber");
+		} else {
 			zend_throw_error(zend_ce_fiber_error, "Cannot suspend in a fiber that is not running");
-			return;
 		}
+		return;
 	}
 
 	ZEND_PARSE_PARAMETERS_START_EX(ZEND_PARSE_PARAMS_THROW, 2, 2)
@@ -1376,9 +1378,13 @@ void zend_fiber_shutdown()
 {
 	zend_fiber *fiber;
 
+	if (!FIBER_G(shutdown)) {
+		zend_fiber_clean_shutdown();
+	}
+
 	FIBER_G(shutdown) = 1;
 
-	zend_fiber_forced_shutdown();
+	zend_fiber_shutdown_cleanup();
 
 	fiber = FIBER_G(root_fiber);
 

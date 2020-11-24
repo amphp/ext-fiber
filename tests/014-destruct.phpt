@@ -20,18 +20,12 @@ $object = new class($loop) {
     public function __destruct()
     {
         $promise = new Promise($this->loop);
-        $this->loop->delay(10, fn() => $promise->resolve(1));
-        Fiber::suspend($promise, $this->loop);
-        echo "destruct";
+        $this->loop->delay(10, fn() => $promise->resolve('destruct'));
+        echo Fiber::suspend($promise, $this->loop);
     }
 };
 
 Fiber::suspend(new Success($loop), $loop);
 
---EXPECTF--
-Fatal error: Uncaught FiberError: Cannot suspend during shutdown in %s:%d
-Stack trace:
-#0 %s(%d): Fiber::suspend(Object(Promise), Object(Loop))
-#1 [internal function]: class@anonymous->__destruct()
-#2 {main}
-  thrown in %s on line %d
+--EXPECT--
+destruct
