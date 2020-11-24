@@ -274,15 +274,15 @@ static void zend_fiber_object_destroy(zend_object *object)
 }
 
 
-static int zend_fiber_catch_handler(zend_execute_data *exec)
+static int zend_fiber_catch_handler(zend_execute_data *execute_data)
 {
 	if (UNEXPECTED(EG(exception) && EG(exception)->ce == zend_ce_fiber_exit)) {
-		zend_rethrow_exception(exec);
+		zend_rethrow_exception(execute_data);
 		return ZEND_USER_OPCODE_CONTINUE;
 	}
 
 	if (FIBER_G(catch_handler)) {
-		return FIBER_G(catch_handler)(exec);
+		return FIBER_G(catch_handler)(execute_data);
 	}
 
 	return ZEND_USER_OPCODE_DISPATCH;
@@ -352,12 +352,11 @@ static zend_fiber *zend_fiber_get_scheduler(zval *scheduler)
 	fiber = zend_hash_index_find_ptr(&FIBER_G(schedulers), handle);
 
 	if (fiber != NULL) {
-		if (UNEXPECTED(fiber->status & ZEND_FIBER_STATUS_FINISHED)) {
-			zend_throw_error(zend_ce_fiber_exit, "%s::run() returned unexpectedly", Z_OBJCE_P(scheduler)->name->val);
-			return NULL;
+		if (EXPECTED(!(fiber->status & ZEND_FIBER_STATUS_FINISHED))) {
+			return fiber;
 		}
 
-		return fiber;
+		zend_hash_index_del(&FIBER_G(schedulers), handle);
 	}
 
 	fiber = zend_fiber_create_from_scheduler(scheduler);
@@ -396,7 +395,7 @@ static void zend_fiber_clean_shutdown()
 	zend_fiber *fiber;
 	uint32_t handle;
 
-	ZEND_HASH_FOREACH_PTR(&FIBER_G(fibers), fiber) {
+	ZEND_HASH_REVERSE_FOREACH_PTR(&FIBER_G(fibers), fiber) {
 		if (fiber->status == ZEND_FIBER_STATUS_SUSPENDED) {
 			fiber->status = ZEND_FIBER_STATUS_SHUTDOWN;
 			GC_ADDREF(&fiber->std);
@@ -404,7 +403,7 @@ static void zend_fiber_clean_shutdown()
 		}
 	} ZEND_HASH_FOREACH_END();
 
-	ZEND_HASH_FOREACH_NUM_KEY_PTR(&FIBER_G(schedulers), handle, fiber) {
+	ZEND_HASH_REVERSE_FOREACH_NUM_KEY_PTR(&FIBER_G(schedulers), handle, fiber) {
 		if (fiber->status == ZEND_FIBER_STATUS_SUSPENDED) {
 			fiber->status = ZEND_FIBER_STATUS_SHUTDOWN;
 			zend_fiber_switch_to(fiber);
@@ -420,14 +419,14 @@ static void zend_fiber_forced_shutdown()
 	zend_fiber *fiber;
 	uint32_t handle;
 
-	ZEND_HASH_FOREACH_PTR(&FIBER_G(fibers), fiber) {
+	ZEND_HASH_REVERSE_FOREACH_PTR(&FIBER_G(fibers), fiber) {
 		if (fiber->status == ZEND_FIBER_STATUS_SUSPENDED) {
 			fiber->status = ZEND_FIBER_STATUS_SHUTDOWN;
 			GC_ADDREF(&fiber->std);
 		}
 	} ZEND_HASH_FOREACH_END();
 
-	ZEND_HASH_FOREACH_NUM_KEY_PTR(&FIBER_G(schedulers), handle, fiber) {
+	ZEND_HASH_REVERSE_FOREACH_NUM_KEY_PTR(&FIBER_G(schedulers), handle, fiber) {
 		zend_hash_index_del(&FIBER_G(schedulers), handle);
 	} ZEND_HASH_FOREACH_END();
 }
@@ -451,27 +450,35 @@ static void zend_fiber_observer_end(zend_execute_data *execute_data, zval *retva
 			zend_clear_exception();
 		}
 	} else {
-		ZEND_HASH_FOREACH_PTR(&FIBER_G(schedulers), fiber) {
-			if (fiber->status == ZEND_FIBER_STATUS_SUSPENDED) {
-				fiber->status = ZEND_FIBER_STATUS_RUNNING;
-				zend_fiber_switch_to(fiber);
-			}
+		while (zend_array_count(&FIBER_G(schedulers))) {
+			uint32_t handle;
 
-			if (EG(exception)) {
-				ZVAL_OBJ(&exception, EG(exception));
-				Z_ADDREF(exception);
-				zend_clear_exception();
-				break;
-			}
-		} ZEND_HASH_FOREACH_END();
+			ZEND_HASH_REVERSE_FOREACH_NUM_KEY_PTR(&FIBER_G(schedulers), handle, fiber) {
+				if (fiber->status == ZEND_FIBER_STATUS_SUSPENDED) {
+					fiber->status = ZEND_FIBER_STATUS_RUNNING;
+					zend_fiber_switch_to(fiber);
+				}
+
+				zend_hash_index_del(&FIBER_G(schedulers), handle);
+
+				if (EG(exception)) {
+					ZVAL_OBJ(&exception, EG(exception));
+					Z_ADDREF(exception);
+					zend_clear_exception();
+					goto shutdown;
+				}
+			} ZEND_HASH_FOREACH_END();
+		}
 	}
 
-	FIBER_G(shutdown) = 1;
+	shutdown: {
+		FIBER_G(shutdown) = 1;
 
-	zend_fiber_clean_shutdown();
+		zend_fiber_clean_shutdown();
 
-	if (Z_TYPE(exception) == IS_OBJECT) {
-		zend_throw_exception_object(&exception);
+		if (Z_TYPE(exception) == IS_OBJECT) {
+			zend_throw_exception_object(&exception);
+		}
 	}
 }
 

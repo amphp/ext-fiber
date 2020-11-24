@@ -10,7 +10,7 @@ require dirname(__DIR__) . '/scripts/bootstrap.php';
 $loop1 = new Loop;
 $loop2 = new Loop;
 
-$loop1->delay(10, function (): void {
+$loop2->delay(10, function (): void {
     throw new Exception('test');
 });
 
@@ -18,7 +18,7 @@ $loop1->delay(10, function (): void {
     echo "should not be executed\n";
 });
 
-$loop2->delay(1, function (): void {
+$loop1->delay(1, function (): void {
     echo "should not be executed\n";
     throw new Exception('test');
 });
@@ -27,7 +27,7 @@ Fiber::suspend(new Success($loop1), $loop1);
 
 Fiber::suspend(new Success($loop2), $loop2);
 
-$loop2->defer(function (): void {
+$loop1->defer(function (): void {
     echo "should not be executed\n";
 });
 

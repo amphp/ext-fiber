@@ -18,7 +18,7 @@ $loop1->defer(function (): void {
     throw new Exception('test');
 });
 
-$loop2->defer(fn() => print "Should not be executed\n");
+$loop1->defer(fn() => print "Should not be executed\n");
 
 --EXPECTF--
 Fatal error: Uncaught Exception: test in %s:%d
