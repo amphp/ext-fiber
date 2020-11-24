@@ -24,11 +24,8 @@ Stack trace:
 #0 [fiber function](0): {closure}()
 #1 {main}
 
-Next FiberExit: Uncaught Exception thrown from Fiber::run(): test in %s:%d
+Next FiberExit: Uncaught Exception thrown from Loop::run(): test in %s:%d
 Stack trace:
-#0 %s(%d): Fiber->resume(NULL)
-#1 %s(%d): Success->{closure}()
-#2 %s(%d): Loop->tick()
-#3 [fiber function](0): Loop->run()
-#4 {main}
+#0 %s(%d): Fiber::suspend(Object(Promise), Object(Loop))
+#1 {main}
   thrown in %s on line %d

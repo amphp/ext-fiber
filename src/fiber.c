@@ -511,24 +511,6 @@ void zend_fiber_error_observer(int type, const char *filename, uint32_t line, ze
 }
 
 
-static ZEND_COLD void zend_fiber_uncaught_exception_handler()
-{
-	zval retval;
-	zend_object *exception = EG(exception);
-
-	if (zend_is_unwind_exit(EG(exception)) || EG(exception)->ce == zend_ce_fiber_exit) {
-		return; // Exception is UnwindExit or FiberExit, so ignore as we are exiting anyway.
-	}
-
-	zend_throw_error(
-		zend_ce_fiber_exit,
-		"Uncaught %s thrown from Fiber::run(): %s",
-		exception->ce->name->val,
-		Z_STRVAL_P(zend_read_property(exception->ce, exception, "message", sizeof("message") - 1, 0, &retval))
-	);
-}
-
-
 static ZEND_COLD void zend_fiber_scheduler_uncaught_exception_handler(zval *scheduler)
 {
 	zval retval;
@@ -682,10 +664,6 @@ ZEND_METHOD(Fiber, start)
 	}
 
 	zval_ptr_dtor(&fiber->fci.function_name);
-
-	if (EG(exception)) {
-		zend_fiber_uncaught_exception_handler();
-	}
 }
 /* }}} */
 
@@ -801,7 +779,7 @@ ZEND_METHOD(Fiber, suspend)
 
 	if (UNEXPECTED(scheduler->status & ZEND_FIBER_STATUS_FINISHED)) {
 		zend_throw_error(
-			zend_ce_fiber_exit,
+			zend_ce_fiber_error,
 			"%s::run() returned before resuming the fiber",
 			Z_OBJCE_P(fiber_scheduler)->name->val
 		);
@@ -877,11 +855,6 @@ ZEND_METHOD(Fiber, resume)
 		return;
 	}
 
-	if (EG(exception)) {
-		zend_fiber_uncaught_exception_handler();
-		return;
-	}
-
 	scheduler->status = ZEND_FIBER_STATUS_RUNNING;
 }
 /* }}} */
@@ -933,11 +906,6 @@ ZEND_METHOD(Fiber, throw)
 
 	if (scheduler->status == ZEND_FIBER_STATUS_SHUTDOWN) {
 		zend_throw_error(zend_ce_fiber_exit, "Fiber destroyed");
-		return;
-	}
-
-	if (EG(exception)) {
-		zend_fiber_uncaught_exception_handler();
 		return;
 	}
 
