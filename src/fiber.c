@@ -186,9 +186,6 @@ static int fiber_run_opcode_handler(zend_execute_data *execute_data)
 
 	zend_call_function(&fiber->fci, &fiber->fci_cache);
 
-	zval_ptr_dtor(&fiber->fci.function_name);
-	zval_ptr_dtor(&retval);
-
 	if (EG(exception)) {
 		if (fiber->status == ZEND_FIBER_STATUS_SHUTDOWN) {
 			zend_clear_exception();
@@ -199,10 +196,15 @@ static int fiber_run_opcode_handler(zend_execute_data *execute_data)
 		fiber->status = ZEND_FIBER_STATUS_RETURNED;
 	}
 
-	if (!zend_fiber_is_scheduler(fiber)) {
+	if (zend_fiber_is_scheduler(fiber)) {
+		// Scheduler fibers retain reference to closure while running.
+		zval_ptr_dtor(&fiber->fci.function_name);
+	} else {
 		// Scheduler fibers do not create a zend_object.
 		GC_DELREF(&fiber->std);
 	}
+
+	zval_ptr_dtor(&retval);
 
 	return ZEND_USER_OPCODE_RETURN;
 }
@@ -308,7 +310,7 @@ static zend_fiber *zend_fiber_create_from_scheduler(zval *scheduler)
 		return NULL;
 	}
 
-	// Keep a reference to closures or callable objects as long as the fiber lives.
+	// Keep a reference to closure as long as fiber is running.
 	Z_TRY_ADDREF(fiber->fci.function_name);
 
 	zval_ptr_dtor(&closure);
@@ -601,7 +603,7 @@ ZEND_METHOD(Fiber, create)
 	fiber->fci = fci;
 	fiber->fci_cache = fci_cache;
 
-	// Keep a reference to closures or callable objects as long as the fiber lives.
+	// Keep a reference to closures or callable objects until the fiber is started.
 	Z_TRY_ADDREF(fiber->fci.function_name);
 
 	RETURN_OBJ(&fiber->std);
@@ -673,6 +675,8 @@ ZEND_METHOD(Fiber, start)
 		zend_throw_error(zend_ce_fiber_exit, "Failed switching to fiber");
 		return;
 	}
+
+	zval_ptr_dtor(&fiber->fci.function_name);
 
 	if (EG(exception)) {
 		zend_fiber_uncaught_exception_handler();
