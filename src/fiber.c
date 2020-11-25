@@ -221,6 +221,8 @@ static zend_bool zend_fiber_resume(zend_fiber *fiber, zend_fiber *scheduler)
 		return zend_fiber_suspend(scheduler);
 	}
 
+	fiber->link = NULL;
+
 	// Another fiber started the scheduler, so switch to resuming fiber.
 	return zend_fiber_switch_to(fiber);
 }
@@ -835,7 +837,7 @@ ZEND_METHOD(Fiber, resume)
 
 	fiber->status = ZEND_FIBER_STATUS_RUNNING;
 
-	if (UNEXPECTED(fiber->link != scheduler)) {
+	if (UNEXPECTED(fiber->link != NULL && fiber->link != scheduler)) {
 		zend_throw_error(zend_ce_fiber_exit, "Fiber resumed by a scheduler other than that provided to Fiber::suspend()");
 		return;
 	}
@@ -889,7 +891,7 @@ ZEND_METHOD(Fiber, throw)
 
 	fiber->status = ZEND_FIBER_STATUS_RUNNING;
 
-	if (UNEXPECTED(fiber->link != scheduler)) {
+	if (UNEXPECTED(fiber->link != NULL && fiber->link != scheduler)) {
 		zend_throw_error(zend_ce_fiber_exit, "Fiber resumed by a scheduler other than that provided to Fiber::suspend()");
 		return;
 	}
