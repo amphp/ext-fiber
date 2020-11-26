@@ -1,5 +1,5 @@
 --TEST--
-ReflectionFiber::fromFiber()
+ReflectionFiber
 --SKIPIF--
 <?php include __DIR__ . '/include/skip-if.php';
 --FILE--
@@ -10,7 +10,7 @@ require dirname(__DIR__) . '/scripts/bootstrap.php';
 $loop = new Loop;
 
 Fiber::suspend(function (Fiber $fiber) use ($loop): void {
-    $reflection = ReflectionFiber::fromFiber($fiber);
+    $reflection = new ReflectionFiber($fiber);
     var_dump($reflection->getExecutingFile());
     var_dump($reflection->getExecutingLine());
     $loop->defer(fn() => $fiber->resume());

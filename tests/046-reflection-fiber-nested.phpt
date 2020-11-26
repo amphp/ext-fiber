@@ -1,5 +1,5 @@
 --TEST--
-ReflectionFiber::fromFiber() in nested fiber
+ReflectionFiber in nested fiber
 --SKIPIF--
 <?php include __DIR__ . '/include/skip-if.php';
 --FILE--
@@ -11,7 +11,7 @@ $loop = new Loop;
 
 $fiber = Fiber::create(function () use ($loop): void {
     Fiber::suspend(function (Fiber $fiber) use ($loop): void {
-        $reflection = ReflectionFiber::fromFiber($fiber);
+        $reflection = new ReflectionFiber($fiber);
         var_dump($reflection->getExecutingFile());
         var_dump($reflection->getExecutingLine());
         $loop->defer(fn() => $fiber->resume());

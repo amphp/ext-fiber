@@ -1,5 +1,5 @@
 --TEST--
-ReflectionFiber::fromFiberScheduler()
+ReflectionFiberScheduler
 --SKIPIF--
 <?php include __DIR__ . '/include/skip-if.php';
 --FILE--
@@ -9,16 +9,23 @@ require dirname(__DIR__) . '/scripts/bootstrap.php';
 
 $loop = new Loop;
 
-var_dump(ReflectionFiber::fromFiberScheduler($loop));
+try {
+    var_dump(new ReflectionFiberScheduler($loop));
+} catch (Throwable $exception) {
+    echo $exception->getMessage(), "\n";
+}
 
 Fiber::suspend(new Success($loop), $loop);
 
-$reflection = ReflectionFiber::fromFiberScheduler($loop);
+$reflection = new ReflectionFiberScheduler($loop);
 
 var_dump($reflection->getExecutingFile());
 var_dump($reflection->getExecutingLine());
 
+var_dump($reflection->getFiberScheduler() === $loop);
+
 --EXPECTF--
-NULL
+Loop has not been used to suspend a fiber
 string(%d) "%s%escripts%eSuccess.php"
 int(21)
+bool(true)

@@ -1,5 +1,5 @@
 --TEST--
-ReflectionFiber status methods
+ReflectionFiber errors
 --SKIPIF--
 <?php include __DIR__ . '/include/skip-if.php';
 --FILE--
@@ -15,7 +15,7 @@ $fiber = Fiber::create(function () use ($loop): void {
     }, $loop);
 });
 
-$reflection = ReflectionFiber::fromFiber($fiber);
+$reflection = new ReflectionFiber($fiber);
 
 try {
     $reflection->getTrace();

@@ -13,6 +13,9 @@ final class Fiber
      * Must be called within {@see FiberScheduler::run()}.
      *
      * @param mixed ...$args Arguments passed to fiber function.
+     *
+     * @throw FiberError If the fiber is running or terminated.
+     * @throw Throwable If the fiber callable throws an uncaught exception.
      */
     public function start(mixed ...$args): void { }
 
@@ -25,6 +28,7 @@ final class Fiber
      * @param mixed $value
      *
      * @throw FiberError If the fiber is running or terminated.
+     * @throw Throwable If the fiber callable throws an uncaught exception.
      */
     public function resume(mixed $value = null): void { }
 
@@ -37,6 +41,7 @@ final class Fiber
      * @param Throwable $exception
      *
      * @throw FiberError If the fiber is running or terminated.
+     * @throw Throwable If the fiber callable throws an uncaught exception.
      */
     public function throw(Throwable $exception): void { }
 

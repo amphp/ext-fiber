@@ -1,22 +1,12 @@
 <?php
 
-final class ReflectionFiber
+class ReflectionFiber
 {
     /**
-     * @param Fiber $fiber Any Fiber object, including those are not started or have
+     * @param Fiber $fiber Any Fiber object, including those that are not started or have
      *                     terminated.
-     *
-     * @return ReflectionFiber
      */
-    public static function fromFiber(Fiber $fiber): self { }
-
-    /**
-     * @param FiberScheduler $scheduler
-     *
-     * @return ReflectionFiber|null Returns null if the {@see FiberScheduler} has not been
-     *                              used to suspend a fiber.
-     */
-    public static function fromFiberScheduler(FiberScheduler $scheduler): ?self { }
+    public function __construct(Fiber $fiber) { }
 
     /**
      * @return string Current file of fiber execution.
@@ -51,9 +41,4 @@ final class ReflectionFiber
      *              throwing an exception), false otherwise.
      */
     public function isTerminated(): bool { }
-
-    /**
-     * @return bool True if the fiber was created from an instance of {@see FiberScheduler}.
-     */
-    public function isFiberScheduler(): bool { }
 }
