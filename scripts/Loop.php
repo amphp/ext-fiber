@@ -122,7 +122,7 @@ final class Loop implements FiberScheduler
         foreach ($write as $id => $resource) {
             $callback = $this->streamCallbacks[$id];
             $data = $this->writeData[$id];
-            unset($this->write[$id], $this->streamCallbacks[$id]);
+            unset($this->write[$id], $this->writeData[$id], $this->streamCallbacks[$id]);
 
             $length = \fwrite($resource, $data, self::CHUNK_SIZE);
 
