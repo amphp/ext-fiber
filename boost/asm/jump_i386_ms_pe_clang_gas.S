@@ -23,7 +23,7 @@
 *  --------------------------------------------------------------------------------- *
 **************************************************************************************/
 
-.file	"jump_i386_ms_pe_gas.asm"
+.file	"jump_i386_ms_pe_clang_gas.S"
 .text
 .p2align 4,,15
 
@@ -120,4 +120,4 @@ _jump_fcontext:
     jmp *%ecx
 
 .section .drectve
-.ascii " -export:\"jump_fcontext\""
+.ascii " -export:\"_jump_fcontext\""

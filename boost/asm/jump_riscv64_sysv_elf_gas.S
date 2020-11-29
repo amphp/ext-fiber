@@ -1,5 +1,4 @@
 /*
-       Copyright Edward Nevill + Oliver Kowalke 2015
    Distributed under the Boost Software License, Version 1.0.
       (See accompanying file LICENSE_1_0.txt or copy at
           http://www.boost.org/LICENSE_1_0.txt)
@@ -11,104 +10,141 @@
  *  -------------------------------------------------  *
  *  | 0x0 | 0x4 | 0x8 | 0xc | 0x10| 0x14| 0x18| 0x1c|  *
  *  -------------------------------------------------  *
- *  |    d8     |    d9     |    d10    |    d11    |  *
+ *  |    fs0    |    fs1    |    fs2    |    fs3    |  *
  *  -------------------------------------------------  *
  *  -------------------------------------------------  *
  *  |  8  |  9  |  10 |  11 |  12 |  13 |  14 |  15 |  *
  *  -------------------------------------------------  *
  *  | 0x20| 0x24| 0x28| 0x2c| 0x30| 0x34| 0x38| 0x3c|  *
  *  -------------------------------------------------  *
- *  |    d12    |    d13    |    d14    |    d15    |  *
+ *  |    fs4    |    fs5    |    fs6    |    fs7    |  *
  *  -------------------------------------------------  *
  *  -------------------------------------------------  *
  *  |  16 |  17 |  18 |  19 |  20 |  21 |  22 |  23 |  *
  *  -------------------------------------------------  *
  *  | 0x40| 0x44| 0x48| 0x4c| 0x50| 0x54| 0x58| 0x5c|  *
  *  -------------------------------------------------  *
- *  |    x19    |    x20    |    x21    |    x22    |  *
+ *  |    fs8    |    fs9    |    fs10   |    fs11   |  *
  *  -------------------------------------------------  *
  *  -------------------------------------------------  *
  *  |  24 |  25 |  26 |  27 |  28 |  29 |  30 |  31 |  *
  *  -------------------------------------------------  *
  *  | 0x60| 0x64| 0x68| 0x6c| 0x70| 0x74| 0x78| 0x7c|  *
  *  -------------------------------------------------  *
- *  |    x23    |    x24    |    x25    |    x26    |  *
+ *  |    s0     |    s1     |    s2     |    s3     |  *
  *  -------------------------------------------------  *
  *  -------------------------------------------------  *
  *  |  32 |  33 |  34 |  35 |  36 |  37 |  38 |  39 |  *
  *  -------------------------------------------------  *
  *  | 0x80| 0x84| 0x88| 0x8c| 0x90| 0x94| 0x98| 0x9c|  *
  *  -------------------------------------------------  *
- *  |    x27    |    x28    |    FP     |     LR    |  *
+ *  |    s4     |    s5     |    s6     |     s7    |  *
  *  -------------------------------------------------  *
  *  -------------------------------------------------  *
- *  |  40 |  41 |  42 | 43  |           |           |  *
+ *  |  40 |  41 |  42 | 43  |  44 | 45  |  46 | 47  |  *
  *  -------------------------------------------------  *
- *  | 0xa0| 0xa4| 0xa8| 0xac|           |           |  *
+ *  | 0xa0| 0xa4| 0xa8| 0xac| 0xb0| 0xb4| 0xb8| 0xbc|  *
  *  -------------------------------------------------  *
- *  |     PC    |   align   |           |           |  *
+ *  |     s8    |     s9    |    s10    |    s11    |  *
+ *  -------------------------------------------------  *
+ *  -------------------------------------------------  *
+ *  |  48 |  49 |  50 | 51  |     |     |     |     |  *
+ *  -------------------------------------------------  *
+ *  | 0xc0| 0xc4| 0xc8| 0xcc|     |     |     |     |  *
+ *  -------------------------------------------------  *
+ *  |     ra    |     pc    |           |           |  *
  *  -------------------------------------------------  *
  *                                                     *
  *******************************************************/
 
-.file "jump_arm64_aapcs_elf_gas.S"
+.file "jump_riscv64_sysv_elf_gas.S"
 .text
-.align  2
+.align  1
 .global jump_fcontext
 .type   jump_fcontext, %function
 jump_fcontext:
     # prepare stack for GP + FPU
-    sub  sp, sp, #0xb0
+    addi  sp, sp, -0xd0
 
-    # save d8 - d15
-    stp  d8,  d9,  [sp, #0x00]
-    stp  d10, d11, [sp, #0x10]
-    stp  d12, d13, [sp, #0x20]
-    stp  d14, d15, [sp, #0x30]
+    # save fs0 - fs11
+    fsd  fs0, 0x00(sp)
+    fsd  fs1, 0x08(sp)
+    fsd  fs2, 0x10(sp)
+    fsd  fs3, 0x18(sp)
+    fsd  fs4, 0x20(sp)
+    fsd  fs5, 0x28(sp)
+    fsd  fs6, 0x30(sp)
+    fsd  fs7, 0x38(sp)
+    fsd  fs8, 0x40(sp)
+    fsd  fs9, 0x48(sp)
+    fsd  fs10, 0x50(sp)
+    fsd  fs11, 0x58(sp)
 
-    # save x19-x30
-    stp  x19, x20, [sp, #0x40]
-    stp  x21, x22, [sp, #0x50]
-    stp  x23, x24, [sp, #0x60]
-    stp  x25, x26, [sp, #0x70]
-    stp  x27, x28, [sp, #0x80]
-    stp  x29, x30, [sp, #0x90]
+    # save s0-s11, ra
+    sd  s0, 0x60(sp)
+    sd  s1, 0x68(sp)
+    sd  s2, 0x70(sp)
+    sd  s3, 0x78(sp)
+    sd  s4, 0x80(sp)
+    sd  s5, 0x88(sp)
+    sd  s6, 0x90(sp)
+    sd  s7, 0x98(sp)
+    sd  s8, 0xa0(sp)
+    sd  s9, 0xa8(sp)
+    sd  s10, 0xb0(sp)
+    sd  s11, 0xb8(sp)
+    sd  ra, 0xc0(sp)
 
-    # save LR as PC
-    str  x30, [sp, #0xa0]
+    # save RA as PC
+    sd  ra, 0xc8(sp)
 
-    # store RSP (pointing to context-data) in X0
-    mov  x4, sp
+    # store SP (pointing to context-data) in A2
+    mv  a2, sp
 
-    # restore RSP (pointing to context-data) from X1
-    mov  sp, x0
+    # restore SP (pointing to context-data) from A0
+    mv  sp, a0
 
-    # load d8 - d15
-    ldp  d8,  d9,  [sp, #0x00]
-    ldp  d10, d11, [sp, #0x10]
-    ldp  d12, d13, [sp, #0x20]
-    ldp  d14, d15, [sp, #0x30]
+    # load fs0 - fs11
+    fld  fs0, 0x00(sp)
+    fld  fs1, 0x08(sp)
+    fld  fs2, 0x10(sp)
+    fld  fs3, 0x18(sp)
+    fld  fs4, 0x20(sp)
+    fld  fs5, 0x28(sp)
+    fld  fs6, 0x30(sp)
+    fld  fs7, 0x38(sp)
+    fld  fs8, 0x40(sp)
+    fld  fs9, 0x48(sp)
+    fld  fs10, 0x50(sp)
+    fld  fs11, 0x58(sp)
 
-    # load x19-x30
-    ldp  x19, x20, [sp, #0x40]
-    ldp  x21, x22, [sp, #0x50]
-    ldp  x23, x24, [sp, #0x60]
-    ldp  x25, x26, [sp, #0x70]
-    ldp  x27, x28, [sp, #0x80]
-    ldp  x29, x30, [sp, #0x90]
+    # load s0-s11,ra
+    ld  s0, 0x60(sp)
+    ld  s1, 0x68(sp)
+    ld  s2, 0x70(sp)
+    ld  s3, 0x78(sp)
+    ld  s4, 0x80(sp)
+    ld  s5, 0x88(sp)
+    ld  s6, 0x90(sp)
+    ld  s7, 0x98(sp)
+    ld  s8, 0xa0(sp)
+    ld  s9, 0xa8(sp)
+    ld  s10, 0xb0(sp)
+    ld  s11, 0xb8(sp)
+    ld  ra, 0xc0(sp)
 
     # return transfer_t from jump
     # pass transfer_t as first arg in context function
-    # X0 == FCTX, X1 == DATA
-    mov x0, x4
+    # a0 == FCTX, a1 == DATA
+    mv a0, a2
 
     # load pc
-    ldr  x4, [sp, #0xa0]
+    ld  a2, 0xc8(sp)
 
     # restore stack from GP + FPU
-    add  sp, sp, #0xb0
+    addi  sp, sp, 0xd0
 
-    ret x4
+    jr a2
 .size   jump_fcontext,.-jump_fcontext
 # Mark that we don't need executable stack.
 .section .note.GNU-stack,"",%progbits
