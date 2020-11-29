@@ -1,0 +1,20 @@
+language: php
+
+sudo: false
+
+php:
+  - nightly
+
+jobs:
+  include:
+    - os: linux
+    - arch: arm64
+      os: linux
+  fast_finish: true
+
+script:
+  - export NO_INTERACTION=1
+  - phpize
+  - ./configure
+  - make install
+  - make test
