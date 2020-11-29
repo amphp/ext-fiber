@@ -19,9 +19,11 @@ if test "$PHP_FIBER" != "no"; then
   
   AS_CASE([$host_cpu],
     [x86_64*], [fiber_cpu="x86_64"],
-    [x86*], [fiber_cpu="x86"],
+    [x86*|amd*|i[[3456]]86*|pentium], [fiber_cpu="x86"],
+    [aarch64*], [fiber_cpu="arm64"],
     [arm*], [fiber_cpu="arm"],
-    [arm64*], [fiber_cpu="arm64"],
+    [ppc64*], [fiber_cpu="ppc64"],
+    [powerpc*], [fiber_cpu="ppc"],
     [fiber_cpu="unknown"]
   )
   
@@ -48,11 +50,35 @@ if test "$PHP_FIBER" != "no"; then
     else
       fiber_use_asm="no"
     fi
+  elif test "$fiber_cpu" = 'arm64'; then
+    if test "$fiber_os" = 'LINUX'; then
+      fiber_asm_file="arm64_aapcs_elf_gas.S"
+    elif test "$fiber_os" = 'MAC'; then
+      fiber_asm_file="arm64_aapcs_macho_gas.S"
+    else
+      fiber_use_asm="no"
+    fi
   elif test "$fiber_cpu" = 'arm'; then
     if test "$fiber_os" = 'LINUX'; then
       fiber_asm_file="arm_aapcs_elf_gas.S"
     elif test "$fiber_os" = 'MAC'; then
       fiber_asm_file="arm_aapcs_macho_gas.S"
+    else
+      fiber_use_asm="no"
+    fi
+  elif test "$fiber_cpu" = 'ppc64'; then
+    if test "$fiber_os" = 'LINUX'; then
+      fiber_asm_file="ppc64_sysv_elf_gas.S"
+    elif test "$fiber_os" = 'MAC'; then
+      fiber_asm_file="ppc64_sysv_macho_gas.S"
+    else
+      fiber_use_asm="no"
+    fi
+  elif test "$fiber_cpu" = 'ppc'; then
+    if test "$fiber_os" = 'LINUX'; then
+      fiber_asm_file="ppc32_sysv_elf_gas.S"
+    elif test "$fiber_os" = 'MAC'; then
+      fiber_asm_file="ppc32_sysv_macho_gas.S"
     else
       fiber_use_asm="no"
     fi
