@@ -376,7 +376,7 @@ static zend_fiber *zend_fiber_get_scheduler(zval *scheduler)
 }
 
 
-static void zend_fiber_scheduler_hash_index_dtor(zval *ptr)
+void zend_fiber_scheduler_hash_index_dtor(zval *ptr)
 {
 	zend_fiber *fiber = Z_PTR_P(ptr);
 
@@ -1355,9 +1355,6 @@ void zend_fiber_ce_register()
 	zend_reflection_fiber_scheduler_handlers.free_obj = zend_reflection_fiber_scheduler_object_destroy;
 	zend_reflection_fiber_scheduler_handlers.clone_obj = NULL;
 
-	zend_hash_init(&FIBER_G(fibers), 0, NULL, NULL, 1);
-	zend_hash_init(&FIBER_G(schedulers), 0, NULL, zend_fiber_scheduler_hash_index_dtor, 1);
-
 	scheduler_run_name = zend_string_init("run", sizeof("run") - 1, 1);
 }
 
@@ -1370,9 +1367,6 @@ void zend_fiber_ce_unregister()
 
 	zend_string_free(fiber_run_func.filename);
 	fiber_run_func.filename = NULL;
-
-	zend_hash_destroy(&FIBER_G(fibers));
-	zend_hash_destroy(&FIBER_G(schedulers));
 
 	zend_string_free(scheduler_run_name);
 	scheduler_run_name = NULL;
