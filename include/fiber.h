@@ -57,6 +57,9 @@ struct _zend_fiber {
 	/* Fiber PHP object handle. */
 	zend_object std;
 
+	/* Unique ID assigned to this fiber. Root fiber is always 0. */
+	zend_long id;
+
 	/* Status of the fiber, one of the ZEND_FIBER_STATUS_* constants. */
 	zend_uchar status;
 	
@@ -92,6 +95,12 @@ struct _zend_fiber_reflection {
 	/* Fiber being reflected. */
 	zend_fiber *fiber;
 };
+
+PHP_FIBER_API zend_fiber *zend_get_root_fiber();
+PHP_FIBER_API zend_fiber *zend_get_current_fiber();
+PHP_FIBER_API zend_long zend_fiber_get_id(zend_fiber *fiber);
+PHP_FIBER_API zend_long zend_fiber_get_current_id();
+PHP_FIBER_API zend_bool zend_fiber_is_scheduler(zend_fiber *fiber);
 
 static const zend_uchar ZEND_FIBER_STATUS_INIT = 0;
 static const zend_uchar ZEND_FIBER_STATUS_SUSPENDED = 0x1;

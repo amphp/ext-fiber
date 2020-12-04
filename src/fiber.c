@@ -37,6 +37,8 @@ static zend_object_handlers zend_fiber_handlers;
 static zend_object_handlers zend_reflection_fiber_handlers;
 static zend_object_handlers zend_reflection_fiber_scheduler_handlers;
 
+static zend_fiber *zend_fiber_create_root();
+
 static zend_object *zend_fiber_object_create(zend_class_entry *ce);
 static void zend_fiber_object_destroy(zend_object *object);
 
@@ -65,9 +67,42 @@ static zend_string *scheduler_run_name;
 } while (0)
 
 
-static zend_always_inline zend_bool zend_fiber_is_scheduler(zend_fiber *fiber)
+zend_always_inline PHP_FIBER_API zend_bool zend_fiber_is_scheduler(zend_fiber *fiber)
 {
 	return fiber->continuation == NULL;
+}
+
+
+PHP_FIBER_API zend_fiber *zend_get_root_fiber()
+{
+	if (FIBER_G(root_fiber) == NULL) {
+		FIBER_G(root_fiber) = zend_fiber_create_root();
+		FIBER_G(current_fiber) = FIBER_G(root_fiber);
+	}
+
+	return FIBER_G(root_fiber);
+}
+
+
+PHP_FIBER_API zend_fiber *zend_get_current_fiber()
+{
+	if (FIBER_G(current_fiber) == NULL) {
+		return zend_get_root_fiber();
+	}
+
+	return FIBER_G(current_fiber);
+}
+
+
+zend_always_inline PHP_FIBER_API zend_long zend_fiber_get_id(zend_fiber *fiber)
+{
+	return fiber->id;
+}
+
+
+zend_always_inline PHP_FIBER_API zend_long zend_fiber_get_current_id()
+{
+	return zend_get_current_fiber()->id;
 }
 
 
@@ -237,6 +272,8 @@ static zend_object *zend_fiber_object_create(zend_class_entry *ce)
 	fiber = emalloc(sizeof(zend_fiber));
 	memset(fiber, 0, sizeof(zend_fiber));
 
+	fiber->id = FIBER_G(id)++;
+
 	zend_object_std_init(&fiber->std, ce);
 	fiber->std.handlers = &zend_fiber_handlers;
 
@@ -303,6 +340,8 @@ static zend_fiber *zend_fiber_create_from_scheduler(zval *scheduler)
 
 	fiber = (zend_fiber *) emalloc(sizeof(zend_fiber));
 	memset(fiber, 0, sizeof(zend_fiber));
+
+	fiber->id = FIBER_G(id)++;
 
 	func = zend_hash_find_ptr(&(Z_OBJCE_P(scheduler)->function_table), scheduler_run_name);
 	zend_create_fake_closure(&closure, func, func->op_array.scope, Z_OBJCE_P(scheduler), scheduler);

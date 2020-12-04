@@ -32,6 +32,9 @@ ZEND_BEGIN_MODULE_GLOBALS(fiber)
 	/* Active fiber, NULL when in main thread. */
 	zend_fiber *current_fiber;
 
+	/* Next fiber ID. */
+	zend_long id;
+
 	/* Default fiber C stack size. */
 	zend_long stack_size;
 
