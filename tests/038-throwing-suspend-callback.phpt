@@ -16,7 +16,7 @@ Fiber::suspend(function (Fiber $fiber): void {
 --EXPECTF--
 Fatal error: Uncaught Exception: test in %s:%d
 Stack trace:
-#0 [internal function]: {closure}(Object(Fiber))
+#0 [internal function]: {closure}(Object(Fiber), Object(Loop))
 #1 %s(%d): Fiber::suspend(Object(Closure), Object(Loop))
 #2 {main}
   thrown in %s on line %d

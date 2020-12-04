@@ -735,7 +735,7 @@ ZEND_METHOD(Fiber, suspend)
 	zend_fiber *fiber, *scheduler;
 	zend_fcall_info fci;
 	zend_fcall_info_cache fci_cache;
-	zval *fiber_scheduler, *error, context, retval;
+	zval *fiber_scheduler, *error, params[2], retval;
 
 	if (UNEXPECTED(FIBER_G(shutdown))) {
 		zend_throw_error(zend_ce_fiber_error, "Cannot suspend during shutdown");
@@ -783,18 +783,21 @@ ZEND_METHOD(Fiber, suspend)
 
 	fiber->execute_data = execute_data;
 
-	ZVAL_OBJ(&context, &fiber->std);
-	Z_ADDREF(context);
+	ZVAL_OBJ(params, &fiber->std);
+	Z_ADDREF_P(params);
+
+	ZVAL_COPY(params + 1, fiber_scheduler);
 
    	fiber->status = ZEND_FIBER_STATUS_SUSPENDED;
 
-	fci.params = &context;
-	fci.param_count = 1;
+	fci.params = params;
+	fci.param_count = 2;
 	fci.retval = &retval;
 
 	zend_call_function(&fci, &fci_cache);
 
-	zval_ptr_dtor(&context);
+	zval_ptr_dtor(params);
+	zval_ptr_dtor(params + 1);
 	zval_ptr_dtor(&retval);
 
 	if (UNEXPECTED(EG(exception))) {

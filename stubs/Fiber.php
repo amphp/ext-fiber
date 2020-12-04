@@ -66,7 +66,7 @@ final class Fiber
      *
      * Cannot be called within {@see FiberScheduler::run()}.
      *
-     * @param callable(Fiber):void $enqueue
+     * @param callable(Fiber, FiberScheduler):void $enqueue
      * @param FiberScheduler $scheduler
      *
      * @return mixed Value provided to {@see Fiber::resume()}.

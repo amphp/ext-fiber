@@ -10,7 +10,7 @@ require dirname(__DIR__) . '/scripts/bootstrap.php';
 $loop = new Loop;
 
 try {
-    echo Fiber::suspend(function (Fiber $fiber) use ($loop): void {
+    echo Fiber::suspend(function (Fiber $fiber, Loop $loop): void {
         $loop->defer(fn() => $fiber->throw(new Exception('test')));
     }, $loop);
 } catch (Exception $exception) {
