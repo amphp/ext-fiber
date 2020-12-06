@@ -9,7 +9,11 @@ require dirname(__DIR__) . '/scripts/bootstrap.php';
 
 $loop = new Loop;
 
-register_shutdown_function(fn() => print Fiber::suspend(new Success($loop, 1), $loop));
+register_shutdown_function(function () use ($loop): void {
+    $promise = new Success($loop, 1);
+    $promise->schedule(Fiber::this());
+    echo Fiber::suspend($loop);
+});
 
 $object = new class($loop) {
     private Loop $loop;
@@ -22,8 +26,9 @@ $object = new class($loop) {
     public function __destruct()
     {
         $promise = new Promise($this->loop);
+        $promise->schedule(Fiber::this());
         $this->loop->delay(10, fn() => $promise->resolve(2));
-        echo Fiber::suspend($promise, $this->loop);
+        echo Fiber::suspend($this->loop);
     }
 };
 

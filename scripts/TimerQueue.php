@@ -20,13 +20,7 @@ final class TimerQueue
     {
         $entry = $this->data[$node];
         while ($node !== 0 && $entry->expiration < $this->data[$parent = ($node - 1) >> 1]->expiration) {
-            $temp = $this->data[$parent];
-            $this->data[$node] = $temp;
-            $this->pointers[$temp->id] = $node;
-
-            $this->data[$parent] = $entry;
-            $this->pointers[$entry->id] = $parent;
-
+            $this->swap($node, $parent);
             $node = $parent;
         }
     }
@@ -52,17 +46,20 @@ final class TimerQueue
                 break;
             }
 
-            $left = $this->data[$node];
-            $right = $this->data[$swap];
-
-            $this->data[$node] = $right;
-            $this->pointers[$right->id] = $node;
-
-            $this->data[$swap] = $left;
-            $this->pointers[$left->id] = $swap;
-
+            $this->swap($node, $swap);
             $node = $swap;
         }
+    }
+
+    private function swap(int $left, int $right): void
+    {
+        $temp = $this->data[$left];
+
+        $this->data[$left] = $this->data[$right];
+        $this->pointers[$this->data[$right]->id] = $left;
+
+        $this->data[$right] = $temp;
+        $this->pointers[$temp->id] = $right;
     }
 
     public function insert(string $id, callable $callback, int $expiration): void

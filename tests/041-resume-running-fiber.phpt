@@ -9,14 +9,17 @@ require dirname(__DIR__) . '/scripts/bootstrap.php';
 
 $loop = new Loop;
 
-echo Fiber::suspend(function (Fiber $fiber) use ($loop): void {
-    var_dump($fiber->isSuspended());
-    $loop->defer(fn() => $fiber->resume());
-    $loop->defer(fn() => var_dump($fiber->isSuspended()));
-    $loop->defer(fn() => var_dump($fiber->isRunning()));
-    $loop->defer(fn() => var_dump($fiber->isTerminated()));
-    $loop->defer(fn() => $fiber->resume());
-}, $loop);
+$fiber = Fiber::this();
+
+$loop->defer(fn() => var_dump($fiber->isSuspended()));
+$loop->defer(fn() => $fiber->resume());
+echo Fiber::suspend($loop);
+
+var_dump($fiber->isSuspended());
+var_dump($fiber->isRunning());
+var_dump($fiber->isTerminated());
+
+$loop->defer(fn() => $fiber->resume());
 
 --EXPECTF--
 bool(true)

@@ -2,5 +2,5 @@
 
 interface Future
 {
-    public function __invoke(Fiber $fiber): void;
+    public function schedule(Fiber $fiber): void;
 }

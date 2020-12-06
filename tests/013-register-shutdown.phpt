@@ -9,9 +9,15 @@ require dirname(__DIR__) . '/scripts/bootstrap.php';
 
 $loop = new Loop;
 
-register_shutdown_function(fn() => print Fiber::suspend(new Success($loop, 'shutdown'), $loop));
+register_shutdown_function(function () use ($loop): void {
+    $promise = new Success($loop, 'shutdown');
+    $promise->schedule(Fiber::this());
+    echo Fiber::suspend($loop);
+});
 
-Fiber::suspend(new Success($loop), $loop);
+$promise = new Success($loop);
+$promise->schedule(Fiber::this());
+Fiber::suspend($loop);
 
 --EXPECT--
 shutdown

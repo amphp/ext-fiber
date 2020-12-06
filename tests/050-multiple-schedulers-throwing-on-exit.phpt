@@ -10,9 +10,13 @@ require dirname(__DIR__) . '/scripts/bootstrap.php';
 $loop1 = new Loop;
 $loop2 = new Loop;
 
-Fiber::suspend(fn(Fiber $fiber) => $loop1->defer(fn() => $fiber->resume()), $loop1);
+$fiber = Fiber::this();
 
-Fiber::suspend(fn(Fiber $fiber) => $loop2->defer(fn() => $fiber->resume()), $loop2);
+$loop1->defer(fn() => $fiber->resume());
+Fiber::suspend($loop1);
+
+$loop2->defer(fn() => $fiber->resume());
+Fiber::suspend($loop2);
 
 $loop1->defer(function (): void {
     throw new Exception('test');

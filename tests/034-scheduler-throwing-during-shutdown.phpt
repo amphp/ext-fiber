@@ -23,9 +23,13 @@ $loop1->delay(1, function (): void {
     throw new Exception('test');
 });
 
-Fiber::suspend(new Success($loop1), $loop1);
+$promise = new Success($loop1);
+$promise->schedule(Fiber::this());
+Fiber::suspend($loop1);
 
-Fiber::suspend(new Success($loop2), $loop2);
+$promise = new Success($loop2);
+$promise->schedule(Fiber::this());
+Fiber::suspend($loop2);
 
 $loop1->defer(function (): void {
     echo "should not be executed\n";

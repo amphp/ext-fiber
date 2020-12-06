@@ -12,7 +12,7 @@ $loop = new Loop;
 $fiber = Fiber::create(function () use ($loop): void {
     try {
         echo "fiber\n";
-        echo Fiber::suspend(new Promise($loop), $loop);
+        echo Fiber::suspend($loop);
         echo "after await\n";
     } catch (Throwable $exception) {
         echo "exit exception caught!\n";
@@ -23,7 +23,9 @@ $fiber = Fiber::create(function () use ($loop): void {
 
 $loop->defer(fn() => $fiber->start());
 
-Fiber::suspend(new Success($loop), $loop);
+$promise = new Success($loop);
+$promise->schedule(Fiber::this());
+Fiber::suspend($loop);
 
 echo "done\n";
 

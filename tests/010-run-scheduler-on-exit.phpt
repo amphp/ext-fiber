@@ -9,7 +9,10 @@ require dirname(__DIR__) . '/scripts/bootstrap.php';
 
 $loop = new Loop;
 
-Fiber::suspend(new Success($loop), $loop);
+$promise = new Success($loop);
+$promise->schedule(Fiber::this());
+
+Fiber::suspend($loop);
 
 $loop->defer(fn() => print 'test');
 

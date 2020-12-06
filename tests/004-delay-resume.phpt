@@ -13,9 +13,11 @@ $timeout = 100;
 
 $start = $loop->now();
 
-echo Fiber::suspend(function (Fiber $fiber, Loop $loop) use ($timeout): void {
-    $loop->delay($timeout, fn() => $fiber->resume('test'));
-}, $loop);
+$fiber = Fiber::this();
+
+$loop->delay($timeout, fn() => $fiber->resume('test'));
+
+echo Fiber::suspend($loop);
 
 if ($loop->now() - $start < $timeout) {
     throw new Exception(sprintf('Test took less than %dms', $timeout));

@@ -10,8 +10,9 @@ class Scheduler implements FiberScheduler
     public function run(): void
     {
         while (!empty($this->deferCallbacks) || !empty($this->read)) {
-            foreach ($this->deferCallbacks as $id => $defer) {
-                unset($this->deferCallbacks[$id]);
+            $defers = $this->deferCallbacks;
+            $this->deferCallbacks = [];
+            foreach ($defers as $id => $defer) {
                 $defer();
             }
 
@@ -32,7 +33,6 @@ class Scheduler implements FiberScheduler
             $callback($resource);
         }
     }
-
     public function defer(callable $callback): void
     {
         $id = $this->nextId++;
@@ -47,11 +47,15 @@ class Scheduler implements FiberScheduler
     }
 }
 
-[$read, $write] = \stream_socket_pair(
-    \stripos(PHP_OS, 'win') === 0 ? STREAM_PF_INET : STREAM_PF_UNIX,
+[$read, $write] = stream_socket_pair(
+    stripos(PHP_OS, 'win') === 0 ? STREAM_PF_INET : STREAM_PF_UNIX,
     STREAM_SOCK_STREAM,
     STREAM_IPPROTO_IP
 );
+
+// Set streams to non-blocking mode.
+stream_set_blocking($read, false);
+stream_set_blocking($write, false);
 
 $scheduler = new Scheduler;
 
@@ -59,23 +63,22 @@ $scheduler = new Scheduler;
 $fiber = Fiber::create(function () use ($scheduler, $read): void {
     echo "Waiting for data...\n";
 
-    \Fiber::suspend(
-        fn(Fiber $fiber) => $scheduler->read($read, fn() => $fiber->resume()),
-        $scheduler
-    );
+    $fiber = Fiber::this();
+    $scheduler->read($read, fn() => $fiber->resume());
+    Fiber::suspend($scheduler);
 
-    $data = \fread($read, 8192);
+    $data = fread($read, 8192);
 
     echo "Received data: ", $data, "\n";
 });
 
+// Start the new fiber within the fiber scheduler.
 $scheduler->defer(fn() => $fiber->start());
 
 // Suspend main fiber to enter the scheduler.
-echo Fiber::suspend(
-    fn(Fiber $fiber) => $scheduler->defer(fn() => $fiber->resume("Writing data...\n")),
-    $scheduler
-);
+$fiber = Fiber::this();
+$scheduler->defer(fn() => $fiber->resume("Writing data...\n"));
+echo Fiber::suspend($scheduler);
 
 // Write data in main thread once it is resumed.
-\fwrite($write, "Hello, world!");
+fwrite($write, "Hello, world!");

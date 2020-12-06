@@ -13,10 +13,12 @@ $timeout = 100;
 
 $start = $loop->now();
 
+$fiber = Fiber::this();
+
+$loop->delay($timeout, fn() => $fiber->throw(new Exception('test')));
+
 try {
-    echo Fiber::suspend(function (Fiber $fiber, Loop $loop) use ($timeout): void {
-        $loop->delay($timeout, fn() => $fiber->throw(new Exception('test')));
-    }, $loop);
+    echo Fiber::suspend($loop);
     throw new Exception('Fiber::suspend() did not throw');
 } catch (Exception $exception) {
     echo $exception->getMessage();

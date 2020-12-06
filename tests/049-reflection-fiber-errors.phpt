@@ -10,9 +10,9 @@ require dirname(__DIR__) . '/scripts/bootstrap.php';
 $loop = new Loop;
 
 $fiber = Fiber::create(function () use ($loop): void {
-    Fiber::suspend(function (Fiber $fiber) use ($loop): void {
-        $loop->defer(fn() => $fiber->resume());
-    }, $loop);
+    $fiber = Fiber::this();
+    $loop->defer(fn() => $fiber->resume());
+    Fiber::suspend($loop);
 });
 
 $reflection = new ReflectionFiber($fiber);
@@ -40,9 +40,9 @@ $loop->defer(fn() => $fiber->start());
 $loop->defer(fn() => var_dump($reflection->getExecutingFile()));
 $loop->defer(fn() => var_dump($reflection->getExecutingLine()));
 
-Fiber::suspend(function (Fiber $fiber) use ($loop): void {
-    $loop->delay(10, fn() => $fiber->resume());
-}, $loop);
+$fiber = Fiber::this();
+$loop->delay(10, fn() => $fiber->resume());
+Fiber::suspend($loop);
 
 try {
     $reflection->getTrace();

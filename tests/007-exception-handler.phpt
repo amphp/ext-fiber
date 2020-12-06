@@ -18,8 +18,9 @@ $loop->defer(function (): void {
 });
 
 $promise = new Promise($loop);
+$promise->schedule(Fiber::this());
 
-echo Fiber::suspend($promise, $loop);
+echo Fiber::suspend($loop);
 
 --EXPECTF--
 Caught Exception: Uncaught Error thrown from Loop::run(): test

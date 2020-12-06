@@ -10,11 +10,15 @@ require dirname(__DIR__) . '/scripts/bootstrap.php';
 $loop = new Loop;
 
 register_shutdown_function(function () use ($loop): void {
-    Fiber::suspend(new Success($loop), $loop);
+    $promise = new Success($loop);
+    $promise->schedule(Fiber::this());
+    Fiber::suspend($loop);
     echo "unreachable";
 });
 
-Fiber::suspend(new Success($loop), $loop);
+$promise = new Success($loop);
+$promise->schedule(Fiber::this());
+Fiber::suspend($loop);
 
 throw new Exception('test');
 
@@ -26,7 +30,7 @@ Stack trace:
 
 Fatal error: Uncaught FiberError: Cannot suspend during shutdown in %s:%d
 Stack trace:
-#0 %s(%d): Fiber::suspend(Object(Success), Object(Loop))
+#0 %s(%d): Fiber::suspend(Object(Loop))
 #1 [internal function]: {closure}()
 #2 {main}
   thrown in %s on line %d

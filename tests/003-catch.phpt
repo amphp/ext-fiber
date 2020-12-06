@@ -8,11 +8,11 @@ Catch exception from throw
 require dirname(__DIR__) . '/scripts/bootstrap.php';
 
 $loop = new Loop;
+$fiber = Fiber::this();
+$loop->defer(fn() => $fiber->throw(new Exception('test')));
 
 try {
-    echo Fiber::suspend(function (Fiber $fiber, Loop $loop): void {
-        $loop->defer(fn() => $fiber->throw(new Exception('test')));
-    }, $loop);
+    echo Fiber::suspend($loop);
 } catch (Exception $exception) {
     echo $exception->getMessage();
 }

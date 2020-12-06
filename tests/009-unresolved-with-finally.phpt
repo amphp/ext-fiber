@@ -8,7 +8,8 @@ FiberScheduler returns before resuming the fiber with a finally block
 require dirname(__DIR__) . '/scripts/bootstrap.php';
 
 try {
-    echo Fiber::suspend(fn(Fiber $fiber) => null, new Loop);
+    $fiber = Fiber::this();
+    echo Fiber::suspend(new Loop);
 } finally {
     echo 'finally';
 }
@@ -17,6 +18,6 @@ try {
 finally
 Fatal error: Uncaught FiberError: Loop::run() returned before resuming the fiber in %s:%d
 Stack trace:
-#0 %s(%d): Fiber::suspend(Object(Closure), Object(Loop))
+#0 %s(%d): Fiber::suspend(Object(Loop))
 #1 {main}
   thrown in %s on line %d

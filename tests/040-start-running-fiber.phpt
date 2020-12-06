@@ -10,13 +10,17 @@ require dirname(__DIR__) . '/scripts/bootstrap.php';
 $loop = new Loop;
 
 $fiber = Fiber::create(function () use ($loop): void {
-    Fiber::suspend(fn(Fiber $fiber) => $loop->delay(10, fn() => $fiber->resume()), $loop);
+    $fiber = Fiber::this();
+    $loop->delay(10, fn() => $fiber->resume());
+    Fiber::suspend($loop);
 });
 
 $loop->defer(fn() => $fiber->start());
 $loop->defer(fn() => $fiber->start());
 
-Fiber::suspend(fn(Fiber $fiber) => $loop->defer(fn() => $fiber->resume()), $loop);
+$fiber = Fiber::this();
+$loop->defer(fn() => $fiber->resume());
+Fiber::suspend($loop);
 
 --EXPECTF--
 Fatal error: Uncaught FiberError: Cannot start a fiber that has already been started in %s:%d
@@ -29,6 +33,6 @@ Stack trace:
 
 Next FiberExit: Uncaught FiberError thrown from Loop::run(): Cannot start a fiber that has already been started in %s:%d
 Stack trace:
-#0 %s(%d): Fiber::suspend(Object(Closure), Object(Loop))
+#0 %s(%d): Fiber::suspend(Object(Loop))
 #1 {main}
   thrown in %s on line %d

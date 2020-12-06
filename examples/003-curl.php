@@ -6,8 +6,8 @@ class Promise
     private array $fibers = [];
     private Scheduler $scheduler;
     private bool $resolved = false;
-    private ?\Throwable $error = null;
-    private $result;
+    private ?Throwable $error = null;
+    private mixed $result;
 
     public function __construct(Scheduler $scheduler)
     {
@@ -17,7 +17,8 @@ class Promise
     public function await(): mixed
     {
         if (!$this->resolved) {
-            return \Fiber::suspend($this, $this->scheduler);
+            $this->schedule(Fiber::this());
+            return Fiber::suspend($this->scheduler);
         }
 
         if ($this->error) {
@@ -27,7 +28,7 @@ class Promise
         return $this->result;
     }
 
-    public function __invoke(Fiber $fiber): void
+    public function schedule(Fiber $fiber): void
     {
         if ($this->resolved) {
             if ($this->error !== null) {
@@ -42,7 +43,7 @@ class Promise
         $this->fibers[] = $fiber;
     }
 
-    public function resolve($value = null): void
+    public function resolve(mixed $value = null): void
     {
         if ($this->resolved) {
             throw new Error("Promise already resolved");
@@ -70,16 +71,19 @@ class Promise
         $this->fibers = [];
 
         foreach ($fibers as $fiber) {
-            ($this)($fiber);
+            $this->schedule($fiber);
         }
     }
 }
 
 class Scheduler implements FiberScheduler
 {
+    /** @var resource */
     private $curl;
+    /** @var callable[] */
     private array $defers = [];
-    private array $promises = [];
+    /** @var Fiber[] */
+    private array $fibers = [];
 
     public function __construct()
     {
@@ -101,11 +105,13 @@ class Scheduler implements FiberScheduler
 
         curl_multi_add_handle($this->curl, $curl);
 
-        Fiber::suspend(function (Fiber $fiber) use ($curl) {
-            $this->promises[(int) $curl] = $fiber;
-        }, $this);
+        $this->fibers[(int) $curl] = Fiber::this();
+        Fiber::suspend($this);
 
-        // $status = curl_getinfo($curl, CURLINFO_RESPONSE_CODE);
+        $status = curl_getinfo($curl, CURLINFO_RESPONSE_CODE);
+        if ($status !== 200) {
+            throw new Exception(sprintf('Request to %s failed with status code %d', $url, $status));
+        }
 
         $body = substr(trim(curl_multi_getcontent($curl)), 0, 255);
 
@@ -119,14 +125,14 @@ class Scheduler implements FiberScheduler
         $this->defers[] = $callable;
     }
 
-    public function async($callable): Promise
+    public function async(callable $callable): Promise
     {
         $promise = new Promise($this);
 
         $fiber = Fiber::create(function () use ($promise, $callable) {
             try {
                 $promise->resolve($callable());
-            } catch (\Throwable $e) {
+            } catch (Throwable $e) {
                 $promise->fail($e);
             }
         });
@@ -167,17 +173,18 @@ class Scheduler implements FiberScheduler
                 continue;
             }
 
-            $fiber = $this->promises[(int) $info['handle']];
+            $fiber = $this->fibers[(int) $info['handle']];
             $fiber->resume();
         }
     }
 }
 
-function await(Promise ...$promises): array {
-    return \array_map(fn ($promise) => $promise->await(), $promises);
+function await(Promise ...$promises): array
+{
+    return array_map(fn($promise) => $promise->await(), $promises);
 }
 
-$urls = \array_fill(0, $argv[1] ?? 10, 'https://amphp.org/');
+$urls = array_fill(0, $argv[1] ?? 10, 'https://amphp.org/');
 
 $scheduler = new Scheduler;
 
@@ -186,12 +193,12 @@ foreach ($urls as $url) {
     $promises[] = $scheduler->async(fn() => $scheduler->fetch($url));
 }
 
-print 'Starting to make ' . \count($promises) . ' requests...' . PHP_EOL;
+print 'Starting to make ' . count($promises) . ' requests...' . PHP_EOL;
 
-$start = \hrtime(true);
+$start = hrtime(true);
 
 $responses = await(...$promises);
 
 // var_dump($responses);
 
-print ((\hrtime(true) - $start) / 1_000_000) . 'ms' . PHP_EOL;
+print ((hrtime(true) - $start) / 1_000_000) . 'ms' . PHP_EOL;

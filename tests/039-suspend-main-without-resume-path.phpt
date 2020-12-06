@@ -1,5 +1,5 @@
 --TEST--
-FiberScheduler returns before resuming the fiber
+Suspend main without resume path
 --SKIPIF--
 <?php include __DIR__ . '/include/skip-if.php';
 --FILE--
@@ -7,9 +7,11 @@ FiberScheduler returns before resuming the fiber
 
 require dirname(__DIR__) . '/scripts/bootstrap.php';
 
+$loop = new Loop;
+
 $fiber = Fiber::this();
 
-echo Fiber::suspend(new Loop);
+Fiber::suspend(new Loop);
 
 --EXPECTF--
 Fatal error: Uncaught FiberError: Loop::run() returned before resuming the fiber in %s:%d

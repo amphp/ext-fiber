@@ -15,7 +15,9 @@ $loop->defer(function (): void {
     })->start();
 });
 
-Fiber::suspend(new Success($loop), $loop);
+$promise = new Success($loop);
+$promise->schedule(Fiber::this());
+Fiber::suspend($loop);
 
 echo "done\n";
 

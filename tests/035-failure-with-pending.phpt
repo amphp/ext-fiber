@@ -12,8 +12,8 @@ $loop = new Loop;
 $loop->delay(10, fn() => print "should not be executed");
 
 $promise = new Failure($loop, new Exception('test'));
-
-echo Fiber::suspend($promise, $loop);
+$promise->schedule(Fiber::this());
+echo Fiber::suspend($loop);
 
 --EXPECTF--
 Fatal error: Uncaught Exception: test in %s.php:%d

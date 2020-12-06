@@ -21,10 +21,19 @@ $fiber = Fiber::create(function () use ($loop1, $loop2): void {
     $loop2->delay(100, fn() => $promise3->resolve(3));
     $loop1->delay(10, fn() => $promise4->resolve(4));
 
-    echo Fiber::suspend($promise1, $loop1);
-    echo Fiber::suspend($promise2, $loop2);
-    echo Fiber::suspend($promise3, $loop2);
-    echo Fiber::suspend($promise4, $loop1);
+    $fiber = Fiber::this();
+
+    $promise1->schedule($fiber);
+    echo Fiber::suspend($loop1);
+
+    $promise2->schedule($fiber);
+    echo Fiber::suspend($loop2);
+
+    $promise3->schedule($fiber);
+    echo Fiber::suspend($loop2);
+
+    $promise4->schedule($fiber);
+    echo Fiber::suspend($loop1);
 });
 
 $loop1->defer(fn() => $fiber->start());
@@ -38,14 +47,23 @@ $fiber = Fiber::create(function () use ($loop1, $loop2): void {
     $loop2->delay(30, fn() => $promise6->resolve(6));
     $loop1->delay(5, fn() => $promise7->resolve(7));
 
-    echo Fiber::suspend($promise5, $loop1);
-    echo Fiber::suspend($promise6, $loop2);
-    echo Fiber::suspend($promise7, $loop1);
+    $fiber = Fiber::this();
+
+    $promise5->schedule($fiber);
+    echo Fiber::suspend($loop1);
+
+    $promise6->schedule($fiber);
+    echo Fiber::suspend($loop2);
+
+    $promise7->schedule($fiber);
+    echo Fiber::suspend($loop1);
 });
 
 $loop1->defer(fn() => $fiber->start());
 
-Fiber::suspend(new Success($loop1), $loop1);
+$promise = new Success($loop1);
+$promise->schedule(Fiber::this());
+Fiber::suspend($loop1);
 
 // Note that $loop2 blocks $loop1 until $promise6 is resolved, which is why the timers appear to finish out of order.
 

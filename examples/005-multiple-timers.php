@@ -6,23 +6,31 @@ $loop = new Loop;
 
 // Create three new fibers and run them in the FiberScheduler.
 $fiber = Fiber::create(function () use ($loop): void {
-    delay($loop, 1500);
-    var_dump(1);
+    $fiber = Fiber::this();
+    $loop->delay(1500, fn() => $fiber->resume(1));
+    $value = Fiber::suspend($loop);
+    var_dump($value);
 });
 $loop->defer(fn() => $fiber->start());
 
 $fiber = Fiber::create(function () use ($loop): void {
-    delay($loop, 1000);
-    var_dump(2);
+    $fiber = Fiber::this();
+    $loop->delay(1000, fn() => $fiber->resume(2));
+    $value = Fiber::suspend($loop);
+    var_dump($value);
 });
 $loop->defer(fn() => $fiber->start());
 
 $fiber = Fiber::create(function () use ($loop): void {
-    delay($loop, 2000);
-    var_dump(3);
+    $fiber = Fiber::this();
+    $loop->delay(2000, fn() => $fiber->resume(3));
+    $value = Fiber::suspend($loop);
+    var_dump($value);
 });
 $loop->defer(fn() => $fiber->start());
 
 // Suspend the main thread to enter the FiberScheduler.
-delay($loop, 500);
-var_dump(4);
+$fiber = Fiber::this();
+$loop->delay(500, fn() => $fiber->resume(4));
+$value = Fiber::suspend($loop);
+var_dump($value);

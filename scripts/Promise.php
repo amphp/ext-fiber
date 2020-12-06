@@ -14,10 +14,10 @@ final class Promise implements Future
         $this->loop = $loop;
     }
 
-    public function __invoke(Fiber $fiber): void
+    public function schedule(Fiber $fiber): void
     {
         if (isset($this->result)) {
-            ($this->result)($fiber);
+            $this->result->schedule($fiber);
             return;
         }
 
@@ -36,7 +36,7 @@ final class Promise implements Future
         $this->fibers = [];
 
         foreach ($fibers as $fiber) {
-            ($this->result)($fiber);
+            $this->result->schedule($fiber);
         }
     }
 

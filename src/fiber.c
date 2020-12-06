@@ -635,6 +635,36 @@ static void zend_reflection_fiber_scheduler_object_destroy(zend_object *object)
 }
 
 
+/* {{{ proto Fiber Fiber::this() */
+ZEND_METHOD(Fiber, this)
+{
+	zend_fiber *fiber;
+
+	ZEND_PARSE_PARAMETERS_NONE();
+
+	fiber = FIBER_G(current_fiber);
+
+	if (fiber == NULL) {
+		fiber = zend_fiber_create_root();
+
+		if (UNEXPECTED(fiber == NULL)) {
+			zend_throw_error(zend_ce_fiber_exit, "Could not create root fiber context");
+			return;
+		}
+
+		FIBER_G(current_fiber) = fiber;
+	}
+
+	if (zend_fiber_is_scheduler(fiber)) {
+		zend_throw_error(zend_ce_fiber_error, "Cannot call Fiber::this() within a fiber scheduler");
+		return;
+	}
+
+	RETURN_OBJ_COPY(&fiber->std);
+}
+/* }}} */
+
+
 /* {{{ proto Fiber Fiber::create(callable $callback) */
 ZEND_METHOD(Fiber, create)
 {
@@ -729,13 +759,11 @@ ZEND_METHOD(Fiber, start)
 /* }}} */
 
 
-/* {{{ proto mixed Fiber::suspend(callable(Fiber):void $enqueue, FiberScheduler $scheduler) */
+/* {{{ proto mixed Fiber::suspend(FiberScheduler $scheduler) */
 ZEND_METHOD(Fiber, suspend)
 {
 	zend_fiber *fiber, *scheduler;
-	zend_fcall_info fci;
-	zend_fcall_info_cache fci_cache;
-	zval *fiber_scheduler, *error, params[2], retval;
+	zval *fiber_scheduler, *error;
 
 	if (UNEXPECTED(FIBER_G(shutdown))) {
 		zend_throw_error(zend_ce_fiber_error, "Cannot suspend during shutdown");
@@ -744,15 +772,9 @@ ZEND_METHOD(Fiber, suspend)
 
 	fiber = FIBER_G(current_fiber);
 
-	if (fiber == NULL) {
-		fiber = zend_fiber_create_root();
-		
-		if (UNEXPECTED(fiber == NULL)) {
-			zend_throw_error(zend_ce_fiber_exit, "Could not create root fiber context");
-			return;
-		}
-		
-		FIBER_G(current_fiber) = fiber;
+	if (UNEXPECTED(fiber == NULL)) {
+		zend_throw_error(zend_ce_fiber_error, "Main fiber suspended without path to resuming");
+		return;
 	}
 
 	if (UNEXPECTED(zend_fiber_is_scheduler(fiber))) {
@@ -769,8 +791,7 @@ ZEND_METHOD(Fiber, suspend)
 		return;
 	}
 
-	ZEND_PARSE_PARAMETERS_START_EX(ZEND_PARSE_PARAMS_THROW, 2, 2)
-		Z_PARAM_FUNC_EX(fci, fci_cache, 0, 0)
+	ZEND_PARSE_PARAMETERS_START_EX(ZEND_PARSE_PARAMS_THROW, 1, 1)
 		Z_PARAM_OBJECT_OF_CLASS(fiber_scheduler, zend_ce_fiber_scheduler)
 	ZEND_PARSE_PARAMETERS_END();
 
@@ -783,28 +804,7 @@ ZEND_METHOD(Fiber, suspend)
 
 	fiber->execute_data = execute_data;
 
-	ZVAL_OBJ(params, &fiber->std);
-	Z_ADDREF_P(params);
-
-	ZVAL_COPY(params + 1, fiber_scheduler);
-
-   	fiber->status = ZEND_FIBER_STATUS_SUSPENDED;
-
-	fci.params = params;
-	fci.param_count = 2;
-	fci.retval = &retval;
-
-	zend_call_function(&fci, &fci_cache);
-
-	zval_ptr_dtor(params);
-	zval_ptr_dtor(params + 1);
-	zval_ptr_dtor(&retval);
-
-	if (UNEXPECTED(EG(exception))) {
-		// Exception thrown from callback.
-		fiber->status = ZEND_FIBER_STATUS_RUNNING;
-		return;
-	}
+	fiber->status = ZEND_FIBER_STATUS_SUSPENDED;
 
 	GC_DELREF(&fiber->std);
 	fiber->link = scheduler;
@@ -1151,7 +1151,11 @@ ZEND_METHOD(ReflectionFiber, getExecutingLine)
 
 	REFLECTION_CHECK_VALID_FIBER(reflection->fiber);
 
-	prev_execute_data = reflection->fiber->execute_data->prev_execute_data;
+	if (FIBER_G(current_fiber) == reflection->fiber) {
+		prev_execute_data = execute_data->prev_execute_data;
+	} else {
+		prev_execute_data = reflection->fiber->execute_data->prev_execute_data;
+	}
 
 	RETURN_LONG(prev_execute_data->opline->lineno);
 }
@@ -1170,7 +1174,11 @@ ZEND_METHOD(ReflectionFiber, getExecutingFile)
 
 	REFLECTION_CHECK_VALID_FIBER(reflection->fiber);
 
-	prev_execute_data = reflection->fiber->execute_data->prev_execute_data;
+	if (FIBER_G(current_fiber) == reflection->fiber) {
+		prev_execute_data = execute_data->prev_execute_data;
+	} else {
+		prev_execute_data = reflection->fiber->execute_data->prev_execute_data;
+	}
 
 	RETURN_STR_COPY(prev_execute_data->func->op_array.filename);
 }
@@ -1224,6 +1232,9 @@ ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_fiber_create, 0, 1, Fiber, 0)
 	ZEND_ARG_CALLABLE_INFO(0, callable, 0)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_fiber_this, 0, 0, Fiber, 0)
+ZEND_END_ARG_INFO()
+
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_fiber_start, 0, 0, IS_VOID, 0)
 	ZEND_ARG_VARIADIC_INFO(0, arguments)
 ZEND_END_ARG_INFO()
@@ -1232,15 +1243,14 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_fiber_resume, 0, 0, IS_VOID, 0)
 	ZEND_ARG_INFO(0, value)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_fiber_throw, 0, 0, IS_VOID, 1)
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_fiber_throw, 0, 1, IS_VOID, 0)
 	ZEND_ARG_OBJ_INFO(0, exception, Throwable, 0)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_fiber_status, 0, 0, _IS_BOOL, 0)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_INFO_EX(arginfo_fiber_suspend, 0, 0, 2)
-	ZEND_ARG_CALLABLE_INFO(0, enqueue, 0)
+ZEND_BEGIN_ARG_INFO_EX(arginfo_fiber_suspend, 0, 0, 1)
 	ZEND_ARG_OBJ_INFO(0, scheduler, FiberScheduler, 0)
 ZEND_END_ARG_INFO()
 
@@ -1249,6 +1259,7 @@ ZEND_END_ARG_INFO()
 
 static const zend_function_entry fiber_methods[] = {
 	ZEND_ME(Fiber, create, arginfo_fiber_create, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+	ZEND_ME(Fiber, this, arginfo_fiber_this, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
 	ZEND_ME(Fiber, start, arginfo_fiber_start, ZEND_ACC_PUBLIC)
 	ZEND_ME(Fiber, resume, arginfo_fiber_resume, ZEND_ACC_PUBLIC)
 	ZEND_ME(Fiber, throw, arginfo_fiber_throw, ZEND_ACC_PUBLIC)
@@ -1379,6 +1390,7 @@ void zend_fiber_ce_register()
 
 	INIT_CLASS_ENTRY(ce, "ReflectionFiber", reflection_fiber_methods);
 	zend_ce_reflection_fiber = zend_register_internal_class(&ce);
+	zend_ce_fiber_exit->ce_flags |= ZEND_ACC_FINAL;
 	zend_ce_reflection_fiber->create_object = zend_reflection_fiber_object_create;
 	zend_ce_reflection_fiber->serialize = zend_class_serialize_deny;
 	zend_ce_reflection_fiber->unserialize = zend_class_unserialize_deny;
@@ -1389,6 +1401,7 @@ void zend_fiber_ce_register()
 
 	INIT_CLASS_ENTRY(ce, "ReflectionFiberScheduler", reflection_fiber_scheduler_methods);
 	zend_ce_reflection_fiber_scheduler = zend_register_internal_class_ex(&ce, zend_ce_reflection_fiber);
+	zend_ce_fiber_exit->ce_flags |= ZEND_ACC_FINAL;
 	zend_ce_reflection_fiber_scheduler->create_object = zend_reflection_fiber_scheduler_object_create;
 	zend_ce_reflection_fiber_scheduler->serialize = zend_class_serialize_deny;
 	zend_ce_reflection_fiber_scheduler->unserialize = zend_class_unserialize_deny;

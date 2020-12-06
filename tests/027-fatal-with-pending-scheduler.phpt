@@ -13,8 +13,9 @@ $loop->delay(100, fn() => print "fail\n");
 
 $promise = new Promise($loop);
 $loop->defer(fn() => $promise->resolve());
+$promise->schedule(Fiber::this());
 
-echo Fiber::suspend($promise, $loop);
+echo Fiber::suspend($loop);
 
 trigger_error("Test error", E_USER_ERROR);
 

@@ -17,17 +17,23 @@ $loop1->defer(function () use ($loop1, $loop2): void {
         $promise3 = new Promise($loop2);
         $promise4 = new Promise($loop1);
 
+        $fiber = Fiber::this();
+
         $loop1->delay(20, fn() => $promise1->resolve(1));
-        echo Fiber::suspend($promise1, $loop1);
+        $promise1->schedule($fiber);
+        echo Fiber::suspend($loop1);
 
         $loop2->delay(5, fn() => $promise2->resolve(2));
-        echo Fiber::suspend($promise2, $loop2);
+        $promise2->schedule($fiber);
+        echo Fiber::suspend($loop2);
 
         $loop2->delay(100, fn() => $promise3->resolve(3));
-        echo Fiber::suspend($promise3, $loop2);
+        $promise3->schedule($fiber);
+        echo Fiber::suspend($loop2);
 
         $loop1->delay(5, fn() => $promise4->resolve(4));
-        echo Fiber::suspend($promise4, $loop1);
+        $promise4->schedule($fiber);
+        echo Fiber::suspend($loop1);
     })->start();
 
     Fiber::create(function () use ($loop1, $loop2): void {
@@ -35,18 +41,26 @@ $loop1->defer(function () use ($loop1, $loop2): void {
         $promise6 = new Promise($loop2);
         $promise7 = new Promise($loop1);
 
+        $fiber = Fiber::this();
+
         $loop1->delay(5, fn() => $promise5->resolve(5));
-        echo Fiber::suspend($promise5, $loop1);
+        $promise5->schedule($fiber);
+        echo Fiber::suspend($loop1);
 
         $loop2->delay(30, fn() => $promise6->resolve(6));
-        echo Fiber::suspend($promise6, $loop2);
+        $promise6->schedule($fiber);
+        echo Fiber::suspend($loop2);
 
         $loop1->delay(5, fn() => $promise7->resolve(7));
-        echo Fiber::suspend($promise7, $loop1);
+        $promise7->schedule($fiber);
+        echo Fiber::suspend($loop1);
     })->start();
 });
 
-Fiber::suspend(new Success($loop1), $loop1);
+
+$promise = new Success($loop1);
+$promise->schedule(Fiber::this());
+Fiber::suspend($loop1);
 
 // Note that $loop2 blocks $loop1 until $promise6 is resolved, which is why the timers appear to finish out of order.
 

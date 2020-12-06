@@ -9,8 +9,10 @@ require dirname(__DIR__) . '/scripts/bootstrap.php';
 
 $loop = new Loop;
 
-$fiber = Fiber::create(function (Fiber $fiber) use ($loop): void {
-    Fiber::suspend(fn() => $loop->delay(10, fn() => $fiber->resume()), $loop);
+$fiber = Fiber::create(function () use ($loop): void {
+    $fiber = Fiber::this();
+    $loop->delay(10, fn() => $fiber->resume());
+    Fiber::suspend($loop);
 });
 
 $loop->defer(function () use ($fiber): void {
@@ -29,7 +31,9 @@ $loop->defer(function () use ($fiber): void {
     }
 });
 
-Fiber::suspend(fn(Fiber $fiber) => $loop->defer(fn() => $fiber->resume()), $loop);
+$fiber = Fiber::this();
+$loop->defer(fn() => $fiber->resume());
+Fiber::suspend($loop);
 
 --EXPECT--
 Cannot resume a fiber that is not suspended

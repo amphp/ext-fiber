@@ -8,10 +8,9 @@ Test resume
 require dirname(__DIR__) . '/scripts/bootstrap.php';
 
 $loop = new Loop;
-
-echo Fiber::suspend(function (Fiber $fiber, Loop $loop): void {
-    $loop->defer(fn() => $fiber->resume('test'));
-}, $loop);
+$fiber = Fiber::this();
+$loop->defer(fn() => $fiber->resume('test'));
+echo Fiber::suspend($loop);
 
 --EXPECT--
 test

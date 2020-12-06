@@ -20,12 +20,15 @@ $object = new class($loop) {
     public function __destruct()
     {
         $promise = new Promise($this->loop);
+        $promise->schedule(Fiber::this());
         $this->loop->delay(10, fn() => $promise->resolve('destruct'));
-        echo Fiber::suspend($promise, $this->loop);
+        echo Fiber::suspend($this->loop);
     }
 };
 
-Fiber::suspend(new Success($loop), $loop);
+$promise = new Success($loop);
+$promise->schedule(Fiber::this());
+Fiber::suspend($loop);
 
 --EXPECT--
 destruct

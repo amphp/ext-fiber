@@ -4,35 +4,24 @@ function async(Loop $loop, callable $callback): Future
 {
     $promise = new Promise($loop);
 
-    $loop->defer(fn() => \Fiber::create(function () use ($promise, $callback): void {
+    $fiber = Fiber::create(function () use ($promise, $callback): void {
         try {
             $promise->resolve($callback());
         } catch (\Throwable $exception) {
             $promise->fail($exception);
         }
-    })->start());
+    });
+
+    $loop->defer(fn() => $fiber->start());
 
     return $promise;
 }
 
 function delay(Loop $loop, int $timeout): void
 {
-    \Fiber::suspend(fn(Fiber $fiber) => $loop->delay($timeout, fn() => $fiber->resume()), $loop);
-}
-
-function createSocketPair(): array
-{
-    $sockets = \stream_socket_pair(
-        \stripos(PHP_OS, 'win') === 0 ? STREAM_PF_INET : STREAM_PF_UNIX,
-        STREAM_SOCK_STREAM,
-        STREAM_IPPROTO_IP
-    );
-
-    if ($sockets === false) {
-        throw new Exception('Failed to create socket pair');
-    }
-
-    return $sockets;
+    $fiber = Fiber::this();
+    $loop->delay($timeout, fn() => $fiber->resume());
+    Fiber::suspend($loop);
 }
 
 function formatStacktrace(array $trace): string
