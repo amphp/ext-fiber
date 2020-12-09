@@ -3,7 +3,7 @@ PHP_ARG_ENABLE(fiber, whether to enable fiber support,
 
 if test "$PHP_FIBER" != "no"; then
   AC_DEFINE(HAVE_FIBER, 1, [ ])
-  
+
   FIBER_CFLAGS="-Wall -Werror -DZEND_ENABLE_STATIC_TSRMLS_CACHE=1"
 
   fiber_source_files="src/php_fiber.c \
@@ -11,12 +11,12 @@ if test "$PHP_FIBER" != "no"; then
     src/fiber_stack.c"
   
   fiber_use_asm="yes"
-  fiber_user_ucontext="no"
   
-  AC_CHECK_HEADER(ucontext.h, [
-    fiber_use_ucontext="yes"
-  ])
-  
+  AC_CHECK_HEADER(ucontext.h,
+    [fiber_use_ucontext="yes"],
+    [fiber_use_ucontext="no"]
+  )
+
   AS_CASE([$host_cpu],
     [x86_64*], [fiber_cpu="x86_64"],
     [x86*|amd*|i[[3456]]86*|pentium], [fiber_cpu="x86"],
@@ -28,7 +28,7 @@ if test "$PHP_FIBER" != "no"; then
     [mips*], [fiber_cpu="mips"],
     [fiber_cpu="unknown"]
   )
-  
+
   AS_CASE([$host_os],
     [darwin*], [fiber_os="mac"],
     [cygwin*], [fiber_os="win"],
@@ -67,7 +67,7 @@ if test "$PHP_FIBER" != "no"; then
   else
     AC_MSG_ERROR([No fiber context switching available!])
   fi
-  
+
   PHP_NEW_EXTENSION(fiber, $fiber_source_files, $ext_shared,, \\$(FIBER_CFLAGS))
   PHP_SUBST(FIBER_CFLAGS)
   PHP_ADD_MAKEFILE_FRAGMENT
