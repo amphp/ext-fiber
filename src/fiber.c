@@ -70,7 +70,7 @@ static zend_string *scheduler_run_name;
 
 zend_always_inline PHP_FIBER_API zend_bool zend_fiber_is_scheduler(zend_fiber *fiber)
 {
-	return fiber->continuation == NULL;
+	return fiber->value == NULL;
 }
 
 
@@ -285,8 +285,8 @@ static zend_object *zend_fiber_object_create(zend_class_entry *ce)
 {
 	zend_fiber *fiber;
 
-	fiber = emalloc(sizeof(zend_fiber));
-	memset(fiber, 0, sizeof(zend_fiber));
+	fiber = emalloc(sizeof(zend_fiber) + sizeof(zval));
+	memset(fiber, 0, sizeof(zend_fiber) + sizeof(zval));
 
 	fiber->id = FIBER_G(id)++;
 
@@ -295,10 +295,8 @@ static zend_object *zend_fiber_object_create(zend_class_entry *ce)
 
 	ZVAL_UNDEF(&fiber->fci.function_name);
 
-	fiber->continuation = emalloc(sizeof(zend_fiber_values));
-	memset(fiber->continuation, 0, sizeof(zend_fiber_values));
-
-	ZVAL_UNDEF(&fiber->continuation->value);
+	fiber->value = (zval *) ((char *) fiber + sizeof(zend_fiber));
+	ZVAL_UNDEF(fiber->value);
 
 	zend_hash_index_add_ptr(&FIBER_G(fibers), fiber->std.handle, fiber);
 
@@ -312,8 +310,7 @@ static void zend_fiber_object_destroy(zend_object *object)
 
 	ZEND_ASSERT(!zend_fiber_is_scheduler(fiber));
 
-	zval_ptr_dtor(&fiber->continuation->value);
-	efree(fiber->continuation);
+	zval_ptr_dtor(fiber->value);
 
 	zend_hash_index_del(&FIBER_G(fibers), fiber->std.handle);
 
@@ -878,14 +875,14 @@ ZEND_METHOD(Fiber, suspend)
 		return;
 	}
 
-	if (fiber->continuation->error == NULL) {
-		RETVAL_COPY_VALUE(&fiber->continuation->value);
-		ZVAL_UNDEF(&fiber->continuation->value);
+	if (fiber->error == NULL) {
+		RETVAL_COPY_VALUE(fiber->value);
+		ZVAL_UNDEF(fiber->value);
 		return;
 	}
 
-	error = fiber->continuation->error;
-	fiber->continuation->error = NULL;
+	error = fiber->error;
+	fiber->error = NULL;
 
 	execute_data->opline--;
 	zend_throw_exception_object(error);
@@ -920,9 +917,9 @@ ZEND_METHOD(Fiber, resume)
 	}
 
 	if (value != NULL) {
-		ZVAL_COPY(&fiber->continuation->value, value);
+		ZVAL_COPY(fiber->value, value);
 	} else {
-		ZVAL_NULL(&fiber->continuation->value);
+		ZVAL_NULL(fiber->value);
 	}
 
 	fiber->status = ZEND_FIBER_STATUS_RUNNING;
@@ -977,7 +974,7 @@ ZEND_METHOD(Fiber, throw)
 	}
 
 	Z_ADDREF_P(exception);
-	fiber->continuation->error = exception;
+	fiber->error = exception;
 
 	fiber->status = ZEND_FIBER_STATUS_RUNNING;
 

@@ -41,16 +41,6 @@ extern PHP_FIBER_API zend_class_entry *zend_ce_fiber_scheduler;
 
 typedef void* zend_fiber_context;
 
-typedef struct _zend_fiber_values zend_fiber_values;
-
-struct _zend_fiber_values {
-	/* Value to return from suspend when resuming the fiber (will be populated by resume()). */
-	zval value;
-
-	/* Error to be thrown into a fiber (will be populated by throw()). */
-	zval *error;
-};
-
 typedef struct _zend_fiber zend_fiber;
 
 struct _zend_fiber {
@@ -65,9 +55,6 @@ struct _zend_fiber {
 	
 	/* Used to determine which fiber entered a scheduler and which scheduler should resume a fiber. */
 	zend_fiber *link;
-
-	/* Continuation variables for non-scheduler fibers. */
-	zend_fiber_values *continuation;
 
 	/* Callback and info / cache to be used when fiber is started. */
 	zend_fcall_info fci;
@@ -84,6 +71,12 @@ struct _zend_fiber {
 
 	/* Max size of the C stack being used by the fiber. */
 	size_t stack_size;
+
+	/* Exception to be thrown from Fiber::suspend(). Unused on scheduler fibers. */
+	zval *error;
+
+	/* Value to return from Fiber::suspend(). Pointer invalid on scheduler fibers. */
+	zval *value;
 };
 
 typedef struct _zend_fiber_reflection zend_fiber_reflection;
