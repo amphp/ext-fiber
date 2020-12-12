@@ -175,6 +175,18 @@ static zend_bool zend_fiber_suspend(zend_fiber *fiber)
 }
 
 
+static zend_always_inline zend_vm_stack zend_fiber_vm_stack_alloc(size_t size)
+{
+	zend_vm_stack page = emalloc(size);
+
+	page->top = ZEND_VM_STACK_ELEMENTS(page);
+	page->end = (zval *) ((char *) page + size);
+	page->prev = NULL;
+
+	return page;
+}
+
+
 static void zend_fiber_run()
 {
 	zend_fiber *fiber;
@@ -408,10 +420,7 @@ static zend_fiber *zend_fiber_create_from_scheduler(zval *scheduler)
 		return NULL;
 	}
 
-	fiber->stack = (zend_vm_stack) emalloc(ZEND_FIBER_VM_STACK_SIZE);
-	fiber->stack->top = ZEND_VM_STACK_ELEMENTS(fiber->stack) + 1;
-	fiber->stack->end = (zval *) ((char *) fiber->stack + ZEND_FIBER_VM_STACK_SIZE);
-	fiber->stack->prev = NULL;
+	fiber->stack = zend_fiber_vm_stack_alloc(ZEND_FIBER_VM_STACK_SIZE);
 
 	fiber->status = ZEND_FIBER_STATUS_INIT;
 
@@ -762,10 +771,7 @@ ZEND_METHOD(Fiber, start)
 		return;
 	}
 
-	fiber->stack = (zend_vm_stack) emalloc(ZEND_FIBER_VM_STACK_SIZE);
-	fiber->stack->top = ZEND_VM_STACK_ELEMENTS(fiber->stack) + 1;
-	fiber->stack->end = (zval *) ((char *) fiber->stack + ZEND_FIBER_VM_STACK_SIZE);
-	fiber->stack->prev = NULL;
+	fiber->stack = zend_fiber_vm_stack_alloc(ZEND_FIBER_VM_STACK_SIZE);
 
 	fiber->status = ZEND_FIBER_STATUS_RUNNING;
 
