@@ -194,14 +194,14 @@ static void zend_fiber_run()
 	fiber = FIBER_G(current_fiber);
 	ZEND_ASSERT(fiber != NULL);
 
+	fiber->execute_data = (zend_execute_data *) fiber->stack->top;
 	EG(vm_stack) = fiber->stack;
-	EG(vm_stack_top) = fiber->stack->top;
+	EG(vm_stack_top) = (zval *) fiber->stack->top + ZEND_CALL_FRAME_SLOT;
 	EG(vm_stack_end) = fiber->stack->end;
 	EG(vm_stack_page_size) = ZEND_FIBER_VM_STACK_SIZE;
 
-	fiber->execute_data = (zend_execute_data *) EG(vm_stack_top);
-	EG(vm_stack_top) = (zval *) fiber->execute_data + ZEND_CALL_FRAME_SLOT;
 	zend_vm_init_call_frame(fiber->execute_data, ZEND_CALL_TOP_FUNCTION, (zend_function *) &fiber_run_func, 0, NULL);
+
 	fiber->execute_data->opline = fiber_run_op;
 	fiber->execute_data->call = NULL;
 	fiber->execute_data->return_value = NULL;
