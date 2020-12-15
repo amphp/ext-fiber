@@ -107,6 +107,14 @@ zend_always_inline PHP_FIBER_API zend_long zend_fiber_get_current_id()
 }
 
 
+zend_always_inline PHP_FIBER_API zend_bool zend_is_fiber_exit(zend_object *exception)
+{
+	ZEND_ASSERT(exception && "No exception object provided");
+
+	return exception->ce == zend_ce_fiber_exit;
+}
+
+
 static zend_fiber *zend_fiber_create_root()
 {
 	zend_fiber *root_fiber;
@@ -360,7 +368,7 @@ static void zend_scheduler_fiber_object_destroy(zend_object *object)
 
 static int zend_fiber_catch_handler(zend_execute_data *execute_data)
 {
-	if (UNEXPECTED(EG(exception) && EG(exception)->ce == zend_ce_fiber_exit)) {
+	if (UNEXPECTED(EG(exception) && zend_is_fiber_exit(EG(exception)))) {
 		zend_rethrow_exception(execute_data);
 		return ZEND_USER_OPCODE_CONTINUE;
 	}
@@ -376,9 +384,8 @@ static int zend_fiber_catch_handler(zend_execute_data *execute_data)
 static zend_fiber *zend_fiber_create_from_scheduler(zval *scheduler)
 {
 	zend_fiber *fiber;
-	zval context;
 	zend_function *func;
-	zval closure;
+	zval context;
 
 	ZEND_ASSERT(instanceof_function(Z_OBJCE_P(scheduler), zend_ce_fiber_scheduler));
 
@@ -390,11 +397,11 @@ static zend_fiber *zend_fiber_create_from_scheduler(zval *scheduler)
 	zval_ptr_dtor(&context);
 
 	func = zend_hash_find_ptr(&(Z_OBJCE_P(scheduler)->function_table), scheduler_run_name);
-	zend_create_fake_closure(&closure, func, func->op_array.scope, Z_OBJCE_P(scheduler), scheduler);
+	zend_create_fake_closure(&context, func, func->op_array.scope, Z_OBJCE_P(scheduler), scheduler);
 
-	if (zend_fcall_info_init(&closure, 0, &fiber->fci, &fiber->fci_cache, NULL, NULL) == FAILURE) {
+	if (zend_fcall_info_init(&context, 0, &fiber->fci, &fiber->fci_cache, NULL, NULL) == FAILURE) {
 		efree(fiber);
-		zval_ptr_dtor(&closure);
+		zval_ptr_dtor(&context);
 		zend_throw_error(NULL, "Failed initializing %s::run() fcall info", Z_OBJCE_P(scheduler)->name->val);
 		return NULL;
 	}
@@ -402,7 +409,7 @@ static zend_fiber *zend_fiber_create_from_scheduler(zval *scheduler)
 	// Keep a reference to closure as long as fiber is running.
 	Z_TRY_ADDREF(fiber->fci.function_name);
 
-	zval_ptr_dtor(&closure);
+	zval_ptr_dtor(&context);
 
 	fiber->context = zend_fiber_create_context();
 	fiber->stack_size = FIBER_G(stack_size);
@@ -587,14 +594,14 @@ void zend_fiber_error_observer(int type, const char *filename, uint32_t line, ze
 }
 
 
-static ZEND_COLD void zend_fiber_scheduler_uncaught_exception_handler(zval *scheduler)
+static ZEND_COLD void zend_fiber_scheduler_uncaught_exception_handler(zval *scheduler, zend_object *exception)
 {
 	zval retval;
-	zend_object *exception = EG(exception);
 
 	ZEND_ASSERT(instanceof_function(Z_OBJCE_P(scheduler), zend_ce_fiber_scheduler));
+	ZEND_ASSERT(exception && "Exception undefined");
 
-	if (zend_is_unwind_exit(EG(exception)) || EG(exception)->ce == zend_ce_fiber_exit) {
+	if (zend_is_unwind_exit(exception) || zend_is_fiber_exit(exception)) {
 		return; // Exception is UnwindExit or FiberExit, so ignore as we are exiting anyway.
 	}
 
@@ -868,7 +875,7 @@ ZEND_METHOD(Fiber, suspend)
 	
 	if (UNEXPECTED(EG(exception))) {
 		// Exception thrown from scheduler, invoke exception handler and bailout.
-		zend_fiber_scheduler_uncaught_exception_handler(fiber_scheduler);
+		zend_fiber_scheduler_uncaught_exception_handler(fiber_scheduler, EG(exception));
 		return;
 	}
 

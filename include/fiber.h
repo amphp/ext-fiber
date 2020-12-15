@@ -94,6 +94,7 @@ PHP_FIBER_API zend_fiber *zend_get_current_fiber();
 PHP_FIBER_API zend_long zend_fiber_get_id(zend_fiber *fiber);
 PHP_FIBER_API zend_long zend_fiber_get_current_id();
 PHP_FIBER_API zend_bool zend_fiber_is_scheduler(zend_fiber *fiber);
+PHP_FIBER_API zend_bool zend_is_fiber_exit(zend_object *exception);
 
 static const zend_uchar ZEND_FIBER_STATUS_INIT = 0;
 static const zend_uchar ZEND_FIBER_STATUS_SUSPENDED = 0x1;
