@@ -9,7 +9,7 @@ require dirname(__DIR__) . '/scripts/bootstrap.php';
 
 $loop = new Loop;
 
-$fiber = Fiber::create(function (ReflectionFiber $scheduler) use ($loop): void {
+$fiber = new Fiber(function (ReflectionFiber $scheduler) use ($loop): void {
     echo "2)\n", formatStacktrace($scheduler->getTrace()), "\n\n";
 
     $fiber = Fiber::this();

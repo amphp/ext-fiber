@@ -615,14 +615,6 @@ static ZEND_COLD void zend_fiber_scheduler_uncaught_exception_handler(zval *sche
 }
 
 
-static ZEND_COLD zend_function *zend_fiber_get_constructor(zend_object *object)
-{
-	zend_throw_error(NULL, "The \"Fiber\" class is reserved for internal use and cannot be manually instantiated");
-
-	return NULL;
-}
-
-
 static zend_object *zend_reflection_fiber_object_create(zend_class_entry *ce)
 {
 	zend_fiber_reflection *reflection;
@@ -706,26 +698,17 @@ ZEND_METHOD(Fiber, this)
 /* }}} */
 
 
-/* {{{ proto Fiber Fiber::create(callable $callback) */
-ZEND_METHOD(Fiber, create)
+/* {{{ proto Fiber::__construct(callable $callback) */
+ZEND_METHOD(Fiber, __construct)
 {
-	zend_fiber *fiber;
-	zend_fcall_info fci;
-	zend_fcall_info_cache fci_cache;
+	zend_fiber *fiber = (zend_fiber *) Z_OBJ_P(getThis());
 
 	ZEND_PARSE_PARAMETERS_START_EX(ZEND_PARSE_PARAMS_THROW, 1, 1)
-		Z_PARAM_FUNC_EX(fci, fci_cache, 0, 0)
+		Z_PARAM_FUNC_EX(fiber->fci, fiber->fci_cache, 0, 0)
 	ZEND_PARSE_PARAMETERS_END();
-
-	fiber = (zend_fiber *) zend_fiber_object_create(zend_ce_fiber);
-
-	fiber->fci = fci;
-	fiber->fci_cache = fci_cache;
 
 	// Keep a reference to closures or callable objects until the fiber is started.
 	Z_TRY_ADDREF(fiber->fci.function_name);
-
-	RETURN_OBJ(&fiber->std);
 }
 /* }}} */
 
@@ -788,6 +771,7 @@ ZEND_METHOD(Fiber, start)
 
 	if (!zend_fiber_switch_to(fiber)) {
 		fiber->status = ZEND_FIBER_STATUS_INIT;
+		GC_DELREF(&fiber->std);
 		zend_throw_error(zend_ce_fiber_exit, "Failed switching to fiber");
 		return;
 	}
@@ -1269,7 +1253,7 @@ ZEND_METHOD(ReflectionFiber, isTerminated)
 
 
 
-ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_fiber_create, 0, 1, Fiber, 0)
+ZEND_BEGIN_ARG_INFO_EX(arginfo_fiber_construct, 0, 0, 1)
 	ZEND_ARG_CALLABLE_INFO(0, callable, 0)
 ZEND_END_ARG_INFO()
 
@@ -1299,7 +1283,7 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_fiber_void, 0, 0, IS_VOID, 0)
 ZEND_END_ARG_INFO()
 
 static const zend_function_entry fiber_methods[] = {
-	ZEND_ME(Fiber, create, arginfo_fiber_create, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+	ZEND_ME(Fiber, __construct, arginfo_fiber_construct, ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
 	ZEND_ME(Fiber, this, arginfo_fiber_this, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
 	ZEND_ME(Fiber, start, arginfo_fiber_start, ZEND_ACC_PUBLIC)
 	ZEND_ME(Fiber, resume, arginfo_fiber_resume, ZEND_ACC_PUBLIC)
@@ -1414,12 +1398,10 @@ void zend_fiber_ce_register()
 	zend_fiber_handlers = std_object_handlers;
 	zend_fiber_handlers.free_obj = zend_fiber_object_destroy;
 	zend_fiber_handlers.clone_obj = NULL;
-	zend_fiber_handlers.get_constructor = zend_fiber_get_constructor;
 
 	zend_scheduler_fiber_handlers = std_object_handlers;
 	zend_scheduler_fiber_handlers.free_obj = zend_scheduler_fiber_object_destroy;
 	zend_scheduler_fiber_handlers.clone_obj = NULL;
-	zend_scheduler_fiber_handlers.get_constructor = zend_fiber_get_constructor;
 
 	INIT_CLASS_ENTRY(ce, "FiberScheduler", scheduler_methods);
 	zend_ce_fiber_scheduler = zend_register_internal_interface(&ce);

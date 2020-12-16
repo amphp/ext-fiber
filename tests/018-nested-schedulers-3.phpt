@@ -11,7 +11,7 @@ $loop1 = new Loop;
 $loop2 = new Loop;
 
 $loop1->defer(function () use ($loop1, $loop2): void {
-    Fiber::create(function () use ($loop1, $loop2): void {
+    $fiber = new Fiber(function () use ($loop1, $loop2): void {
         $promise1 = new Promise($loop1);
         $promise2 = new Promise($loop2);
         $promise3 = new Promise($loop2);
@@ -34,9 +34,11 @@ $loop1->defer(function () use ($loop1, $loop2): void {
         $loop1->delay(5, fn() => $promise4->resolve(4));
         $promise4->schedule($fiber);
         echo Fiber::suspend($loop1);
-    })->start();
+    });
 
-    Fiber::create(function () use ($loop1, $loop2): void {
+    $fiber->start();
+
+    $fiber = new Fiber(function () use ($loop1, $loop2): void {
         $promise5 = new Promise($loop1);
         $promise6 = new Promise($loop2);
         $promise7 = new Promise($loop1);
@@ -54,7 +56,9 @@ $loop1->defer(function () use ($loop1, $loop2): void {
         $loop1->delay(5, fn() => $promise7->resolve(7));
         $promise7->schedule($fiber);
         echo Fiber::suspend($loop1);
-    })->start();
+    });
+
+    $fiber->start();
 });
 
 

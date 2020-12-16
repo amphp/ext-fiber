@@ -129,7 +129,7 @@ class Scheduler implements FiberScheduler
     {
         $promise = new Promise($this);
 
-        $fiber = Fiber::create(function () use ($promise, $callable) {
+        $fiber = new Fiber(function () use ($promise, $callable) {
             try {
                 $promise->resolve($callable());
             } catch (Throwable $e) {

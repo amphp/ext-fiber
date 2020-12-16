@@ -15,7 +15,7 @@ stream_set_blocking($write, false);
 $loop = new Loop;
 
 // Write data in a separate fiber after a 1 second delay.
-$fiber = Fiber::create(function () use ($loop, $write): void {
+$fiber = new Fiber(function () use ($loop, $write): void {
     $fiber = Fiber::this();
 
     // Suspend fiber for 1 second.

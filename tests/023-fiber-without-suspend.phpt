@@ -10,9 +10,11 @@ require dirname(__DIR__) . '/scripts/bootstrap.php';
 $loop = new Loop;
 
 $loop->defer(function (): void {
-    Fiber::create(function (): void {
+    $fiber = new Fiber(function (): void {
         echo "no suspend\n";
-    })->start();
+    });
+
+    $fiber->start();
 });
 
 $promise = new Success($loop);

@@ -14,14 +14,16 @@ $promise = new Promise($loop1);
 $loop1->defer(fn() => $promise->resolve());;
 
 $loop2->defer(function () use ($loop1, $loop2): void {
-    Fiber::create(function () use ($loop1): void {
+    $fiber = new Fiber(function () use ($loop1): void {
         $promise = new Promise($loop1);
         $loop1->delay(30, fn() => $promise->resolve());;
         $promise->schedule(Fiber::this());
         Fiber::suspend($loop1);
-    })->start();
+    });
 
     $loop2->delay(100, fn() => 0);
+
+    $fiber->start();
 });
 
 $promise->schedule(Fiber::this());

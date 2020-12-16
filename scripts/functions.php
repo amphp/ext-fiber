@@ -4,7 +4,7 @@ function async(Loop $loop, callable $callback): Future
 {
     $promise = new Promise($loop);
 
-    $fiber = Fiber::create(function () use ($promise, $callback): void {
+    $fiber = new Fiber(function () use ($promise, $callback): void {
         try {
             $promise->resolve($callback());
         } catch (\Throwable $exception) {

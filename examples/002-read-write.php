@@ -60,7 +60,7 @@ stream_set_blocking($write, false);
 $scheduler = new Scheduler;
 
 // Read data in a separate fiber after checking if the stream is readable.
-$fiber = Fiber::create(function () use ($scheduler, $read): void {
+$fiber = new Fiber(function () use ($scheduler, $read): void {
     echo "Waiting for data...\n";
 
     $fiber = Fiber::this();

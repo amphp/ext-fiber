@@ -9,7 +9,7 @@ require dirname(__DIR__) . '/scripts/bootstrap.php';
 
 $loop = new Loop;
 
-$fiber = Fiber::create(fn() => null);
+$fiber = new Fiber(fn() => null);
 
 echo "done";
 

@@ -10,7 +10,7 @@ require dirname(__DIR__) . '/scripts/bootstrap.php';
 $loop1 = new Loop;
 $loop2 = new Loop;
 
-$fiber = Fiber::create(function () use ($loop1, $loop2): void {
+$fiber = new Fiber(function () use ($loop1, $loop2): void {
     $promise1 = new Promise($loop1);
     $promise2 = new Promise($loop2);
     $promise3 = new Promise($loop2);
@@ -38,7 +38,7 @@ $fiber = Fiber::create(function () use ($loop1, $loop2): void {
 
 $loop1->defer(fn() => $fiber->start());
 
-$fiber = Fiber::create(function () use ($loop1, $loop2): void {
+$fiber = new Fiber(function () use ($loop1, $loop2): void {
     $promise5 = new Promise($loop1);
     $promise6 = new Promise($loop2);
     $promise7 = new Promise($loop1);

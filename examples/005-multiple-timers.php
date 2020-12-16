@@ -5,7 +5,7 @@ require dirname(__DIR__) . '/scripts/bootstrap.php';
 $loop = new Loop;
 
 // Create three new fibers and run them in the FiberScheduler.
-$fiber = Fiber::create(function () use ($loop): void {
+$fiber = new Fiber(function () use ($loop): void {
     $fiber = Fiber::this();
     $loop->delay(1500, fn() => $fiber->resume(1));
     $value = Fiber::suspend($loop);
@@ -13,7 +13,7 @@ $fiber = Fiber::create(function () use ($loop): void {
 });
 $loop->defer(fn() => $fiber->start());
 
-$fiber = Fiber::create(function () use ($loop): void {
+$fiber = new Fiber(function () use ($loop): void {
     $fiber = Fiber::this();
     $loop->delay(1000, fn() => $fiber->resume(2));
     $value = Fiber::suspend($loop);
@@ -21,7 +21,7 @@ $fiber = Fiber::create(function () use ($loop): void {
 });
 $loop->defer(fn() => $fiber->start());
 
-$fiber = Fiber::create(function () use ($loop): void {
+$fiber = new Fiber(function () use ($loop): void {
     $fiber = Fiber::this();
     $loop->delay(2000, fn() => $fiber->resume(3));
     $value = Fiber::suspend($loop);

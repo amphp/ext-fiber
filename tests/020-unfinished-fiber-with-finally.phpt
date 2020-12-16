@@ -11,7 +11,7 @@ require dirname(__DIR__) . '/scripts/bootstrap.php';
 $loop = new Loop;
 
 $loop->defer(function () use ($loop): void {
-    Fiber::create(function () use ($loop): void {
+    $fiber = new Fiber(function () use ($loop): void {
         try {
             echo "fiber\n";
             echo $temp = Fiber::suspend($loop);
@@ -23,7 +23,9 @@ $loop->defer(function () use ($loop): void {
         }
 
         echo "end of fiber should not be reached\n";
-    })->start();
+    });
+
+    $fiber->start();
 });
 
 $promise = new Success($loop);

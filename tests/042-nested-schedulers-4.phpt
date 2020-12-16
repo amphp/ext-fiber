@@ -9,13 +9,13 @@ require dirname(__DIR__) . '/scripts/bootstrap.php';
 
 $loop1 = new Loop;
 
-$fiber = Fiber::create(function () use ($loop1) {
+$fiber = new Fiber(function () use ($loop1) {
     $loop2 = new Loop;
 
-    $fiber = Fiber::create(function () use ($loop1, $loop2): void {
+    $fiber = new Fiber(function () use ($loop1, $loop2): void {
         $loop3 = new Loop;
 
-        $fiber = Fiber::create(function () use ($loop1, $loop2, $loop3): void {
+        $fiber = new Fiber(function () use ($loop1, $loop2, $loop3): void {
             $fiber = Fiber::this();
 
             $loop2->defer(fn() => $fiber->resume(1));
