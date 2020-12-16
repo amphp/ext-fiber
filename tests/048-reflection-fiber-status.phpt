@@ -17,6 +17,7 @@ $fiber = new Fiber(function () use ($loop): void {
 
 $reflection = new ReflectionFiber($fiber);
 
+var_dump($reflection->isStarted());
 var_dump($reflection->isRunning());
 var_dump($reflection->isSuspended());
 var_dump($reflection->isTerminated());
@@ -26,6 +27,7 @@ $loop->defer(fn() => $fiber->start());
 $fiber = Fiber::this();
 
 $reflection = new ReflectionFiber($fiber);
+var_dump($reflection->isStarted());
 var_dump($reflection->isSuspended());
 var_dump($reflection->isRunning());
 var_dump($reflection->isTerminated());
@@ -33,12 +35,14 @@ var_dump($reflection->isTerminated());
 $loop->delay(10, fn() => $fiber->resume());
 Fiber::suspend($loop);
 
+var_dump($reflection->isStarted());
 var_dump($reflection->isSuspended());
 var_dump($reflection->isRunning());
 var_dump($reflection->isTerminated());
 
 $reflection = new ReflectionFiberScheduler($loop);
 
+var_dump($reflection->isStarted());
 var_dump($reflection->isSuspended());
 var_dump($reflection->isRunning());
 var_dump($reflection->isTerminated());
@@ -50,9 +54,13 @@ bool(false)
 bool(false)
 bool(true)
 bool(false)
+bool(true)
 bool(false)
 bool(true)
 bool(false)
+bool(true)
+bool(false)
+bool(true)
 bool(true)
 bool(false)
 bool(false)

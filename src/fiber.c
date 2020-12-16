@@ -1000,6 +1000,20 @@ ZEND_METHOD(Fiber, throw)
 /* }}} */
 
 
+/* {{{ proto bool Fiber::isStarted() */
+ZEND_METHOD(Fiber, isStarted)
+{
+	zend_fiber *fiber;
+
+	ZEND_PARSE_PARAMETERS_NONE();
+
+	fiber = (zend_fiber *) Z_OBJ_P(getThis());
+
+	RETURN_BOOL(fiber->status != ZEND_FIBER_STATUS_INIT);
+}
+/* }}} */
+
+
 /* {{{ proto bool Fiber::isSuspended() */
 ZEND_METHOD(Fiber, isSuspended)
 {
@@ -1210,6 +1224,20 @@ ZEND_METHOD(ReflectionFiber, getExecutingFile)
 /* }}} */
 
 
+/* {{{ proto bool ReflectionFiber::isStarted() */
+ZEND_METHOD(ReflectionFiber, isStarted)
+{
+	zend_fiber_reflection *reflection;
+
+	ZEND_PARSE_PARAMETERS_NONE();
+
+	reflection = (zend_fiber_reflection *) Z_OBJ_P(getThis());
+
+	RETURN_BOOL(reflection->fiber->status != ZEND_FIBER_STATUS_INIT);
+}
+/* }}} */
+
+
 /* {{{ proto bool ReflectionFiber::isSuspended() */
 ZEND_METHOD(ReflectionFiber, isSuspended)
 {
@@ -1288,6 +1316,7 @@ static const zend_function_entry fiber_methods[] = {
 	ZEND_ME(Fiber, start, arginfo_fiber_start, ZEND_ACC_PUBLIC)
 	ZEND_ME(Fiber, resume, arginfo_fiber_resume, ZEND_ACC_PUBLIC)
 	ZEND_ME(Fiber, throw, arginfo_fiber_throw, ZEND_ACC_PUBLIC)
+	ZEND_ME(Fiber, isStarted, arginfo_fiber_status, ZEND_ACC_PUBLIC)
 	ZEND_ME(Fiber, isSuspended, arginfo_fiber_status, ZEND_ACC_PUBLIC)
 	ZEND_ME(Fiber, isRunning, arginfo_fiber_status, ZEND_ACC_PUBLIC)
 	ZEND_ME(Fiber, isTerminated, arginfo_fiber_status, ZEND_ACC_PUBLIC)
@@ -1334,6 +1363,7 @@ static const zend_function_entry reflection_fiber_methods[] = {
 	ZEND_ME(ReflectionFiber, getTrace, arginfo_reflection_fiber_getTrace, ZEND_ACC_PUBLIC)
 	ZEND_ME(ReflectionFiber, getExecutingLine, arginfo_reflection_fiber_getExecutingLine, ZEND_ACC_PUBLIC)
 	ZEND_ME(ReflectionFiber, getExecutingFile, arginfo_reflection_fiber_getExecutingFile, ZEND_ACC_PUBLIC)
+	ZEND_ME(ReflectionFiber, isStarted, arginfo_reflection_fiber_status, ZEND_ACC_PUBLIC)
 	ZEND_ME(ReflectionFiber, isSuspended, arginfo_reflection_fiber_status, ZEND_ACC_PUBLIC)
 	ZEND_ME(ReflectionFiber, isRunning, arginfo_reflection_fiber_status, ZEND_ACC_PUBLIC)
 	ZEND_ME(ReflectionFiber, isTerminated, arginfo_reflection_fiber_status, ZEND_ACC_PUBLIC)

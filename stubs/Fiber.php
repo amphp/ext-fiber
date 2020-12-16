@@ -46,6 +46,11 @@ final class Fiber
     public function throw(Throwable $exception): void { }
 
     /**
+     * @return bool True if the fiber has been started.
+     */
+    public function isStarted(): bool { }
+
+    /**
      * @return bool True if the fiber is suspended.
      */
     public function isSuspended(): bool { }
