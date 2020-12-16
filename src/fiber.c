@@ -1099,10 +1099,10 @@ ZEND_METHOD(ReflectionFiberScheduler, __construct)
 		Z_PARAM_OBJECT_OF_CLASS_EX(scheduler, zend_ce_fiber_scheduler, 0, 0)
 	ZEND_PARSE_PARAMETERS_END();
 
-	fiber = zend_hash_index_find_ptr(&FIBER_G(schedulers), Z_OBJ_HANDLE_P(scheduler));
+	fiber = zend_fiber_get_scheduler(scheduler);
 
 	if (fiber == NULL) {
-		zend_throw_error(NULL, "%s has not been used to suspend a fiber", Z_OBJCE_P(scheduler)->name->val);
+		// FiberError thrown in zend_fiber_get_scheduler.
 		return;
 	}
 
@@ -1115,8 +1115,8 @@ ZEND_METHOD(ReflectionFiberScheduler, __construct)
 /* }}} */
 
 
-/* {{{ proto FiberScheduler ReflectionFiberScheduler::getFiberScheduler() */
-ZEND_METHOD(ReflectionFiberScheduler, getFiberScheduler)
+/* {{{ proto FiberScheduler ReflectionFiberScheduler::getScheduler() */
+ZEND_METHOD(ReflectionFiberScheduler, getScheduler)
 {
 	zend_fiber_reflection *reflection;
 
@@ -1344,12 +1344,12 @@ ZEND_BEGIN_ARG_INFO(arginfo_reflection_fiber_scheduler_construct, 0)
 	ZEND_ARG_OBJ_INFO(0, scheduler, FiberScheduler, 0)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO(arginfo_reflection_fiber_scheduler_getFiberScheduler, FiberScheduler, 0)
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO(arginfo_reflection_fiber_scheduler_getScheduler, FiberScheduler, 0)
 ZEND_END_ARG_INFO()
 
 static const zend_function_entry reflection_fiber_scheduler_methods[] = {
 	ZEND_ME(ReflectionFiberScheduler, __construct, arginfo_reflection_fiber_scheduler_construct, ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
-	ZEND_ME(ReflectionFiberScheduler, getFiberScheduler, arginfo_reflection_fiber_scheduler_getFiberScheduler, ZEND_ACC_PUBLIC)
+	ZEND_ME(ReflectionFiberScheduler, getScheduler, arginfo_reflection_fiber_scheduler_getScheduler, ZEND_ACC_PUBLIC)
 	ZEND_FE_END
 };
 
