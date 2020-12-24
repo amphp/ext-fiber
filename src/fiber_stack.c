@@ -7,6 +7,7 @@
   | in the accompanying LICENSE file are met.                          |
   +--------------------------------------------------------------------+
   | Authors: Martin Schröder <m.schroeder2007@gmail.com>               |
+  |          Aaron Piotrowski <aaron@trowski.com>                      |
   +--------------------------------------------------------------------+
 */
 
@@ -38,22 +39,18 @@ zend_bool zend_fiber_stack_allocate(zend_fiber_stack *stack, unsigned int size)
 
 	void *pointer;
 
-	msize = stack->size + ZEND_FIBER_GUARDPAGES * page_size;
-	pointer = mmap(0, msize, PROT_READ | PROT_WRITE | PROT_EXEC, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+	msize = stack->size + ZEND_FIBER_GUARD_PAGES * page_size;
+	pointer = mmap(0, msize, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
 
 	if (pointer == (void *) -1) {
-		pointer = mmap(0, msize, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-
-		if (pointer == (void *) -1) {
-			return 0;
-		}
+		return 0;
 	}
 
-#if ZEND_FIBER_GUARDPAGES
-	mprotect(pointer, ZEND_FIBER_GUARDPAGES * page_size, PROT_NONE);
+#if ZEND_FIBER_GUARD_PAGES
+	mprotect(pointer, ZEND_FIBER_GUARD_PAGES * page_size, PROT_NONE);
 #endif
 
-	stack->pointer = (void *)((char *) pointer + ZEND_FIBER_GUARDPAGES * page_size);
+	stack->pointer = (void *)((char *) pointer + ZEND_FIBER_GUARD_PAGES * page_size);
 #else
 	stack->pointer = emalloc_large(stack->size);
 	msize = stack->size;
@@ -67,7 +64,7 @@ zend_bool zend_fiber_stack_allocate(zend_fiber_stack *stack, unsigned int size)
 	char * base;
 
 	base = (char *) stack->pointer;
-	stack->valgrind = VALGRIND_STACK_REGISTER(base, base + msize - ZEND_FIBER_GUARDPAGES * page_size);
+	stack->valgrind = VALGRIND_STACK_REGISTER(base, base + msize - ZEND_FIBER_GUARD_PAGES * page_size);
 #endif
 
 	return 1;
@@ -91,8 +88,8 @@ void zend_fiber_stack_free(zend_fiber_stack *stack)
 		void *address;
 		size_t len;
 
-		address = (void *)((char *) stack->pointer - ZEND_FIBER_GUARDPAGES * page_size);
-		len = stack->size + ZEND_FIBER_GUARDPAGES * page_size;
+		address = (void *)((char *) stack->pointer - ZEND_FIBER_GUARD_PAGES * page_size);
+		len = stack->size + ZEND_FIBER_GUARD_PAGES * page_size;
 
 		munmap(address, len);
 #else

@@ -43,11 +43,11 @@ void zend_fiber_stack_free(zend_fiber_stack *stack);
 #endif
 
 #if _POSIX_MEMORY_PROTECTION
-#define ZEND_FIBER_GUARDPAGES 4
+#define ZEND_FIBER_GUARD_PAGES 4
 #endif
 
-#ifndef ZEND_FIBER_GUARDPAGES
-#define ZEND_FIBER_GUARDPAGES 0
+#ifndef ZEND_FIBER_GUARD_PAGES
+#define ZEND_FIBER_GUARD_PAGES 0
 #endif
 
 #ifdef ZEND_FIBER_MMAP
@@ -56,7 +56,7 @@ void zend_fiber_stack_free(zend_fiber_stack *stack);
 #define ZEND_FIBER_PAGESIZE 4096
 #endif
 
-#define ZEND_FIBER_DEFAULT_STACK_SIZE ZEND_FIBER_PAGESIZE * (((sizeof(void *)) < 8) ? 64 : 256);
+#define ZEND_FIBER_DEFAULT_STACK_SIZE ZEND_FIBER_PAGESIZE * (((sizeof(void *)) < 8) ? 64 : 256)
 
 #endif
 
