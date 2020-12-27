@@ -391,11 +391,6 @@ static zend_fiber *zend_fiber_create_from_scheduler(zval *scheduler)
 
 	fiber = (zend_fiber *) zend_scheduler_fiber_object_create(zend_ce_fiber);
 
-	// Assign object to zval for proper GC.
-	ZVAL_OBJ(&context, &fiber->std);
-	Z_ADDREF(context);
-	zval_ptr_dtor(&context);
-
 	func = zend_hash_find_ptr(&(Z_OBJCE_P(scheduler)->function_table), scheduler_run_name);
 	zend_create_fake_closure(&context, func, func->op_array.scope, Z_OBJCE_P(scheduler), scheduler);
 
@@ -430,6 +425,11 @@ static zend_fiber *zend_fiber_create_from_scheduler(zval *scheduler)
 	fiber->stack = zend_fiber_vm_stack_alloc(ZEND_FIBER_VM_STACK_SIZE);
 
 	fiber->status = ZEND_FIBER_STATUS_INIT;
+
+	// Assign object to zval for proper GC.
+	ZVAL_OBJ(&context, &fiber->std);
+	Z_ADDREF(context);
+	zval_ptr_dtor(&context);
 
 	return fiber;
 }
