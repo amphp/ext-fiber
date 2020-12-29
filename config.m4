@@ -69,8 +69,9 @@ if test "$PHP_FIBER" != "no"; then
   fi
 
   PHP_NEW_EXTENSION(fiber, $fiber_source_files, $ext_shared,, \\$(FIBER_CFLAGS))
+  PHP_ADD_INCLUDE([$ext_builddir/include])
   PHP_SUBST(FIBER_CFLAGS)
   PHP_ADD_MAKEFILE_FRAGMENT
   
-  PHP_INSTALL_HEADERS([ext/fiber], [config.h include/*.h])
+  PHP_INSTALL_HEADERS([ext/fiber], [php_fiber.h include/*.h])
 fi
