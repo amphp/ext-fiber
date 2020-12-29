@@ -469,7 +469,7 @@ static zend_fiber *zend_fiber_get_scheduler(zval *scheduler)
 void zend_fiber_scheduler_hash_index_dtor(zval *ptr)
 {
 	zend_fiber *fiber = Z_PTR_P(ptr);
-	GC_DELREF(&fiber->std);
+	OBJ_RELEASE(&fiber->std);
 }
 
 
