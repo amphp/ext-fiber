@@ -13,10 +13,10 @@ $loop2 = new Loop;
 $fiber = Fiber::this();
 
 $loop1->defer(fn() => $fiber->resume());
-Fiber::suspend($loop1);
+Fiber::suspend($loop1->getSchedulerFiber());
 
 $loop2->defer(fn() => $fiber->resume());
-Fiber::suspend($loop2);
+Fiber::suspend($loop2->getSchedulerFiber());
 
 $loop1->defer(function (): void {
     throw new Exception('test');
@@ -29,6 +29,7 @@ Fatal error: Uncaught Exception: test in %s:%d
 Stack trace:
 #0 %s(%d): {closure}()
 #1 %s(%d): Loop->tick()
-#2 [fiber function](0): Loop->run()
-#3 {main}
+#2 %s(%d): Loop->run()
+#3 [fiber function](0): Loop->{closure}()
+#4 {main}
   thrown in %s on line %d

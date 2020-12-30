@@ -22,13 +22,13 @@ $object = new class($loop) {
         $promise = new Promise($this->loop);
         $promise->schedule(Fiber::this());
         $this->loop->delay(10, fn() => $promise->resolve('destruct'));
-        echo Fiber::suspend($this->loop);
+        echo Fiber::suspend($this->loop->getSchedulerFiber());
     }
 };
 
 $promise = new Success($loop);
 $promise->schedule(Fiber::this());
-Fiber::suspend($loop);
+Fiber::suspend($loop->getSchedulerFiber());
 
 --EXPECT--
 destruct

@@ -8,7 +8,7 @@ $loop = new Loop;
 $fiber = new Fiber(function () use ($loop): void {
     $fiber = Fiber::this();
     $loop->delay(1500, fn() => $fiber->resume(1));
-    $value = Fiber::suspend($loop);
+    $value = Fiber::suspend($loop->getSchedulerFiber());
     var_dump($value);
 });
 $loop->defer(fn() => $fiber->start());
@@ -16,7 +16,7 @@ $loop->defer(fn() => $fiber->start());
 $fiber = new Fiber(function () use ($loop): void {
     $fiber = Fiber::this();
     $loop->delay(1000, fn() => $fiber->resume(2));
-    $value = Fiber::suspend($loop);
+    $value = Fiber::suspend($loop->getSchedulerFiber());
     var_dump($value);
 });
 $loop->defer(fn() => $fiber->start());
@@ -24,7 +24,7 @@ $loop->defer(fn() => $fiber->start());
 $fiber = new Fiber(function () use ($loop): void {
     $fiber = Fiber::this();
     $loop->delay(2000, fn() => $fiber->resume(3));
-    $value = Fiber::suspend($loop);
+    $value = Fiber::suspend($loop->getSchedulerFiber());
     var_dump($value);
 });
 $loop->defer(fn() => $fiber->start());
@@ -32,5 +32,5 @@ $loop->defer(fn() => $fiber->start());
 // Suspend the main thread to enter the FiberScheduler.
 $fiber = Fiber::this();
 $loop->delay(500, fn() => $fiber->resume(4));
-$value = Fiber::suspend($loop);
+$value = Fiber::suspend($loop->getSchedulerFiber());
 var_dump($value);

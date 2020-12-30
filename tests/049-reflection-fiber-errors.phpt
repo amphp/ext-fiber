@@ -12,7 +12,7 @@ $loop = new Loop;
 $fiber = new Fiber(function () use ($loop): void {
     $fiber = Fiber::this();
     $loop->defer(fn() => $fiber->resume());
-    Fiber::suspend($loop);
+    Fiber::suspend($loop->getSchedulerFiber());
 });
 
 $reflection = new ReflectionFiber($fiber);
@@ -42,7 +42,7 @@ $loop->defer(fn() => var_dump($reflection->getExecutingLine()));
 
 $fiber = Fiber::this();
 $loop->delay(10, fn() => $fiber->resume());
-Fiber::suspend($loop);
+Fiber::suspend($loop->getSchedulerFiber());
 
 try {
     $reflection->getTrace();

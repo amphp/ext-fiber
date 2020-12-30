@@ -16,18 +16,19 @@ $loop->defer(function (): void {
 $promise = new Promise($loop);
 $promise->schedule(Fiber::this());
 
-echo Fiber::suspend($loop);
+echo Fiber::suspend($loop->getSchedulerFiber());
 
 --EXPECTF--
 Fatal error: Uncaught Exception: test in %s:%d
 Stack trace:
 #0 %s(%d): {closure}()
 #1 %s(%d): Loop->tick()
-#2 [fiber function](0): Loop->run()
-#3 {main}
+#2 %s(%d): Loop->run()
+#3 [fiber function](0): Loop->{closure}()
+#4 {main}
 
-Next FiberExit: Uncaught Exception thrown from Loop::run(): test in %s:%d
+Next FiberExit: Uncaught Exception thrown from scheduler fiber: test in %s:%d
 Stack trace:
-#0 %s(%d): Fiber::suspend(Object(Loop))
+#0 %s(%d): Fiber::suspend(Object(SchedulerFiber))
 #1 {main}
   thrown in %s on line %d

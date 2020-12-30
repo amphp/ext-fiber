@@ -18,7 +18,7 @@ $loop2->defer(function () use ($loop1, $loop2): void {
         $promise = new Promise($loop1);
         $loop1->delay(30, fn() => $promise->resolve());;
         $promise->schedule(Fiber::this());
-        Fiber::suspend($loop1);
+        Fiber::suspend($loop1->getSchedulerFiber());
     });
 
     $loop2->delay(100, fn() => 0);
@@ -28,7 +28,7 @@ $loop2->defer(function () use ($loop1, $loop2): void {
 
 $promise->schedule(Fiber::this());
 
-echo Fiber::suspend($loop2);
+echo Fiber::suspend($loop2->getSchedulerFiber());
 
 --EXPECTF--
 Fatal error: Uncaught FiberExit: Fiber resumed by a scheduler other than that provided to Fiber::suspend() in %s:%d
@@ -36,6 +36,7 @@ Stack trace:
 #0 %s(%d): Fiber->resume(NULL)
 #1 %s(%d): Success->{closure}()
 #2 %s(%d): Loop->tick()
-#3 [fiber function](0): Loop->run()
-#4 {main}
+#3 %s(%d): Loop->run()
+#4 [fiber function](0): Loop->{closure}()
+#5 {main}
   thrown in %s on line %d

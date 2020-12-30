@@ -12,7 +12,7 @@ $loop = new Loop;
 $promise = new Success($loop);
 $promise->schedule(Fiber::this());
 
-Fiber::suspend($loop);
+Fiber::suspend($loop->getSchedulerFiber());
 
 $loop->defer(fn() => print 'test');
 

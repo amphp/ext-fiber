@@ -13,7 +13,7 @@ $fiber = Fiber::this();
 
 $loop->defer(fn() => var_dump($fiber->isSuspended()));
 $loop->defer(fn() => $fiber->resume());
-echo Fiber::suspend($loop);
+echo Fiber::suspend($loop->getSchedulerFiber());
 
 var_dump($fiber->isSuspended());
 var_dump($fiber->isRunning());
@@ -32,6 +32,7 @@ Stack trace:
 #0 %s(%d): Fiber->resume()
 #1 %s(%d): {closure}()
 #2 %s(%d): Loop->tick()
-#3 [fiber function](0): Loop->run()
-#4 {main}
+#3 %s(%d): Loop->run()
+#4 [fiber function](0): Loop->{closure}()
+#5 {main}
   thrown in %s on line %d

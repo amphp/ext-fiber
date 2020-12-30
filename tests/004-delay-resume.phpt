@@ -17,7 +17,7 @@ $fiber = Fiber::this();
 
 $loop->delay($timeout, fn() => $fiber->resume('test'));
 
-echo Fiber::suspend($loop);
+echo Fiber::suspend($loop->getSchedulerFiber());
 
 if ($loop->now() - $start < $timeout) {
     throw new Exception(sprintf('Test took less than %dms', $timeout));

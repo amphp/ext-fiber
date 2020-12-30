@@ -12,12 +12,12 @@ $loop = new Loop;
 register_shutdown_function(function () use ($loop): void {
     $promise = new Success($loop, 'shutdown');
     $promise->schedule(Fiber::this());
-    echo Fiber::suspend($loop);
+    echo Fiber::suspend($loop->getSchedulerFiber());
 });
 
 $promise = new Success($loop);
 $promise->schedule(Fiber::this());
-Fiber::suspend($loop);
+Fiber::suspend($loop->getSchedulerFiber());
 
 --EXPECT--
 shutdown

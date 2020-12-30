@@ -10,7 +10,7 @@ final class Fiber
     /**
      * Starts execution of the fiber. Returns when the fiber suspends or terminates.
      *
-     * Must be called within {@see FiberScheduler::run()}.
+     * Must be called within a {@see SchedulerFiber}.
      *
      * @param mixed ...$args Arguments passed to fiber function.
      *
@@ -23,7 +23,7 @@ final class Fiber
      * Resumes the fiber, returning the given value from {@see Fiber::suspend()}.
      * Returns when the fiber suspends or terminates.
      *
-     * Must be called within {@see FiberScheduler::run()}.
+     * Must be called within a {@see SchedulerFiber}.
      *
      * @param mixed $value
      *
@@ -36,7 +36,7 @@ final class Fiber
      * Throws the given exception into the fiber from {@see Fiber::suspend()}.
      * Returns when the fiber suspends or terminates.
      *
-     * Must be called within {@see FiberScheduler::run()}.
+     * Must be called within a {@see SchedulerFiber}.
      *
      * @param Throwable $exception
      *
@@ -68,26 +68,26 @@ final class Fiber
     /**
      * Returns the currently executing Fiber instance.
      *
-     * Cannot be called within {@see FiberScheduler::run()}.
+     * Cannot be called within {@see SchedulerFiber}.
      *
      * @return self The currently executing fiber.
      *
-     * @throws FiberError Thrown if within {@see FiberScheduler::run()}.
+     * @throws FiberError Thrown if within {@see SchedulerFiber}.
      */
     public static function this(): self { }
 
     /**
      * Suspend execution of the fiber. The fiber may be resumed with {@see Fiber::resume()} or {@see Fiber::throw()}
-     * within the run() method of the instance of {@see FiberScheduler} given.
+     * within the callback used to create the {@see SchedulerFiber} given.
      *
-     * Cannot be called within {@see FiberScheduler::run()}.
+     * Cannot be called within a {@see SchedulerFiber}.
      *
-     * @param FiberScheduler $scheduler
+     * @param SchedulerFiber $scheduler
      *
      * @return mixed Value provided to {@see Fiber::resume()}.
      *
      * @throws FiberError Thrown if within {@see FiberScheduler::run()}.
      * @throws Throwable Exception provided to {@see Fiber::throw()}.
      */
-    public static function suspend(FiberScheduler $scheduler): mixed { }
+    public static function suspend(SchedulerFiber $scheduler): mixed { }
 }

@@ -21,7 +21,7 @@ $loop->defer(function (): void {
 $promise = new Promise($loop);
 $promise->schedule(Fiber::this());
 
-echo Fiber::suspend($loop);
+echo Fiber::suspend($loop->getSchedulerFiber());
 
 --EXPECT--
 exit

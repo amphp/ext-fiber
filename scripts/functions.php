@@ -21,7 +21,7 @@ function delay(Loop $loop, int $timeout): void
 {
     $fiber = Fiber::this();
     $loop->delay($timeout, fn() => $fiber->resume());
-    Fiber::suspend($loop);
+    Fiber::suspend($loop->getSchedulerFiber());
 }
 
 function formatStacktrace(array $trace): string

@@ -18,11 +18,11 @@ $fiber = new Fiber(function (ReflectionFiber $scheduler) use ($loop): void {
     echo "3)\n", formatStacktrace($reflection->getTrace()), "\n\n";
 
     $loop->defer(fn() => $fiber->resume());
-    Fiber::suspend($loop);
+    Fiber::suspend($loop->getSchedulerFiber());
 
     $loop->delay(20, fn() => $fiber->resume());
 
-    Fiber::suspend($loop);
+    Fiber::suspend($loop->getSchedulerFiber());
 
     echo "6)\n", formatStacktrace($scheduler->getTrace()), "\n\n";
 
@@ -32,7 +32,7 @@ $fiber = new Fiber(function (ReflectionFiber $scheduler) use ($loop): void {
 $reflection = new ReflectionFiber($fiber);
 
 $loop->defer(function () use ($fiber, $reflection, $loop): void {
-    $scheduler = new ReflectionFiberScheduler($loop);
+    $scheduler = new ReflectionSchedulerFiber($loop->getSchedulerFiber());
     $fiber->start($scheduler);
     echo "4)\n", formatStacktrace($reflection->getTrace()), "\n\n";
 });
@@ -43,7 +43,7 @@ $reflection = new ReflectionFiber($fiber);
 echo "1)\n", formatStacktrace($reflection->getTrace()), "\n\n";
 $loop->delay(10, fn() => $fiber->resume());
 
-Fiber::suspend($loop);
+Fiber::suspend($loop->getSchedulerFiber());
 
 echo "5)\n", formatStacktrace($reflection->getTrace()), "\n\n";
 
@@ -55,7 +55,8 @@ echo "5)\n", formatStacktrace($reflection->getTrace()), "\n\n";
 #0 %s:31 Fiber->start()
 #1 %s:%d {closure}()
 #2 %s:%d Loop->tick()
-#3 [fiber function]:0 Loop->run()
+#3 %s:%d Loop->run()
+#4 [fiber function]:0 Loop->{closure}()
 
 3)
 #0 %s:13 ReflectionFiber->getTrace()
@@ -72,7 +73,8 @@ echo "5)\n", formatStacktrace($reflection->getTrace()), "\n\n";
 #0 %s:18 Fiber->resume()
 #1 %s:%d {closure}()
 #2 %s:%d Loop->tick()
-#3 [fiber function]:0 Loop->run()
+#3 %s:%d Loop->run()
+#4 [fiber function]:0 Loop->{closure}()
 
 7)
 #0 %s:24 ReflectionFiber->getTrace()

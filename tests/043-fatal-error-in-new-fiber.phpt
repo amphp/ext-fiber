@@ -17,7 +17,7 @@ $loop->defer(fn() => $fiber->start());
 
 $promise = new Success($loop);
 $promise->schedule(Fiber::this());
-Fiber::suspend($loop);
+Fiber::suspend($loop->getSchedulerFiber());
 
 --EXPECTF--
 Fatal error: Fatal error in fiber in %s on line %d
