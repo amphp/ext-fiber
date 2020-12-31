@@ -1012,6 +1012,48 @@ ZEND_METHOD(SchedulerFiber, __construct)
 }
 /* }}} */
 
+/* {{{ proto bool SchedulerFiber::isStarted() */
+ZEND_METHOD(SchedulerFiber, isStarted)
+{
+	zend_fiber *fiber;
+
+	ZEND_PARSE_PARAMETERS_NONE();
+
+	fiber = (zend_fiber *) Z_OBJ_P(getThis());
+
+	RETURN_BOOL(fiber->status != ZEND_FIBER_STATUS_INIT);
+}
+/* }}} */
+
+
+/* {{{ proto bool SchedulerFiber::isSuspended() */
+ZEND_METHOD(SchedulerFiber, isSuspended)
+{
+	zend_fiber *fiber;
+
+	ZEND_PARSE_PARAMETERS_NONE();
+
+	fiber = (zend_fiber *) Z_OBJ_P(getThis());
+
+	RETURN_BOOL(fiber->status == ZEND_FIBER_STATUS_SUSPENDED);
+}
+/* }}} */
+
+
+/* {{{ proto bool SchedulerFiber::isRunning() */
+ZEND_METHOD(SchedulerFiber, isRunning)
+{
+	zend_fiber *fiber;
+
+	ZEND_PARSE_PARAMETERS_NONE();
+
+	fiber = (zend_fiber *) Z_OBJ_P(getThis());
+
+	RETURN_BOOL(fiber->status == ZEND_FIBER_STATUS_RUNNING);
+}
+/* }}} */
+
+
 /* {{{ proto bool SchedulerFiber::isTerminated() */
 ZEND_METHOD(SchedulerFiber, isTerminated)
 {
@@ -1268,6 +1310,9 @@ ZEND_END_ARG_INFO()
 
 static const zend_function_entry scheduler_fiber_methods[] = {
 	ZEND_ME(SchedulerFiber, __construct, arginfo_scheduler_fiber_construct, ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
+	ZEND_ME(SchedulerFiber, isStarted, arginfo_fiber_status, ZEND_ACC_PUBLIC)
+	ZEND_ME(SchedulerFiber, isSuspended, arginfo_fiber_status, ZEND_ACC_PUBLIC)
+	ZEND_ME(SchedulerFiber, isRunning, arginfo_fiber_status, ZEND_ACC_PUBLIC)
 	ZEND_ME(SchedulerFiber, isTerminated, arginfo_fiber_status, ZEND_ACC_PUBLIC)
 	ZEND_FE_END
 };
