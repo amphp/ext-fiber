@@ -25,17 +25,17 @@ final class Loop
 
     private bool $running = false;
 
-    private SchedulerFiber $scheduler;
+    private FiberScheduler $scheduler;
 
     public function __construct()
     {
         $this->timerQueue = new TimerQueue;
     }
 
-    public function getSchedulerFiber(): SchedulerFiber
+    public function getScheduler(): FiberScheduler
     {
         if (!isset($this->scheduler) || $this->scheduler->isTerminated()) {
-            $this->scheduler = new SchedulerFiber(fn() => $this->run());
+            $this->scheduler = new FiberScheduler(fn() => $this->run());
         }
 
         return $this->scheduler;

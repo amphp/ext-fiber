@@ -1,9 +1,9 @@
 <?php
 
-final class SchedulerFiber
+final class FiberScheduler
 {
     /**
-     * @param callable $callback Function to invoke when starting the scheduler fiber.
+     * @param callable $callback Function to invoke when starting the fiber scheduler.
      */
     public function __construct(callable $callback) { }
 

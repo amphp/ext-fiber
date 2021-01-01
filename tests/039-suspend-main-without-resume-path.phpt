@@ -11,11 +11,11 @@ $loop = new Loop;
 
 $fiber = Fiber::this();
 
-Fiber::suspend((new Loop)->getSchedulerFiber());
+Fiber::suspend((new Loop)->getScheduler());
 
 --EXPECTF--
 Fatal error: Uncaught FiberError: Scheduler fiber terminated before resuming the suspended fiber in %s:%d
 Stack trace:
-#0 %s(%d): Fiber::suspend(Object(SchedulerFiber))
+#0 %s(%d): Fiber::suspend(Object(FiberScheduler))
 #1 {main}
   thrown in %s on line %d

@@ -14,7 +14,7 @@ $loop->defer(fn() => trigger_error("Test error", E_USER_ERROR));
 $loop->defer(fn() => print "fail\n");
 $promise->schedule(Fiber::this());
 
-echo Fiber::suspend($loop->getSchedulerFiber());
+echo Fiber::suspend($loop->getScheduler());
 
 --EXPECTF--
 Fatal error: Test error in %s on line %d

@@ -15,7 +15,7 @@ $promise = new Promise($loop);
 $loop->defer(fn() => $promise->resolve());
 $promise->schedule(Fiber::this());
 
-echo Fiber::suspend($loop->getSchedulerFiber());
+echo Fiber::suspend($loop->getScheduler());
 
 trigger_error("Test error", E_USER_ERROR);
 

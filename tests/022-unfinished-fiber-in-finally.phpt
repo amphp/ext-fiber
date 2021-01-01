@@ -18,7 +18,7 @@ $loop->defer(function () use ($loop): void {
                 return new \stdClass;
             } finally {
                 echo "inner finally\n";
-                Fiber::suspend($loop->getSchedulerFiber());
+                Fiber::suspend($loop->getScheduler());
                 echo "after await\n";
             }
         } catch (Throwable $exception) {
@@ -35,7 +35,7 @@ $loop->defer(function () use ($loop): void {
 
 $promise = new Success($loop);
 $promise->schedule(Fiber::this());
-Fiber::suspend($loop->getSchedulerFiber());
+Fiber::suspend($loop->getScheduler());
 
 echo "done\n";
 

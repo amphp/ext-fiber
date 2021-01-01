@@ -12,7 +12,7 @@ $fiber = Fiber::this();
 $loop->defer(fn() => $fiber->throw(new Exception('test')));
 
 try {
-    echo Fiber::suspend($loop->getSchedulerFiber());
+    echo Fiber::suspend($loop->getScheduler());
 } catch (Exception $exception) {
     echo $exception->getMessage();
 }

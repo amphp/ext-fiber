@@ -13,7 +13,7 @@ $loop->defer(fn() => Fiber::this());
 
 $promise = new Success($loop);
 $promise->schedule(Fiber::this());
-Fiber::suspend($loop->getSchedulerFiber());
+Fiber::suspend($loop->getScheduler());
 
 --EXPECTF--
 Fatal error: Uncaught FiberError: Cannot call Fiber::this() within a fiber scheduler in %s:%d
@@ -25,8 +25,8 @@ Stack trace:
 #4 [fiber function](0): Loop->{closure}()
 #5 {main}
 
-Next FiberExit: Uncaught FiberError thrown from scheduler fiber: Cannot call Fiber::this() within a fiber scheduler in %s:%d
+Next FiberExit: Uncaught FiberError thrown from fiber scheduler: Cannot call Fiber::this() within a fiber scheduler in %s:%d
 Stack trace:
-#0 %s(%d): Fiber::suspend(Object(SchedulerFiber))
+#0 %s(%d): Fiber::suspend(Object(FiberScheduler))
 #1 {main}
   thrown in %s on line %d

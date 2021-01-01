@@ -12,7 +12,7 @@ $loop = new Loop;
 $fiber = new Fiber(function () use ($loop): void {
     $fiber = Fiber::this();
     $loop->delay(10, fn() => $fiber->resume());
-    Fiber::suspend($loop->getSchedulerFiber());
+    Fiber::suspend($loop->getScheduler());
 });
 
 $loop->defer(fn() => $fiber->start());
@@ -20,7 +20,7 @@ $loop->defer(fn() => $fiber->start());
 
 $fiber = Fiber::this();
 $loop->defer(fn() => $fiber->resume());
-Fiber::suspend($loop->getSchedulerFiber());
+Fiber::suspend($loop->getScheduler());
 
 --EXPECTF--
 Fatal error: Uncaught FiberError: Cannot start a fiber that has already been started in %s:%d
@@ -32,8 +32,8 @@ Stack trace:
 #4 [fiber function](0): Loop->{closure}()
 #5 {main}
 
-Next FiberExit: Uncaught FiberError thrown from scheduler fiber: Cannot start a fiber that has already been started in %s:%d
+Next FiberExit: Uncaught FiberError thrown from fiber scheduler: Cannot start a fiber that has already been started in %s:%d
 Stack trace:
-#0 %s(%d): Fiber::suspend(Object(SchedulerFiber))
+#0 %s(%d): Fiber::suspend(Object(FiberScheduler))
 #1 {main}
   thrown in %s on line %d

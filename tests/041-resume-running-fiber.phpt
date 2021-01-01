@@ -13,7 +13,7 @@ $fiber = Fiber::this();
 
 $loop->defer(fn() => var_dump($fiber->isSuspended()));
 $loop->defer(fn() => $fiber->resume());
-echo Fiber::suspend($loop->getSchedulerFiber());
+echo Fiber::suspend($loop->getScheduler());
 
 var_dump($fiber->isSuspended());
 var_dump($fiber->isRunning());

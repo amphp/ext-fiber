@@ -19,22 +19,22 @@ $fiber = new Fiber(function () use ($loop1) {
             $fiber = Fiber::this();
 
             $loop2->defer(fn() => $fiber->resume(1));
-            echo Fiber::suspend($loop2->getSchedulerFiber());
+            echo Fiber::suspend($loop2->getScheduler());
 
             $loop1->defer(fn() => $fiber->resume(2));
-            echo Fiber::suspend($loop1->getSchedulerFiber());
+            echo Fiber::suspend($loop1->getScheduler());
 
             $loop3->defer(fn() => $fiber->resume(3));
-            echo Fiber::suspend($loop3->getSchedulerFiber());
+            echo Fiber::suspend($loop3->getScheduler());
 
             $loop2->defer(fn() => $fiber->resume(4));
-            echo Fiber::suspend($loop2->getSchedulerFiber());
+            echo Fiber::suspend($loop2->getScheduler());
 
             $loop1->defer(fn() => $fiber->resume(5));
-            echo Fiber::suspend($loop1->getSchedulerFiber());
+            echo Fiber::suspend($loop1->getScheduler());
 
             $loop3->defer(fn() => $fiber->resume(6));
-            echo Fiber::suspend($loop3->getSchedulerFiber());
+            echo Fiber::suspend($loop3->getScheduler());
         });
 
         $loop3->defer(fn() => $fiber->start());
@@ -42,19 +42,19 @@ $fiber = new Fiber(function () use ($loop1) {
         $fiber = Fiber::this();
 
         $loop3->defer(fn() => $fiber->resume(7));
-        echo Fiber::suspend($loop3->getSchedulerFiber());
+        echo Fiber::suspend($loop3->getScheduler());
 
         $loop2->defer(fn() => $fiber->resume(8));
-        echo Fiber::suspend($loop2->getSchedulerFiber());
+        echo Fiber::suspend($loop2->getScheduler());
 
         $loop1->defer(fn() => $fiber->resume(9));
-        echo Fiber::suspend($loop1->getSchedulerFiber());
+        echo Fiber::suspend($loop1->getScheduler());
 
         $loop2->defer(fn() => $fiber->resume('a'));
-        echo Fiber::suspend($loop2->getSchedulerFiber());
+        echo Fiber::suspend($loop2->getScheduler());
 
         $loop1->defer(fn() => $fiber->resume('b'));
-        echo Fiber::suspend($loop1->getSchedulerFiber());
+        echo Fiber::suspend($loop1->getScheduler());
     });
 
     $loop2->defer(fn() => $fiber->start());
@@ -62,17 +62,17 @@ $fiber = new Fiber(function () use ($loop1) {
     $fiber = Fiber::this();
 
     $loop2->defer(fn() => $fiber->resume('c'));
-    echo Fiber::suspend($loop2->getSchedulerFiber());
+    echo Fiber::suspend($loop2->getScheduler());
 
     $loop1->defer(fn() => $fiber->resume('d'));
-    echo Fiber::suspend($loop1->getSchedulerFiber());
+    echo Fiber::suspend($loop1->getScheduler());
 });
 
 $loop1->defer(fn() => $fiber->start());
 
 $fiber = Fiber::this();
 $loop1->defer(fn() => $fiber->resume('e'));
-echo Fiber::suspend($loop1->getSchedulerFiber());
+echo Fiber::suspend($loop1->getScheduler());
 
 --EXPECT--
 7ce1d2389456ab

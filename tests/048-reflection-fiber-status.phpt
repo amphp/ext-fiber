@@ -12,7 +12,7 @@ $loop = new Loop;
 $fiber = new Fiber(function () use ($loop): void {
     $fiber = Fiber::this();
     $loop->defer(fn() => $fiber->resume());
-    Fiber::suspend($loop->getSchedulerFiber());
+    Fiber::suspend($loop->getScheduler());
 });
 
 $reflection = new ReflectionFiber($fiber);
@@ -33,14 +33,14 @@ var_dump($reflection->isRunning());
 var_dump($reflection->isTerminated());
 
 $loop->delay(10, fn() => $fiber->resume());
-Fiber::suspend($loop->getSchedulerFiber());
+Fiber::suspend($loop->getScheduler());
 
 var_dump($reflection->isStarted());
 var_dump($reflection->isSuspended());
 var_dump($reflection->isRunning());
 var_dump($reflection->isTerminated());
 
-$reflection = new ReflectionSchedulerFiber($loop->getSchedulerFiber());
+$reflection = new ReflectionFiberScheduler($loop->getScheduler());
 
 var_dump($reflection->isStarted());
 var_dump($reflection->isSuspended());

@@ -18,7 +18,7 @@ class Promise
     {
         if (!$this->resolved) {
             $this->schedule(Fiber::this());
-            return Fiber::suspend($this->scheduler->getSchedulerFiber());
+            return Fiber::suspend($this->scheduler->getScheduler());
         }
 
         if ($this->error) {
@@ -78,7 +78,7 @@ class Promise
 
 class Scheduler
 {
-    private SchedulerFiber $scheduler;
+    private FiberScheduler $scheduler;
     /** @var resource */
     private $curl;
     /** @var callable[] */
@@ -96,10 +96,10 @@ class Scheduler
         curl_multi_close($this->curl);
     }
 
-    public function getSchedulerFiber(): SchedulerFiber
+    public function getScheduler(): FiberScheduler
     {
         if (!isset($this->scheduler) || $this->scheduler->isTerminated()) {
-            $this->scheduler = new SchedulerFiber(fn() => $this->run());
+            $this->scheduler = new FiberScheduler(fn() => $this->run());
         }
 
         return $this->scheduler;
@@ -116,7 +116,7 @@ class Scheduler
         curl_multi_add_handle($this->curl, $curl);
 
         $this->fibers[(int) $curl] = Fiber::this();
-        Fiber::suspend($this->getSchedulerFiber());
+        Fiber::suspend($this->getScheduler());
 
         $status = curl_getinfo($curl, CURLINFO_RESPONSE_CODE);
         if ($status !== 200) {

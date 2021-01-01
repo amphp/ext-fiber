@@ -10,7 +10,7 @@ require dirname(__DIR__) . '/scripts/bootstrap.php';
 $loop = new Loop;
 
 // Get reflection before using scheduler.
-$reflection = new ReflectionSchedulerFiber($loop->getSchedulerFiber());
+$reflection = new ReflectionFiberScheduler($loop->getScheduler());
 
 try {
     var_dump($reflection->getExecutingLine());
@@ -20,7 +20,7 @@ try {
 
 $promise = new Success($loop);
 $promise->schedule(Fiber::this());
-Fiber::suspend($loop->getSchedulerFiber());
+Fiber::suspend($loop->getScheduler());
 
 // Reflection should be valid after using scheduler.
 var_dump($reflection->getExecutingFile());

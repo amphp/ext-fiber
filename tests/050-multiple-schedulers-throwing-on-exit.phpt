@@ -13,10 +13,10 @@ $loop2 = new Loop;
 $fiber = Fiber::this();
 
 $loop1->defer(fn() => $fiber->resume());
-Fiber::suspend($loop1->getSchedulerFiber());
+Fiber::suspend($loop1->getScheduler());
 
 $loop2->defer(fn() => $fiber->resume());
-Fiber::suspend($loop2->getSchedulerFiber());
+Fiber::suspend($loop2->getScheduler());
 
 $loop1->defer(function (): void {
     throw new Exception('test');

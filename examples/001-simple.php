@@ -29,7 +29,7 @@ class EventScheduler
 }
 
 $eventScheduler = new EventScheduler;
-$schedulerFiber = new SchedulerFiber(fn() => $eventScheduler->run());
+$schedulerFiber = new FiberScheduler(fn() => $eventScheduler->run());
 
 // Get a reference to the currently executing fiber ({main} in this case).
 $fiber = Fiber::this();

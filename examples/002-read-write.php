@@ -58,7 +58,7 @@ stream_set_blocking($read, false);
 stream_set_blocking($write, false);
 
 $eventScheduler = new EventScheduler;
-$schedulerFiber = new SchedulerFiber(fn() => $eventScheduler->run());
+$schedulerFiber = new FiberScheduler(fn() => $eventScheduler->run());
 
 // Read data in a separate fiber after checking if the stream is readable.
 $fiber = new Fiber(function () use ($eventScheduler, $schedulerFiber, $read): void {

@@ -16,7 +16,7 @@ $loop->defer(function (): void {
 $promise = new Promise($loop);
 $promise->schedule(Fiber::this());
 
-echo Fiber::suspend($loop->getSchedulerFiber());
+echo Fiber::suspend($loop->getScheduler());
 
 --EXPECTF--
 Fatal error: Uncaught Exception: test in %s:%d
@@ -27,8 +27,8 @@ Stack trace:
 #3 [fiber function](0): Loop->{closure}()
 #4 {main}
 
-Next FiberExit: Uncaught Exception thrown from scheduler fiber: test in %s:%d
+Next FiberExit: Uncaught Exception thrown from fiber scheduler: test in %s:%d
 Stack trace:
-#0 %s(%d): Fiber::suspend(Object(SchedulerFiber))
+#0 %s(%d): Fiber::suspend(Object(FiberScheduler))
 #1 {main}
   thrown in %s on line %d

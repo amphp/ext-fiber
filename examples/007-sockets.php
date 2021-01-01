@@ -21,12 +21,12 @@ $fiber = new Fiber(function () use ($loop, $write): void {
     // Suspend fiber for 1 second.
     echo "Waiting for 1 second...\n";
     $loop->delay(1000, fn() => $fiber->resume());
-    Fiber::suspend($loop->getSchedulerFiber());
+    Fiber::suspend($loop->getScheduler());
 
     // Write data to the socket once it is writable.
     echo "Writing data...\n";
     $loop->write($write, 'Hello, world!', fn(int $bytes) => $fiber->resume($bytes));
-    $bytes = Fiber::suspend($loop->getSchedulerFiber());
+    $bytes = Fiber::suspend($loop->getScheduler());
 
     echo "Wrote {$bytes} bytes.\n";
 });
@@ -38,6 +38,6 @@ echo "Waiting for data...\n";
 // Read data in main fiber.
 $fiber = Fiber::this();
 $loop->read($read, fn(?string $data) => $fiber->resume($data));
-$data = Fiber::suspend($loop->getSchedulerFiber());
+$data = Fiber::suspend($loop->getScheduler());
 
 echo "Received data: ", $data, "\n";

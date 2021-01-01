@@ -19,7 +19,7 @@ $loop->defer(fn() => $fiber->start());
 
 $promise = new Success($loop);
 $promise->schedule(Fiber::this());
-Fiber::suspend($loop->getSchedulerFiber());
+Fiber::suspend($loop->getScheduler());
 
 --EXPECTF--
 string(%d) "%s%etests%e%s.php"

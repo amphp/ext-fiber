@@ -12,7 +12,7 @@ $loop = new Loop;
 $fiber = new Fiber(function () use ($loop): void {
     $fiber = Fiber::this();
     $loop->delay(10, fn() => $fiber->resume());
-    Fiber::suspend($loop->getSchedulerFiber());
+    Fiber::suspend($loop->getScheduler());
 });
 
 $loop->defer(function () use ($fiber): void {
@@ -33,7 +33,7 @@ $loop->defer(function () use ($fiber): void {
 
 $fiber = Fiber::this();
 $loop->defer(fn() => $fiber->resume());
-Fiber::suspend($loop->getSchedulerFiber());
+Fiber::suspend($loop->getScheduler());
 
 --EXPECT--
 Cannot resume a fiber that is not suspended

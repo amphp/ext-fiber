@@ -13,7 +13,7 @@ $loop->defer(fn() => (new Fiber(fn (int $x) => null))->start());
 
 $promise = new Success($loop);
 $promise->schedule(Fiber::this());
-Fiber::suspend($loop->getSchedulerFiber());
+Fiber::suspend($loop->getScheduler());
 
 --EXPECTF--
 Fatal error: Uncaught ArgumentCountError: Too few arguments to function {closure}(), 0 passed and exactly 1 expected in %s:%d
@@ -21,8 +21,8 @@ Stack trace:
 #0 [fiber function](0): {closure}()
 #1 {main}
 
-Next FiberExit: Uncaught ArgumentCountError thrown from scheduler fiber: Too few arguments to function {closure}(), 0 passed and exactly 1 expected in %s:%d
+Next FiberExit: Uncaught ArgumentCountError thrown from fiber scheduler: Too few arguments to function {closure}(), 0 passed and exactly 1 expected in %s:%d
 Stack trace:
-#0 %s(%d): Fiber::suspend(Object(SchedulerFiber))
+#0 %s(%d): Fiber::suspend(Object(FiberScheduler))
 #1 {main}
   thrown in %s on line %d

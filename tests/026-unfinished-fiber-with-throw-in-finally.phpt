@@ -16,7 +16,7 @@ $loop->defer(function () use ($loop): void {
             try {
                 try {
                     echo "fiber\n";
-                    echo Fiber::suspend($loop->getSchedulerFiber());
+                    echo Fiber::suspend($loop->getScheduler());
                     echo "after await\n";
                 } catch (Throwable $exception) {
                      echo "inner exit exception caught!\n";
@@ -35,7 +35,7 @@ $loop->defer(function () use ($loop): void {
         }
 
         try {
-            echo Fiber::suspend($loop->getSchedulerFiber());
+            echo Fiber::suspend($loop->getScheduler());
         } catch (FiberError $exception) {
             echo $exception->getMessage(), "\n";
         }
@@ -46,7 +46,7 @@ $loop->defer(function () use ($loop): void {
 
 $promise = new Success($loop);
 $promise->schedule(Fiber::this());
-Fiber::suspend($loop->getSchedulerFiber());
+Fiber::suspend($loop->getScheduler());
 
 echo "done\n";
 
