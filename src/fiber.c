@@ -1485,6 +1485,14 @@ void zend_fiber_ce_unregister()
 	scheduler_run_name = NULL;
 }
 
+void zend_fiber_startup()
+{
+	FIBER_G(root_fiber) = NULL;
+	FIBER_G(current_fiber) = NULL;
+	FIBER_G(shutdown) = 0;
+	FIBER_G(id) = 0;
+}
+
 void zend_fiber_shutdown()
 {
 	zend_fiber *fiber;

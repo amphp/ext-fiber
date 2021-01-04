@@ -105,6 +105,8 @@ static PHP_RINIT_FUNCTION(fiber)
 	ZEND_TSRMLS_CACHE_UPDATE();
 #endif
 
+	zend_fiber_startup();
+
 	return SUCCESS;
 }
 

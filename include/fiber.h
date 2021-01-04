@@ -22,6 +22,7 @@ BEGIN_EXTERN_C()
 void zend_fiber_ce_register();
 void zend_fiber_ce_unregister();
 
+void zend_fiber_startup();
 void zend_fiber_shutdown();
 
 #ifdef PHP_WIN32
