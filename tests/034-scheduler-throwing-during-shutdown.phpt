@@ -25,11 +25,11 @@ $loop1->delay(1, function (): void {
 
 $promise = new Success($loop1);
 $promise->schedule(Fiber::this());
-Fiber::suspend($loop1);
+Fiber::suspend($loop1->getScheduler());
 
 $promise = new Success($loop2);
 $promise->schedule(Fiber::this());
-Fiber::suspend($loop2);
+Fiber::suspend($loop2->getScheduler());
 
 $loop1->defer(function (): void {
     echo "should not be executed\n";
@@ -44,6 +44,7 @@ Fatal error: Uncaught Exception: test in %s:%d
 Stack trace:
 #0 %s(%d): {closure}()
 #1 %s(%d): Loop->tick()
-#2 [fiber function](0): Loop->run()
-#3 {main}
+#2 %s(%d): Loop->run()
+#3 [fiber function](0): Loop->{closure}()
+#4 {main}
   thrown in %s on line %d

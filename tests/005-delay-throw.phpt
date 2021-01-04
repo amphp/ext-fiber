@@ -18,7 +18,7 @@ $fiber = Fiber::this();
 $loop->delay($timeout, fn() => $fiber->throw(new Exception('test')));
 
 try {
-    echo Fiber::suspend($loop);
+    echo Fiber::suspend($loop->getScheduler());
     throw new Exception('Fiber::suspend() did not throw');
 } catch (Exception $exception) {
     echo $exception->getMessage();

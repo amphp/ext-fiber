@@ -1,6 +1,6 @@
 <?php
 
-class Scheduler implements FiberScheduler
+class EventScheduler
 {
     private string $nextId = 'a';
     private array $deferCallbacks = [];
@@ -57,15 +57,16 @@ class Scheduler implements FiberScheduler
 stream_set_blocking($read, false);
 stream_set_blocking($write, false);
 
-$scheduler = new Scheduler;
+$eventScheduler = new EventScheduler;
+$schedulerFiber = new FiberScheduler(fn() => $eventScheduler->run());
 
 // Read data in a separate fiber after checking if the stream is readable.
-$fiber = new Fiber(function () use ($scheduler, $read): void {
+$fiber = new Fiber(function () use ($eventScheduler, $schedulerFiber, $read): void {
     echo "Waiting for data...\n";
 
     $fiber = Fiber::this();
-    $scheduler->read($read, fn() => $fiber->resume());
-    Fiber::suspend($scheduler);
+    $eventScheduler->read($read, fn() => $fiber->resume());
+    Fiber::suspend($schedulerFiber);
 
     $data = fread($read, 8192);
 
@@ -73,12 +74,12 @@ $fiber = new Fiber(function () use ($scheduler, $read): void {
 });
 
 // Start the new fiber within the fiber scheduler.
-$scheduler->defer(fn() => $fiber->start());
+$eventScheduler->defer(fn() => $fiber->start());
 
 // Suspend main fiber to enter the scheduler.
 $fiber = Fiber::this();
-$scheduler->defer(fn() => $fiber->resume("Writing data...\n"));
-echo Fiber::suspend($scheduler);
+$eventScheduler->defer(fn() => $fiber->resume("Writing data...\n"));
+echo Fiber::suspend($schedulerFiber);
 
 // Write data in main thread once it is resumed.
 fwrite($write, "Hello, world!");

@@ -1,6 +1,6 @@
 <?php
 
-final class Loop implements FiberScheduler
+final class Loop
 {
     private const CHUNK_SIZE = 8192;
 
@@ -25,9 +25,20 @@ final class Loop implements FiberScheduler
 
     private bool $running = false;
 
+    private FiberScheduler $scheduler;
+
     public function __construct()
     {
         $this->timerQueue = new TimerQueue;
+    }
+
+    public function getScheduler(): FiberScheduler
+    {
+        if (!isset($this->scheduler) || $this->scheduler->isTerminated()) {
+            $this->scheduler = new FiberScheduler(fn() => $this->run());
+        }
+
+        return $this->scheduler;
     }
 
     public function run(): void

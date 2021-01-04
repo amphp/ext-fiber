@@ -12,7 +12,7 @@ $loop = new Loop;
 register_shutdown_function(function () use ($loop): void {
     $promise = new Success($loop, 1);
     $promise->schedule(Fiber::this());
-    echo Fiber::suspend($loop);
+    echo Fiber::suspend($loop->getScheduler());
 });
 
 $object = new class($loop) {
@@ -28,7 +28,7 @@ $object = new class($loop) {
         $promise = new Promise($this->loop);
         $promise->schedule(Fiber::this());
         $this->loop->delay(10, fn() => $promise->resolve(2));
-        echo Fiber::suspend($this->loop);
+        echo Fiber::suspend($this->loop->getScheduler());
     }
 };
 

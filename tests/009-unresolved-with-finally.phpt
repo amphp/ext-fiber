@@ -9,15 +9,15 @@ require dirname(__DIR__) . '/scripts/bootstrap.php';
 
 try {
     $fiber = Fiber::this();
-    echo Fiber::suspend(new Loop);
+    echo Fiber::suspend((new Loop)->getScheduler());
 } finally {
     echo 'finally';
 }
 
 --EXPECTF--
 finally
-Fatal error: Uncaught FiberError: Loop::run() returned before resuming the fiber in %s:%d
+Fatal error: Uncaught FiberError: Scheduler fiber terminated before resuming the suspended fiber in %s:%d
 Stack trace:
-#0 %s(%d): Fiber::suspend(Object(Loop))
+#0 %s(%d): Fiber::suspend(Object(FiberScheduler))
 #1 {main}
   thrown in %s on line %d

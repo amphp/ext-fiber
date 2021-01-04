@@ -20,7 +20,7 @@ $loop->defer(function (): void {
 $promise = new Promise($loop);
 $promise->schedule(Fiber::this());
 
-echo Fiber::suspend($loop);
+echo Fiber::suspend($loop->getScheduler());
 
 --EXPECTF--
-Caught Exception: Uncaught Error thrown from Loop::run(): test
+Caught Exception: Uncaught Error thrown from fiber scheduler: test

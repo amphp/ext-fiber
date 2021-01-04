@@ -73,10 +73,10 @@ struct _zend_fiber {
 	/* Max size of the C stack being used by the fiber. */
 	size_t stack_size;
 
-	/* Exception to be thrown from Fiber::suspend(). Unused on scheduler fibers. */
+	/* Exception to be thrown from Fiber::suspend(). Unused on fiber schedulers. */
 	zval *error;
 
-	/* Value to return from Fiber::suspend(). Pointer invalid on scheduler fibers. */
+	/* Value to return from Fiber::suspend(). Pointer invalid on fiber schedulers. */
 	zval *value;
 };
 

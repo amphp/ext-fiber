@@ -1,6 +1,6 @@
 <?php
 
-class Scheduler implements FiberScheduler
+class EventScheduler
 {
     private string $nextId = 'a';
     private array $callbacks = [];
@@ -28,17 +28,18 @@ class Scheduler implements FiberScheduler
     }
 }
 
-$scheduler = new Scheduler;
+$eventScheduler = new EventScheduler;
+$schedulerFiber = new FiberScheduler(fn() => $eventScheduler->run());
 
 // Get a reference to the currently executing fiber ({main} in this case).
 $fiber = Fiber::this();
 
 // Suspend the main fiber, which will be resumed by the scheduler.
-$scheduler->defer(fn() => $fiber->resume("Test"));
-$value = Fiber::suspend($scheduler);
+$eventScheduler->defer(fn() => $fiber->resume("Test"));
+$value = Fiber::suspend($schedulerFiber);
 
 echo "After resuming main fiber: ", $value, "\n";
 
 // Suspend the main fiber again, but this time an exception will be thrown.
-$scheduler->defer(fn() => $fiber->throw(new Exception("Test")));
-Fiber::suspend($scheduler);
+$eventScheduler->defer(fn() => $fiber->throw(new Exception("Test")));
+Fiber::suspend($schedulerFiber);
