@@ -97,7 +97,7 @@ final class Fiber
      * Suspend execution of the fiber, switching execution to the scheduler.
      *
      * The fiber may be resumed with {@see Fiber::resume()} or {@see Fiber::throw()}
-     * within the run() method of the instance of {@see FiberScheduler} given.
+     * from the instance of {@see FiberScheduler} given.
      *
      * Cannot be called from {@see FiberScheduler}.
      *
