@@ -5,12 +5,13 @@ Test resume
 --FILE--
 <?php
 
-require dirname(__DIR__) . '/scripts/bootstrap.php';
+$fiber = new Fiber(function () {
+    $value = Fiber::suspend('test');
+    echo $value;
+});
 
-$loop = new Loop;
-$fiber = Fiber::this();
-$loop->defer(fn() => $fiber->resume('test'));
-echo Fiber::suspend($loop->getScheduler());
+$value = $fiber->start();
+$fiber->resume($value);
 
 --EXPECT--
 test

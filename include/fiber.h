@@ -53,9 +53,6 @@ struct _zend_fiber {
 
 	/* Status of the fiber, one of the ZEND_FIBER_STATUS_* constants. */
 	zend_uchar status;
-	
-	/* Used to determine which fiber entered a scheduler and which scheduler should resume a fiber. */
-	zend_fiber *link;
 
 	/* Callback and info / cache to be used when fiber is started. */
 	zend_fcall_info fci;
@@ -90,11 +87,9 @@ struct _zend_fiber_reflection {
 	zend_fiber *fiber;
 };
 
-PHP_FIBER_API zend_fiber *zend_get_root_fiber();
 PHP_FIBER_API zend_fiber *zend_get_current_fiber();
 PHP_FIBER_API zend_long zend_fiber_get_id(zend_fiber *fiber);
 PHP_FIBER_API zend_long zend_fiber_get_current_id();
-PHP_FIBER_API zend_bool zend_fiber_is_scheduler(zend_fiber *fiber);
 PHP_FIBER_API zend_bool zend_is_fiber_exit(zend_object *exception);
 
 static const zend_uchar ZEND_FIBER_STATUS_INIT = 0;
