@@ -208,9 +208,10 @@ static int fiber_run_opcode_handler(zend_execute_data *execute_data)
 		fiber->status = ZEND_FIBER_STATUS_RETURNED;
 	}
 
-	GC_DELREF(&fiber->std);
-
+	ZVAL_COPY(fiber->value, &retval);
 	zval_ptr_dtor(&retval);
+
+	GC_DELREF(&fiber->std);
 
 	return ZEND_USER_OPCODE_RETURN;
 }
@@ -510,8 +511,8 @@ ZEND_METHOD(Fiber, start)
 
 	zval_ptr_dtor(&fiber->fci.function_name);
 
-	if (Z_TYPE_P(fiber->value) != IS_UNDEF) {
-		RETVAL_COPY(fiber->value);
+	if (!(fiber->status & ZEND_FIBER_STATUS_FINISHED) && Z_TYPE_P(fiber->value) != IS_UNDEF) {
+		RETVAL_COPY_VALUE(fiber->value);
 		ZVAL_UNDEF(fiber->value);
 	}
 }
@@ -623,8 +624,8 @@ ZEND_METHOD(Fiber, resume)
 		return;
 	}
 
-	if (Z_TYPE_P(fiber->value) != IS_UNDEF) {
-		RETVAL_COPY(fiber->value);
+	if (!(fiber->status & ZEND_FIBER_STATUS_FINISHED) && Z_TYPE_P(fiber->value) != IS_UNDEF) {
+		RETVAL_COPY_VALUE(fiber->value);
 		ZVAL_UNDEF(fiber->value);
 	}
 }
@@ -659,8 +660,8 @@ ZEND_METHOD(Fiber, throw)
 		return;
 	}
 
-	if (Z_TYPE_P(fiber->value) != IS_UNDEF) {
-		RETVAL_COPY(fiber->value);
+	if (!(fiber->status & ZEND_FIBER_STATUS_FINISHED) && Z_TYPE_P(fiber->value) != IS_UNDEF) {
+		RETVAL_COPY_VALUE(fiber->value);
 		ZVAL_UNDEF(fiber->value);
 	}
 }
@@ -722,6 +723,24 @@ ZEND_METHOD(Fiber, isTerminated)
 }
 /* }}} */
 
+
+/* {{{ proto mixed Fiber::getReturn() */
+ZEND_METHOD(Fiber, getReturn)
+{
+	zend_fiber *fiber;
+
+	ZEND_PARSE_PARAMETERS_NONE();
+
+	fiber = (zend_fiber *) Z_OBJ_P(getThis());
+
+	if (!(fiber->status & ZEND_FIBER_STATUS_RETURNED)) {
+		zend_throw_error(zend_ce_fiber_error, "The fiber has not finished or did not return a value");
+		return;
+	}
+
+	RETURN_COPY(fiber->value);
+}
+/* }}} */
 
 /* {{{ proto FiberError::__construct(string $message) */
 ZEND_METHOD(FiberError, __construct)
@@ -908,6 +927,9 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_fiber_throw, 0, 0, 1)
 	ZEND_ARG_OBJ_INFO(0, exception, Throwable, 0)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_fiber_getReturn, 0, 0, 0)
+ZEND_END_ARG_INFO()
+
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_fiber_status, 0, 0, _IS_BOOL, 0)
 ZEND_END_ARG_INFO()
 
@@ -924,6 +946,7 @@ static const zend_function_entry fiber_methods[] = {
 	ZEND_ME(Fiber, isSuspended, arginfo_fiber_status, ZEND_ACC_PUBLIC)
 	ZEND_ME(Fiber, isRunning, arginfo_fiber_status, ZEND_ACC_PUBLIC)
 	ZEND_ME(Fiber, isTerminated, arginfo_fiber_status, ZEND_ACC_PUBLIC)
+	ZEND_ME(Fiber, getReturn, arginfo_fiber_getReturn, ZEND_ACC_PUBLIC)
 	ZEND_ME(Fiber, suspend, arginfo_fiber_suspend, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
 	ZEND_FE_END
 };

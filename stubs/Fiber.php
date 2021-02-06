@@ -66,6 +66,13 @@ final class Fiber
     public function isTerminated(): bool { }
 
     /**
+     * @return mixed Return value of the fiber callback.
+     *
+     * @throws FiberError If the fiber has not terminated or did not return a value.
+     */
+    public function getReturn(): mixed { }
+
+    /**
      * Suspend execution of the fiber. The fiber may be resumed with {@see Fiber::resume()} or {@see Fiber::throw()}.
      *
      * Cannot be called from {main}.
