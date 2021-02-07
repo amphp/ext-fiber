@@ -73,6 +73,11 @@ final class Fiber
     public function getReturn(): mixed { }
 
     /**
+     * @return self|null Returns the currently executing fiber instance or NULL if in {main}.
+     */
+    public static function this(): ?self { }
+
+    /**
      * Suspend execution of the fiber. The fiber may be resumed with {@see Fiber::resume()} or {@see Fiber::throw()}.
      *
      * Cannot be called from {main}.
@@ -83,5 +88,5 @@ final class Fiber
      *
      * @throws Throwable Exception provided to {@see Fiber::throw()}.
      */
-    public static function suspend(mixed $value): mixed { }
+    public static function suspend(mixed $value = null): mixed { }
 }

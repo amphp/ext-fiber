@@ -114,10 +114,7 @@ void zend_fiber_destroy(zend_fiber_context context);
 zend_bool zend_fiber_switch_context(zend_fiber_context current, zend_fiber_context next);
 zend_bool zend_fiber_suspend_context(zend_fiber_context current);
 
-zend_observer_fcall_handlers zend_fiber_observer_fcall_init(zend_execute_data *execute_data);
 void zend_fiber_error_observer(int type, const char *filename, uint32_t line, zend_string *message);
-
-void zend_fiber_scheduler_hash_index_dtor(zval *ptr);
 
 END_EXTERN_C()
 

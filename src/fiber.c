@@ -288,17 +288,9 @@ static int zend_fiber_catch_handler(zend_execute_data *execute_data)
 }
 
 
-void zend_fiber_scheduler_hash_index_dtor(zval *ptr)
-{
-	zend_fiber *fiber = Z_PTR_P(ptr);
-	zval_ptr_dtor(&fiber->fci.function_name);
-}
-
-
 static void zend_fiber_clean_shutdown()
 {
 	zend_fiber *fiber;
-	uint32_t handle;
 
 	ZEND_HASH_REVERSE_FOREACH_PTR(&FIBER_G(fibers), fiber) {
 		if (fiber->status == ZEND_FIBER_STATUS_SUSPENDED) {
@@ -306,15 +298,6 @@ static void zend_fiber_clean_shutdown()
 			GC_ADDREF(&fiber->std);
 			zend_fiber_switch_to(fiber);
 		}
-	} ZEND_HASH_FOREACH_END();
-
-	ZEND_HASH_REVERSE_FOREACH_NUM_KEY_PTR(&FIBER_G(schedulers), handle, fiber) {
-		if (fiber->status == ZEND_FIBER_STATUS_SUSPENDED) {
-			fiber->status = ZEND_FIBER_STATUS_SHUTDOWN;
-			zend_fiber_switch_to(fiber);
-		}
-
-		zend_hash_index_del(&FIBER_G(schedulers), handle);
 	} ZEND_HASH_FOREACH_END();
 }
 
@@ -322,7 +305,6 @@ static void zend_fiber_clean_shutdown()
 static void zend_fiber_shutdown_cleanup()
 {
 	zend_fiber *fiber;
-	uint32_t handle;
 
 	ZEND_HASH_REVERSE_FOREACH_PTR(&FIBER_G(fibers), fiber) {
 		if (fiber->status == ZEND_FIBER_STATUS_SUSPENDED) {
@@ -330,69 +312,6 @@ static void zend_fiber_shutdown_cleanup()
 			GC_ADDREF(&fiber->std);
 		}
 	} ZEND_HASH_FOREACH_END();
-
-	ZEND_HASH_REVERSE_FOREACH_NUM_KEY_PTR(&FIBER_G(schedulers), handle, fiber) {
-		zend_hash_index_del(&FIBER_G(schedulers), handle);
-	} ZEND_HASH_FOREACH_END();
-}
-
-
-static void zend_fiber_observer_end(zend_execute_data *execute_data, zval *retval)
-{
-	zend_fiber *fiber;
-	zval exception;
-
-	if (FIBER_G(shutdown)) {
-		return;
-	}
-
-	ZVAL_UNDEF(&exception);
-
-	if (EG(exception)) {
-		if (!zend_is_unwind_exit(EG(exception))) {
-			ZVAL_OBJ(&exception, EG(exception));
-			Z_ADDREF(exception);
-			zend_clear_exception();
-		}
-	} else {
-		while (zend_array_count(&FIBER_G(schedulers))) {
-			uint32_t handle;
-
-			ZEND_HASH_REVERSE_FOREACH_NUM_KEY_PTR(&FIBER_G(schedulers), handle, fiber) {
-				if (fiber->status == ZEND_FIBER_STATUS_SUSPENDED) {
-					fiber->status = ZEND_FIBER_STATUS_RUNNING;
-					zend_fiber_switch_to(fiber);
-				}
-
-				zend_hash_index_del(&FIBER_G(schedulers), handle);
-
-				if (EG(exception)) {
-					ZVAL_OBJ(&exception, EG(exception));
-					Z_ADDREF(exception);
-					zend_clear_exception();
-					goto shutdown;
-				}
-			} ZEND_HASH_FOREACH_END();
-		}
-	}
-
-	shutdown: {
-		zend_fiber_clean_shutdown();
-
-		if (Z_TYPE(exception) == IS_OBJECT) {
-			zend_throw_exception_object(&exception);
-		}
-	}
-}
-
-
-zend_observer_fcall_handlers zend_fiber_observer_fcall_init(zend_execute_data *execute_data)
-{
-	if (!execute_data->func->common.function_name && !execute_data->prev_execute_data) {
-		return (zend_observer_fcall_handlers){NULL, zend_fiber_observer_end};
-	}
-
-	return (zend_observer_fcall_handlers){NULL, NULL};
 }
 
 
@@ -406,7 +325,7 @@ void zend_fiber_error_observer(int type, const char *filename, uint32_t line, ze
 		return; // Already shut down, nothing to do.
 	}
 
-	// Fatal error, mark as shutdown so schedulers are not continued on exit.
+	// Fatal error, mark as shutdown.
 	FIBER_G(shutdown) = 1;
 
 	if (type & E_DONT_BAIL) {
@@ -519,11 +438,11 @@ ZEND_METHOD(Fiber, start)
 /* }}} */
 
 
-/* {{{ proto mixed Fiber::suspend(FiberScheduler $scheduler) */
+/* {{{ proto mixed Fiber::suspend(mixed $value) */
 ZEND_METHOD(Fiber, suspend)
 {
 	zend_fiber *fiber;
-	zval *value, *error;
+	zval *error, *value = NULL;
 
 	if (UNEXPECTED(FIBER_G(shutdown))) {
 		zend_throw_error(zend_ce_fiber_error, "Cannot suspend during shutdown");
@@ -551,15 +470,16 @@ ZEND_METHOD(Fiber, suspend)
 		Z_PARAM_ZVAL(value);
 	ZEND_PARSE_PARAMETERS_END();
 
-	fiber->execute_data = execute_data;
+	if (value != NULL) {
+		ZVAL_COPY(fiber->value, value);
+	} else {
+		ZVAL_NULL(fiber->value);
+	}
 
+	fiber->execute_data = execute_data;
 	fiber->status = ZEND_FIBER_STATUS_SUSPENDED;
 
 	GC_DELREF(&fiber->std);
-
-	if (value != NULL) {
-		ZVAL_COPY(fiber->value, value);
-	}
 
 	if (!zend_fiber_suspend(fiber)) {
 		fiber->status = ZEND_FIBER_STATUS_RUNNING;
@@ -624,7 +544,7 @@ ZEND_METHOD(Fiber, resume)
 		return;
 	}
 
-	if (!(fiber->status & ZEND_FIBER_STATUS_FINISHED) && Z_TYPE_P(fiber->value) != IS_UNDEF) {
+	if (!(fiber->status & ZEND_FIBER_STATUS_FINISHED)) {
 		RETVAL_COPY_VALUE(fiber->value);
 		ZVAL_UNDEF(fiber->value);
 	}
@@ -660,7 +580,7 @@ ZEND_METHOD(Fiber, throw)
 		return;
 	}
 
-	if (!(fiber->status & ZEND_FIBER_STATUS_FINISHED) && Z_TYPE_P(fiber->value) != IS_UNDEF) {
+	if (!(fiber->status & ZEND_FIBER_STATUS_FINISHED)) {
 		RETVAL_COPY_VALUE(fiber->value);
 		ZVAL_UNDEF(fiber->value);
 	}
@@ -741,6 +661,23 @@ ZEND_METHOD(Fiber, getReturn)
 	RETURN_COPY(fiber->value);
 }
 /* }}} */
+
+
+/* {{{ proto Fiber|null Fiber::this() */
+ZEND_METHOD(Fiber, this)
+{
+	zend_fiber *fiber;
+
+	ZEND_PARSE_PARAMETERS_NONE();
+
+	fiber = FIBER_G(current_fiber);
+
+	if (fiber != NULL) {
+		RETVAL_OBJ_COPY(&fiber->std);
+	}
+}
+/* }}} */
+
 
 /* {{{ proto FiberError::__construct(string $message) */
 ZEND_METHOD(FiberError, __construct)
@@ -933,6 +870,9 @@ ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_fiber_status, 0, 0, _IS_BOOL, 0)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_fiber_this, 0, 0, Fiber, 1)
+ZEND_END_ARG_INFO()
+
 ZEND_BEGIN_ARG_INFO_EX(arginfo_fiber_suspend, 0, 0, 0)
 	ZEND_ARG_INFO(0, value)
 ZEND_END_ARG_INFO()
@@ -947,6 +887,7 @@ static const zend_function_entry fiber_methods[] = {
 	ZEND_ME(Fiber, isRunning, arginfo_fiber_status, ZEND_ACC_PUBLIC)
 	ZEND_ME(Fiber, isTerminated, arginfo_fiber_status, ZEND_ACC_PUBLIC)
 	ZEND_ME(Fiber, getReturn, arginfo_fiber_getReturn, ZEND_ACC_PUBLIC)
+	ZEND_ME(Fiber, this, arginfo_fiber_this, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
 	ZEND_ME(Fiber, suspend, arginfo_fiber_suspend, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
 	ZEND_FE_END
 };

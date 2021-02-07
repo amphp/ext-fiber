@@ -41,9 +41,6 @@ ZEND_BEGIN_MODULE_GLOBALS(fiber)
 	/* Currently executing fibers. */
 	HashTable fibers;
 
-	/* Active fiber schedulers. */
-	HashTable schedulers;
-
 	/* Flag if a shutdown function has been invoked. */
 	zend_bool shutdown;
 

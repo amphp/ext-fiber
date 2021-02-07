@@ -63,14 +63,12 @@ static PHP_GINIT_FUNCTION(fiber)
 	ZEND_SECURE_ZERO(fiber_globals, sizeof(zend_fiber_globals));
 
 	zend_hash_init(&fiber_globals->fibers, 0, NULL, NULL, 1);
-	zend_hash_init(&fiber_globals->schedulers, 0, NULL, zend_fiber_scheduler_hash_index_dtor, 1);
 }
 
 PHP_MINIT_FUNCTION(fiber)
 {
 	zend_fiber_ce_register();
 
-	zend_observer_fcall_register(zend_fiber_observer_fcall_init);
 	zend_observer_error_register(zend_fiber_error_observer);
 
 	REGISTER_INI_ENTRIES();
@@ -120,7 +118,6 @@ static PHP_RSHUTDOWN_FUNCTION(fiber)
 static PHP_GSHUTDOWN_FUNCTION(fiber)
 {
 	zend_hash_destroy(&fiber_globals->fibers);
-	zend_hash_destroy(&fiber_globals->schedulers);
 }
 
 zend_module_entry fiber_module_entry = {
