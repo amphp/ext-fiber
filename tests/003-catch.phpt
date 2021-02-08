@@ -1,21 +1,23 @@
 --TEST--
-Catch exception from throw
+Catch exception thrown into fiber
 --SKIPIF--
 <?php include __DIR__ . '/include/skip-if.php';
 --FILE--
 <?php
 
-require dirname(__DIR__) . '/scripts/bootstrap.php';
+$fiber = new Fiber(function () {
+    try {
+        Fiber::suspend('test');
+    } catch (Exception $exception) {
+        var_dump($exception->getMessage());
+    }
+});
 
-$loop = new Loop;
-$fiber = Fiber::this();
-$loop->defer(fn() => $fiber->throw(new Exception('test')));
+$value = $fiber->start();
+var_dump($value);
 
-try {
-    echo Fiber::suspend($loop->getScheduler());
-} catch (Exception $exception) {
-    echo $exception->getMessage();
-}
+$fiber->throw(new Exception('test'));
 
 --EXPECT--
-test
+string(4) "test"
+string(4) "test"
