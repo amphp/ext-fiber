@@ -27,40 +27,40 @@ final class Fiber
     /**
      * Starts execution of the fiber. Returns when the fiber suspends or terminates.
      *
-     * Must be called from {@see FiberScheduler}.
-     *
      * @param mixed ...$args Arguments passed to fiber function.
+     *
+     * @return mixed Value from the first suspension point.
      *
      * @throw FiberError If the fiber is running or terminated.
      * @throw Throwable If the fiber callable throws an uncaught exception.
      */
-    public function start(mixed ...$args): void { }
+    public function start(mixed ...$args): mixed { }
 
     /**
      * Resumes the fiber, returning the given value from {@see Fiber::suspend()}.
      * Returns when the fiber suspends or terminates.
      *
-     * Must be called from {@see FiberScheduler}.
-     *
      * @param mixed $value
+     *
+     * @return mixed Value from the next suspension point or NULL if the fiber terminates.
      *
      * @throw FiberError If the fiber is running or terminated.
      * @throw Throwable If the fiber callable throws an uncaught exception.
      */
-    public function resume(mixed $value = null): void { }
+    public function resume(mixed $value = null): mixed { }
 
     /**
      * Throws the given exception into the fiber from {@see Fiber::suspend()}.
      * Returns when the fiber suspends or terminates.
      *
-     * Must be called from {@see FiberScheduler}.
-     *
      * @param Throwable $exception
+     *
+     * @return mixed Value from the next suspension point or NULL if the fiber terminates.
      *
      * @throw FiberError If the fiber is running or terminated.
      * @throw Throwable If the fiber callable throws an uncaught exception.
      */
-    public function throw(Throwable $exception): void { }
+    public function throw(Throwable $exception): mixed { }
 
     /**
      * @return bool True if the fiber has been started.
@@ -83,91 +83,40 @@ final class Fiber
     public function isTerminated(): bool { }
 
     /**
-     * Returns the currently executing Fiber instance.
+     * @return mixed Return value of the fiber callback.
      *
-     * Cannot be called from {@see FiberScheduler}.
-     *
-     * @return Fiber The currently executing fiber.
-     *
-     * @throws FiberError Thrown if within {@see FiberScheduler}.
+     * @throws FiberError If the fiber has not terminated or did not return a value.
      */
-    public static function this(): Fiber { }
+    public function getReturn(): mixed { }
 
     /**
-     * Suspend execution of the fiber, switching execution to the scheduler.
+     * @return self|null Returns the currently executing fiber instance or NULL if in {main}.
+     */
+    public static function this(): ?self { }
+
+    /**
+     * Suspend execution of the fiber. The fiber may be resumed with {@see Fiber::resume()} or {@see Fiber::throw()}.
      *
-     * The fiber may be resumed with {@see Fiber::resume()} or {@see Fiber::throw()}
-     * from the instance of {@see FiberScheduler} given.
+     * Cannot be called from {main}.
      *
-     * Cannot be called from {@see FiberScheduler}.
-     *
-     * @param FiberScheduler $scheduler
+     * @param mixed $value Value to return from {@see Fiber::resume()} or {@see Fiber::throw()}.
      *
      * @return mixed Value provided to {@see Fiber::resume()}.
      *
-     * @throws FiberError Thrown if within {@see FiberScheduler}.
      * @throws Throwable Exception provided to {@see Fiber::throw()}.
      */
-    public static function suspend(FiberScheduler $scheduler): mixed { }
+    public static function suspend(mixed $value = null): mixed { }
 }
 ```
 
 A `Fiber` object is created using `new Fiber(callable $callback)` with any callable. The callable need not call `Fiber::suspend()` directly, it may be in a deeply nested call, far down the call stack (or perhaps never call `Fiber::suspend()` at all). The returned `Fiber` may be started within a `FiberScheduler` (discussed below) using `Fiber->start(mixed ...$args)` with a variadic argument list that is provided as arguments to the callable used when creating the `Fiber`.
 
-`Fiber::suspend()` suspends execution of the current fiber and switches to a scheduler fiber created from the instance of `FiberScheduler` given. This will be discussed in further detail in the next section describing `FiberScheduler`.
-
-`Fiber::this()` returns the currently executing `Fiber` instance. This object may be stored to be used at a later time to resume the fiber with any value or throw an exception into the fiber. The `Fiber` object should be attached to event watchers in the `FiberScheduler` instance (event loop), added to a list of pending fibers, or otherwise used to set up logic that will resume the fiber at a later time from the instance of `FiberScheduler` provided to `Fiber::suspend()`.
+`Fiber::suspend()` suspends execution of the current fiber and returns execution to the call to `Fiber->start()`, `Fiber::resume()`, or `Fiber::throw()`.
 
 A suspended fiber may be resumed in one of two ways:
 
 * returning a value from `Fiber::suspend()` using `Fiber->resume()`
 * throwing an exception from `Fiber::suspend()` using `Fiber->throw()`
-
-### FiberScheduler
-
-``` php
-final class FiberScheduler
-{
-    /**
-     * @param callable $callback Function to invoke when starting the fiber scheduler.
-     */
-    public function __construct(callable $callback) { }
-
-    /**
-     * @return bool True if the fiber has been started.
-     */
-    public function isStarted(): bool { }
-
-    /**
-     * @return bool True if the fiber is suspended.
-     */
-    public function isSuspended(): bool { }
-
-    /**
-     * @return bool True if the fiber is currently running.
-     */
-    public function isRunning(): bool { }
-
-    /**
-     * @return bool True if the fiber has completed execution.
-     */
-    public function isTerminated(): bool { }
-}
-```
-
-A `FiberScheduler` defines a class which is able to start new fibers using `Fiber->start()` and resume fibers using `Fiber->resume()` and `Fiber->throw()`. In general, a fiber scheduler would be an event loop that responds to events on sockets, timers, and deferred functions.
-
-An instance of `FiberScheduler` is a special kind of fiber. The scheduler fiber is suspended when resuming or starting another fiber (that is, when calling `Fiber->start()`, `Fiber->resume()`, or `Fiber->throw()`) and again resumed when the same instance of `FiberScheduler` is provided to another call to `Fiber::suspend()`. It is expected that the `FiberScheduler` fiber will not terminate until all pending events have been processed and any suspended fibers have been resumed. In practice this is not difficult, as the scheduler fiber is suspended when resuming a fiber and only re-entered upon a fiber suspending which will create more events in the scheduler.
-
-If a scheduler terminates without resuming a dependent suspended fiber, an instance of `FiberError` is thrown from the call to `Fiber::suspend()`. If a `FiberScheduler` instance is later reused in a call to `Fiber::suspend()`, it must be ensured that the `FiberScheduler` did not already terminate.
-
-`FiberScheduler` throwing an exception results in an uncaught `FiberExit` exception and exits the script.
-
-A fiber *must* be resumed from within the instance of `FiberScheduler` provided to `Fiber::suspend()`. Doing otherwise results in a fatal error. In practice this means that calling `Fiber->resume()` or `Fiber->throw()` must be within a callback registered to an event handled within a `FiberScheduler` instance. Often it is desirable to ensure resumption of a fiber is asynchronous, making it easier to reason about program state before and after an event would resume a fiber. New fibers also must be started within a `FiberScheduler` (though the started fiber may use any scheduler within that fiber).
-
-Fibers must be started and resumed within a fiber scheduler in order to maintain ordering of the internal fiber stack. Internally, a fiber may only switch to a new fiber, a suspended fiber, or suspend to the prior fiber. In essense, a fiber may be pushed or popped from the stack, but execution cannot move to within the stack. The fiber scheduler acts as a hub which may branch into another fiber or suspend to the main fiber. If a fiber were to attempt to switch to a fiber that is already running, the program will crash. Checks prevent this from happening, throwing an exception into PHP instead of crashing the VM.
-
-When a script ends, each `FiberScheduler` created is resumed in reverse order of creation to complete unfinished tasks or free resources.
 
 ### ReflectionFiber
 
@@ -220,25 +169,6 @@ class ReflectionFiber
      *              throwing an exception).
      */
     public function isTerminated(): bool { }
-}
-```
-
-### ReflectionFiberScheduler
-
-`ReflectionFiberScheduler` is used to inspect the internal fibers created from objects implementing `FiberScheduler` after being used to suspend a fiber.
-
-``` php
-class ReflectionFiberScheduler extends ReflectionFiber
-{
-    /**
-     * @param FiberScheduler $scheduler
-     */
-    public function __construct(FiberScheduler $scheduler) { }
-
-    /**
-     * @return FiberScheduler The instance used to create the fiber.
-     */
-    public function getScheduler(): FiberScheduler { }
 }
 ```
 
