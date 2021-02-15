@@ -88,9 +88,11 @@ struct _zend_fiber_reflection {
 };
 
 PHP_FIBER_API zend_fiber *zend_get_current_fiber();
-PHP_FIBER_API zend_long zend_fiber_get_id(zend_fiber *fiber);
-PHP_FIBER_API zend_long zend_fiber_get_current_id();
 PHP_FIBER_API zend_bool zend_is_fiber_exit(zend_object *exception);
+
+typedef void (*zend_observer_fiber_switch_handler)(zend_fiber *from, zend_fiber *to);
+
+PHP_FIBER_API void zend_observer_fiber_switch_register(zend_observer_fiber_switch_handler handler);
 
 static const zend_uchar ZEND_FIBER_STATUS_INIT = 0;
 static const zend_uchar ZEND_FIBER_STATUS_SUSPENDED = 0x1;

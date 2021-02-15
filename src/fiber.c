@@ -41,6 +41,8 @@ static zend_op_array fiber_run_func;
 static zend_try_catch_element fiber_terminate_try_catch_array = { 0, 1, 0, 0 };
 static zend_op fiber_run_op[2];
 
+zend_llist zend_fiber_observers_list;
+
 #define ZEND_FIBER_BACKUP_EG(stack, stack_page_size, execute_data, trace_num) do { \
 	stack = EG(vm_stack); \
 	stack->top = EG(vm_stack_top); \
@@ -67,23 +69,29 @@ PHP_FIBER_API zend_fiber *zend_get_current_fiber()
 }
 
 
-zend_always_inline PHP_FIBER_API zend_long zend_fiber_get_id(zend_fiber *fiber)
-{
-	return fiber->id;
-}
-
-
-zend_always_inline PHP_FIBER_API zend_long zend_fiber_get_current_id()
-{
-	return zend_get_current_fiber()->id;
-}
-
-
 zend_always_inline PHP_FIBER_API zend_bool zend_is_fiber_exit(zend_object *exception)
 {
 	ZEND_ASSERT(exception && "No exception object provided");
 
 	return exception->ce == zend_ce_fiber_exit;
+}
+
+
+void zend_observer_fiber_switch_register(zend_observer_fiber_switch_handler handler)
+{
+	zend_llist_add_element(&zend_fiber_observers_list, &handler);
+}
+
+
+zend_always_inline static void zend_observer_fiber_switch_notify(zend_fiber *from, zend_fiber *to)
+{
+	zend_llist_element *element;
+	zend_observer_fiber_switch_handler callback;
+
+	for (element = zend_fiber_observers_list.head; element; element = element->next) {
+		callback = *(zend_observer_fiber_switch_handler *) element->data;
+		callback(from, to);
+	}
 }
 
 
@@ -108,6 +116,8 @@ static zend_bool zend_fiber_switch_to(zend_fiber *fiber)
 
 	FIBER_G(current_fiber) = fiber;
 
+	zend_observer_fiber_switch_notify(previous, fiber);
+
 	ZEND_FIBER_BACKUP_EG(stack, stack_page_size, execute_data, jit_trace_num);
 
 	result = zend_fiber_switch_context(previous == NULL ? root : previous->context, fiber->context);
@@ -115,6 +125,8 @@ static zend_bool zend_fiber_switch_to(zend_fiber *fiber)
 	FIBER_G(current_fiber) = previous;
 
 	ZEND_FIBER_RESTORE_EG(stack, stack_page_size, execute_data, jit_trace_num);
+
+	zend_observer_fiber_switch_notify(fiber, previous);
 
 	return result;
 }
@@ -995,6 +1007,8 @@ void zend_fiber_ce_register()
 	zend_reflection_fiber_handlers = std_object_handlers;
 	zend_reflection_fiber_handlers.free_obj = zend_reflection_fiber_object_destroy;
 	zend_reflection_fiber_handlers.clone_obj = NULL;
+
+	zend_llist_init(&zend_fiber_observers_list, sizeof(zend_observer_fiber_switch_handler), NULL, 1);
 }
 
 void zend_fiber_ce_unregister()
@@ -1006,6 +1020,8 @@ void zend_fiber_ce_unregister()
 
 	zend_string_free(fiber_run_func.filename);
 	fiber_run_func.filename = NULL;
+
+	zend_llist_destroy(&zend_fiber_observers_list);
 }
 
 void zend_fiber_startup()
