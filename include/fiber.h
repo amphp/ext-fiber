@@ -48,7 +48,7 @@ struct _zend_fiber {
 	/* Fiber PHP object handle. */
 	zend_object std;
 
-	/* Unique ID assigned to this fiber. Root fiber is always 0. */
+	/* Unique ID assigned to this fiber. */
 	zend_long id;
 
 	/* Status of the fiber, one of the ZEND_FIBER_STATUS_* constants. */
@@ -70,11 +70,11 @@ struct _zend_fiber {
 	/* Max size of the C stack being used by the fiber. */
 	size_t stack_size;
 
-	/* Exception to be thrown from Fiber::suspend(). Unused on fiber schedulers. */
+	/* Exception to be thrown from Fiber::suspend(). */
 	zval *error;
 
-	/* Value to return from Fiber::suspend(). Pointer invalid on fiber schedulers. */
-	zval *value;
+	/* Storage for temporaries and fiber return value. */
+	zval value;
 };
 
 typedef struct _zend_fiber_reflection zend_fiber_reflection;

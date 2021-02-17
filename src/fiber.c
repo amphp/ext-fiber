@@ -220,7 +220,7 @@ static int fiber_run_opcode_handler(zend_execute_data *execute_data)
 		fiber->status = ZEND_FIBER_STATUS_RETURNED;
 	}
 
-	ZVAL_COPY(fiber->value, &retval);
+	ZVAL_COPY(&fiber->value, &retval);
 	zval_ptr_dtor(&retval);
 
 	GC_DELREF(&fiber->std);
@@ -251,16 +251,15 @@ static zend_object *zend_fiber_object_create(zend_class_entry *ce)
 {
 	zend_fiber *fiber;
 
-	fiber = emalloc(sizeof(zend_fiber) + sizeof(zval));
-	memset(fiber, 0, sizeof(zend_fiber) + sizeof(zval));
+	fiber = emalloc(sizeof(zend_fiber));
+	memset(fiber, 0, sizeof(zend_fiber));
 
 	fiber->id = FIBER_G(id)++;
 
 	zend_object_std_init(&fiber->std, ce);
 	fiber->std.handlers = &zend_fiber_handlers;
 
-	fiber->value = (zval *) ((char *) fiber + sizeof(zend_fiber));
-	ZVAL_UNDEF(fiber->value);
+	ZVAL_UNDEF(&fiber->value);
 
 	zend_hash_index_add_ptr(&FIBER_G(fibers), fiber->std.handle, fiber);
 
@@ -272,7 +271,7 @@ static void zend_fiber_object_destroy(zend_object *object)
 {
 	zend_fiber *fiber = (zend_fiber *) object;
 
-	zval_ptr_dtor(fiber->value);
+	zval_ptr_dtor(&fiber->value);
 
 	zend_hash_index_del(&FIBER_G(fibers), fiber->std.handle);
 
@@ -442,10 +441,12 @@ ZEND_METHOD(Fiber, start)
 
 	zval_ptr_dtor(&fiber->fci.function_name);
 
-	if (!(fiber->status & ZEND_FIBER_STATUS_FINISHED) && Z_TYPE_P(fiber->value) != IS_UNDEF) {
-		RETVAL_COPY_VALUE(fiber->value);
-		ZVAL_UNDEF(fiber->value);
+	if (fiber->status & ZEND_FIBER_STATUS_FINISHED) {
+		RETURN_NULL();
 	}
+
+	RETVAL_COPY_VALUE(&fiber->value);
+	ZVAL_UNDEF(&fiber->value);
 }
 /* }}} */
 
@@ -483,9 +484,9 @@ ZEND_METHOD(Fiber, suspend)
 	ZEND_PARSE_PARAMETERS_END();
 
 	if (value != NULL) {
-		ZVAL_COPY(fiber->value, value);
+		ZVAL_COPY(&fiber->value, value);
 	} else {
-		ZVAL_NULL(fiber->value);
+		ZVAL_NULL(&fiber->value);
 	}
 
 	fiber->execute_data = execute_data;
@@ -509,8 +510,8 @@ ZEND_METHOD(Fiber, suspend)
 	GC_ADDREF(&fiber->std);
 
 	if (fiber->error == NULL) {
-		RETVAL_COPY_VALUE(fiber->value);
-		ZVAL_UNDEF(fiber->value);
+		RETVAL_COPY_VALUE(&fiber->value);
+		ZVAL_UNDEF(&fiber->value);
 		return;
 	}
 
@@ -543,9 +544,9 @@ ZEND_METHOD(Fiber, resume)
 	}
 
 	if (value != NULL) {
-		ZVAL_COPY(fiber->value, value);
+		ZVAL_COPY(&fiber->value, value);
 	} else {
-		ZVAL_NULL(fiber->value);
+		ZVAL_NULL(&fiber->value);
 	}
 
 	fiber->status = ZEND_FIBER_STATUS_RUNNING;
@@ -556,10 +557,12 @@ ZEND_METHOD(Fiber, resume)
 		return;
 	}
 
-	if (!(fiber->status & ZEND_FIBER_STATUS_FINISHED)) {
-		RETVAL_COPY_VALUE(fiber->value);
-		ZVAL_UNDEF(fiber->value);
+	if (fiber->status & ZEND_FIBER_STATUS_FINISHED) {
+		RETURN_NULL();
 	}
+
+	RETVAL_COPY_VALUE(&fiber->value);
+	ZVAL_UNDEF(&fiber->value);
 }
 /* }}} */
 
@@ -592,10 +595,12 @@ ZEND_METHOD(Fiber, throw)
 		return;
 	}
 
-	if (!(fiber->status & ZEND_FIBER_STATUS_FINISHED)) {
-		RETVAL_COPY_VALUE(fiber->value);
-		ZVAL_UNDEF(fiber->value);
+	if (fiber->status & ZEND_FIBER_STATUS_FINISHED) {
+		RETURN_NULL();
 	}
+
+	RETVAL_COPY_VALUE(&fiber->value);
+	ZVAL_UNDEF(&fiber->value);
 }
 /* }}} */
 
@@ -684,7 +689,7 @@ ZEND_METHOD(Fiber, getReturn)
 		return;
 	}
 
-	RETURN_COPY(fiber->value);
+	RETURN_COPY(&fiber->value);
 }
 /* }}} */
 
