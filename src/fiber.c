@@ -666,7 +666,21 @@ ZEND_METHOD(Fiber, getReturn)
 	fiber = (zend_fiber *) Z_OBJ_P(getThis());
 
 	if (!(fiber->status & ZEND_FIBER_STATUS_RETURNED)) {
-		zend_throw_error(zend_ce_fiber_error, "The fiber has not finished or did not return a value");
+		char *message;
+
+		switch (fiber->status) {
+			case ZEND_FIBER_STATUS_INIT:
+				message = "The fiber has not been started";
+				break;
+			case ZEND_FIBER_STATUS_THREW:
+				message = "The fiber threw an exception";
+				break;
+			default:
+				message = "The fiber has not returned";
+				break;
+		}
+
+		zend_throw_error(zend_ce_fiber_error, "Cannot get fiber return value: %s", message);
 		return;
 	}
 
