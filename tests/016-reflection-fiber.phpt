@@ -16,6 +16,8 @@ $fiber = new Fiber(function (): void {
 
 $reflection = new ReflectionFiber($fiber);
 
+var_dump($fiber === $reflection->getFiber());
+
 var_dump($reflection->isStarted());
 var_dump($reflection->isRunning());
 var_dump($reflection->isSuspended());
@@ -40,6 +42,7 @@ var_dump($fiber->isSuspended());
 var_dump($fiber->isTerminated());
 
 --EXPECTF--
+bool(true)
 bool(false)
 bool(false)
 bool(false)

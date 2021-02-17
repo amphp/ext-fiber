@@ -684,9 +684,11 @@ ZEND_METHOD(Fiber, this)
 
 	fiber = FIBER_G(current_fiber);
 
-	if (fiber != NULL) {
-		RETVAL_OBJ_COPY(&fiber->std);
+	if (fiber == NULL) {
+		RETURN_NULL();
 	}
+
+	RETURN_OBJ_COPY(&fiber->std);
 }
 /* }}} */
 
@@ -721,6 +723,21 @@ ZEND_METHOD(ReflectionFiber, __construct)
 	GC_ADDREF(&reflection->fiber->std);
 }
 /* }}} */
+
+
+/* {{{ proto Fiber ReflectionFiber::getFiber() */
+ZEND_METHOD(ReflectionFiber, getFiber)
+{
+	zend_fiber_reflection *reflection;
+
+	ZEND_PARSE_PARAMETERS_NONE();
+
+	reflection = (zend_fiber_reflection *) Z_OBJ_P(getThis());
+
+	RETURN_OBJ_COPY(&reflection->fiber->std);
+}
+/* }}} */
+
 
 #define REFLECTION_CHECK_VALID_FIBER(fiber) do { \
         if (fiber == NULL || fiber->status == ZEND_FIBER_STATUS_INIT || fiber->status & ZEND_FIBER_STATUS_FINISHED) { \
@@ -916,6 +933,9 @@ ZEND_BEGIN_ARG_INFO(arginfo_reflection_fiber_construct, 0)
 	ZEND_ARG_OBJ_INFO(0, fiber, Fiber, 0)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_reflection_fiber_getFiber, 0, 0, Fiber, 0)
+ZEND_END_ARG_INFO()
+
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_reflection_fiber_getExecutingLine, 0, 0, IS_LONG, 0)
 ZEND_END_ARG_INFO()
 
@@ -931,6 +951,7 @@ ZEND_END_ARG_INFO()
 
 static const zend_function_entry reflection_fiber_methods[] = {
 	ZEND_ME(ReflectionFiber, __construct, arginfo_reflection_fiber_construct, ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
+	ZEND_ME(ReflectionFiber, getFiber, arginfo_reflection_fiber_getFiber, ZEND_ACC_PUBLIC)
 	ZEND_ME(ReflectionFiber, getTrace, arginfo_reflection_fiber_getTrace, ZEND_ACC_PUBLIC)
 	ZEND_ME(ReflectionFiber, getExecutingLine, arginfo_reflection_fiber_getExecutingLine, ZEND_ACC_PUBLIC)
 	ZEND_ME(ReflectionFiber, getExecutingFile, arginfo_reflection_fiber_getExecutingFile, ZEND_ACC_PUBLIC)

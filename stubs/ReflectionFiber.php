@@ -9,6 +9,11 @@ class ReflectionFiber
     public function __construct(Fiber $fiber) { }
 
     /**
+     * @return Fiber The reflected Fiber object.
+     */
+    public function getFiber(): Fiber { }
+
+    /**
      * @return string Current file of fiber execution.
      */
     public function getExecutingFile(): string { }
