@@ -38,8 +38,7 @@ static zend_object *zend_fiber_object_create(zend_class_entry *ce);
 static void zend_fiber_object_destroy(zend_object *object);
 
 static zend_op_array fiber_run_func;
-static zend_try_catch_element fiber_terminate_try_catch_array = { 0, 1, 0, 0 };
-static zend_op fiber_run_op[2];
+static zend_op fiber_run_op;
 
 zend_llist zend_fiber_observers_list;
 
@@ -181,7 +180,7 @@ static void zend_fiber_run()
 
 	zend_vm_init_call_frame(fiber->execute_data, ZEND_CALL_TOP_FUNCTION, (zend_function *) &fiber_run_func, 0, NULL);
 
-	fiber->execute_data->opline = fiber_run_op;
+	fiber->execute_data->opline = &fiber_run_op;
 	fiber->execute_data->call = NULL;
 	fiber->execute_data->return_value = NULL;
 	fiber->execute_data->prev_execute_data = NULL;
@@ -257,7 +256,7 @@ static zend_object *zend_fiber_object_create(zend_class_entry *ce)
 	zend_fiber *fiber;
 
 	fiber = emalloc(sizeof(zend_fiber));
-	memset(fiber, 0, sizeof(zend_fiber));
+	ZEND_SECURE_ZERO(fiber, sizeof(zend_fiber));
 
 	fiber->id = FIBER_G(id)++;
 
@@ -356,7 +355,7 @@ static zend_object *zend_reflection_fiber_object_create(zend_class_entry *ce)
 	zend_fiber_reflection *reflection;
 
 	reflection = emalloc(sizeof(zend_fiber_reflection));
-	memset(reflection, 0, sizeof(zend_fiber_reflection));
+	ZEND_SECURE_ZERO(reflection, sizeof(zend_fiber_reflection));
 
 	zend_object_std_init(&reflection->std, ce);
 	reflection->std.handlers = &zend_reflection_fiber_handlers;
@@ -1000,19 +999,15 @@ void zend_fiber_ce_register()
 
 	zend_set_user_opcode_handler(opcode, fiber_run_opcode_handler);
 
-	ZEND_SECURE_ZERO(fiber_run_op, sizeof(zend_op) * 2);
-	fiber_run_op[0].opcode = opcode;
-	zend_vm_set_opcode_handler_ex(fiber_run_op, 0, 0, 0);
-	fiber_run_op[1].opcode = opcode;
-	zend_vm_set_opcode_handler_ex(fiber_run_op + 1, 0, 0, 0);
+	ZEND_SECURE_ZERO(&fiber_run_op, sizeof(zend_op));
+	fiber_run_op.opcode = opcode;
+	zend_vm_set_opcode_handler_ex(&fiber_run_op, 0, 0, 0);
 
 	ZEND_SECURE_ZERO(&fiber_run_func, sizeof(fiber_run_func));
 	fiber_run_func.type = ZEND_USER_FUNCTION;
 	fiber_run_func.function_name = zend_string_init("Fiber::run", sizeof("Fiber::run") - 1, 1);
 	fiber_run_func.filename = zend_string_init("[fiber function]", sizeof("[fiber function]") - 1, 1);
-	fiber_run_func.opcodes = fiber_run_op;
-	fiber_run_func.last_try_catch = 1;
-	fiber_run_func.try_catch_array = &fiber_terminate_try_catch_array;
+	fiber_run_func.opcodes = &fiber_run_op;
 
 	FIBER_G(catch_handler) = zend_get_user_opcode_handler(ZEND_CATCH);
 	zend_set_user_opcode_handler(ZEND_CATCH, zend_fiber_catch_handler);
