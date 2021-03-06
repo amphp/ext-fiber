@@ -168,9 +168,15 @@ static zend_always_inline zend_vm_stack zend_fiber_vm_stack_alloc(size_t size)
 static void zend_fiber_run()
 {
 	zend_fiber *fiber;
+	zend_long error_reporting;
 
 	fiber = FIBER_G(current_fiber);
 	ZEND_ASSERT(fiber != NULL);
+
+	error_reporting = INI_INT("error_reporting");
+	if (!error_reporting && !INI_STR("error_reporting")) {
+		error_reporting = E_ALL;
+	}
 
 	fiber->execute_data = (zend_execute_data *) fiber->stack->top;
 	EG(vm_stack) = fiber->stack;
@@ -187,7 +193,7 @@ static void zend_fiber_run()
 
 	EG(current_execute_data) = fiber->execute_data;
 	EG(jit_trace_num) = 0;
-	EG(error_reporting) = INI_INT("error_reporting") ?: E_ALL;
+	EG(error_reporting) = error_reporting;
 
 	zend_execute_ex(fiber->execute_data);
 
