@@ -187,7 +187,7 @@ static void zend_fiber_run()
 
 	EG(current_execute_data) = fiber->execute_data;
 	EG(jit_trace_num) = 0;
-	EG(error_reporting) = INI_INT("error_reporting");
+	EG(error_reporting) = INI_INT("error_reporting") ?: E_ALL;
 
 	zend_execute_ex(fiber->execute_data);
 
