@@ -66,9 +66,9 @@ final class Fiber
     public function isTerminated(): bool { }
 
     /**
-     * @return mixed Return value of the fiber callback.
+     * @return mixed Return value of the fiber callback. NULL is returned if the fiber does not have a return statement.
      *
-     * @throws FiberError If the fiber has not terminated or did not return a value.
+     * @throws FiberError If the fiber has not terminated or the fiber threw an exception.
      */
     public function getReturn(): mixed { }
 
