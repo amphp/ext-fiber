@@ -1,6 +1,6 @@
 #!/bin/bash
 
-PHP_VERSION=7.3.0alpha2
+PHP_VERSION=8.0.3
 
 sudo apt-get update
 sudo apt-get install git gcc make pkg-config autoconf bison libxml2-dev libssl-dev curl -y
@@ -20,10 +20,9 @@ sudo ./configure \
     --prefix=/usr/local/php/cli \
     --with-config-file-path=/usr/local/php/cli \
     --enable-maintainer-zts \
-    --with-zlib \
-    --without-pear \
     --enable-debug \
     --enable-pcntl \
+    --enable-opcache \
     --enable-sockets
 
 sudo make -j4
