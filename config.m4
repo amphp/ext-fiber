@@ -18,7 +18,7 @@ if test "$PHP_FIBER" != "no"; then
   )
 
   AS_CASE([$host_cpu],
-    [x86_64*], [fiber_cpu="x86_64"],
+    [x86_64*|amd64*], [fiber_cpu="x86_64"],
     [x86*|amd*|i[[3456]]86*|pentium], [fiber_cpu="x86"],
     [aarch64*], [fiber_cpu="arm64"],
     [arm*], [fiber_cpu="arm"],
