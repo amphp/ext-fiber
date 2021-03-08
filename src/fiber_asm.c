@@ -42,9 +42,9 @@ typedef struct _zend_fiber_record_asm {
 	zend_fiber_func func;
 } zend_fiber_record_asm;
 
-char *zend_fiber_backend_info()
+char *zend_fiber_backend_info(void)
 {
-	return "assembler (boost.context v1.67.0)";
+	return "assembler (boost.context v1.75.0)";
 }
 
 void zend_fiber_asm_start(transfer_t trans)
@@ -64,7 +64,7 @@ void zend_fiber_asm_start(transfer_t trans)
 	record->func();
 }
 
-zend_fiber_context zend_fiber_create_root_context()
+zend_fiber_context zend_fiber_create_root_context(void)
 {
 	zend_fiber_context_asm *context;
 
@@ -77,7 +77,7 @@ zend_fiber_context zend_fiber_create_root_context()
 	return (zend_fiber_context) context;
 }
 
-zend_fiber_context zend_fiber_create_context()
+zend_fiber_context zend_fiber_create_context(void)
 {
 	zend_fiber_context_asm *context;
 

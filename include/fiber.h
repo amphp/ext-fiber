@@ -19,11 +19,11 @@
 
 BEGIN_EXTERN_C()
 
-void zend_fiber_ce_register();
-void zend_fiber_ce_unregister();
+void zend_fiber_ce_register(void);
+void zend_fiber_ce_unregister(void);
 
-void zend_fiber_startup();
-void zend_fiber_shutdown();
+void zend_fiber_startup(void);
+void zend_fiber_shutdown(void);
 
 #ifdef PHP_WIN32
 # ifdef PHP_FIBER_EXPORTS
@@ -87,7 +87,7 @@ struct _zend_fiber_reflection {
 	zend_fiber *fiber;
 };
 
-PHP_FIBER_API zend_fiber *zend_get_current_fiber();
+PHP_FIBER_API zend_fiber *zend_get_current_fiber(void);
 PHP_FIBER_API zend_bool zend_is_fiber_exit(zend_object *exception);
 
 typedef void (*zend_observer_fiber_switch_handler)(zend_fiber *from, zend_fiber *to);
@@ -103,12 +103,12 @@ static const zend_uchar ZEND_FIBER_STATUS_SHUTDOWN = 0x10;
 
 static const zend_uchar ZEND_FIBER_STATUS_FINISHED = 0x1c;
 
-typedef void (* zend_fiber_func)();
+typedef void (* zend_fiber_func)(void);
 
-char *zend_fiber_backend_info();
+char *zend_fiber_backend_info(void);
 
-zend_fiber_context zend_fiber_create_root_context();
-zend_fiber_context zend_fiber_create_context();
+zend_fiber_context zend_fiber_create_root_context(void);
+zend_fiber_context zend_fiber_create_context(void);
 
 zend_bool zend_fiber_create(zend_fiber_context context, zend_fiber_func func, size_t stack_size);
 void zend_fiber_destroy(zend_fiber_context context);

@@ -32,12 +32,12 @@ struct _zend_fiber_context_ucontext {
 	zend_bool root;
 };
 
-char *zend_fiber_backend_info()
+char *zend_fiber_backend_info(void)
 {
 	return "ucontext (POSIX.1-2001, deprecated since POSIX.1-2004)";
 }
 
-zend_fiber_context zend_fiber_create_root_context()
+zend_fiber_context zend_fiber_create_root_context(void)
 {
 	zend_fiber_context_ucontext *context;
 
@@ -50,7 +50,7 @@ zend_fiber_context zend_fiber_create_root_context()
 	return (zend_fiber_context) context;
 }
 
-zend_fiber_context zend_fiber_create_context()
+zend_fiber_context zend_fiber_create_context(void)
 {
 	zend_fiber_context_ucontext *context;
 

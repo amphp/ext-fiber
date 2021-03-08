@@ -64,7 +64,7 @@ zend_llist zend_fiber_observers_list;
 
 
 
-PHP_FIBER_API zend_fiber *zend_get_current_fiber()
+PHP_FIBER_API zend_fiber *zend_get_current_fiber(void)
 {
 	return FIBER_G(current_fiber);
 }
@@ -78,7 +78,7 @@ zend_always_inline PHP_FIBER_API zend_bool zend_is_fiber_exit(zend_object *excep
 }
 
 
-void zend_observer_fiber_switch_register(zend_observer_fiber_switch_handler handler)
+PHP_FIBER_API void zend_observer_fiber_switch_register(zend_observer_fiber_switch_handler handler)
 {
 	zend_llist_add_element(&zend_fiber_observers_list, &handler);
 }
@@ -165,7 +165,7 @@ static zend_always_inline zend_vm_stack zend_fiber_vm_stack_alloc(size_t size)
 }
 
 
-static void zend_fiber_run()
+ZEND_NORETURN static void zend_fiber_run(void)
 {
 	zend_fiber *fiber;
 	zend_long error_reporting;
@@ -309,7 +309,7 @@ static int zend_fiber_catch_handler(zend_execute_data *execute_data)
 }
 
 
-static void zend_fiber_clean_shutdown()
+static void zend_fiber_clean_shutdown(void)
 {
 	zend_fiber *fiber;
 
@@ -323,7 +323,7 @@ static void zend_fiber_clean_shutdown()
 }
 
 
-static void zend_fiber_shutdown_cleanup()
+static void zend_fiber_shutdown_cleanup(void)
 {
 	zend_fiber *fiber;
 
@@ -988,7 +988,7 @@ static const zend_function_entry reflection_fiber_methods[] = {
 };
 
 
-void zend_fiber_ce_register()
+void zend_fiber_ce_register(void)
 {
 	zend_class_entry ce;
 	zend_uchar opcode = ZEND_VM_LAST_OPCODE + 1;
@@ -1053,7 +1053,7 @@ void zend_fiber_ce_register()
 	zend_llist_init(&zend_fiber_observers_list, sizeof(zend_observer_fiber_switch_handler), NULL, 1);
 }
 
-void zend_fiber_ce_unregister()
+void zend_fiber_ce_unregister(void)
 {
 	zend_set_user_opcode_handler(ZEND_CATCH, FIBER_G(catch_handler));
 
@@ -1066,7 +1066,7 @@ void zend_fiber_ce_unregister()
 	zend_llist_destroy(&zend_fiber_observers_list);
 }
 
-void zend_fiber_startup()
+void zend_fiber_startup(void)
 {
 	FIBER_G(root_context) = NULL;
 	FIBER_G(current_fiber) = NULL;
@@ -1074,7 +1074,7 @@ void zend_fiber_startup()
 	FIBER_G(id) = 0;
 }
 
-void zend_fiber_shutdown()
+void zend_fiber_shutdown(void)
 {
 	zend_fiber_context *root;
 
