@@ -38,7 +38,6 @@ void zend_fiber_shutdown(void);
 #endif
 
 extern PHP_FIBER_API zend_class_entry *zend_ce_fiber;
-extern PHP_FIBER_API zend_class_entry *zend_ce_fiber_scheduler;
 
 typedef void* zend_fiber_context;
 
