@@ -38,9 +38,13 @@ zend_bool zend_fiber_stack_allocate(zend_fiber_stack *stack, unsigned int size)
 #ifdef ZEND_FIBER_MMAP
 
 	void *pointer;
+	int mapflags = MAP_PRIVATE | MAP_ANONYMOUS;
+#ifdef __OpenBSD__
+	mapflags |= MAP_STACK;
+#endif
 
 	msize = stack->size + ZEND_FIBER_GUARD_PAGES * page_size;
-	pointer = mmap(0, msize, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+	pointer = mmap(0, msize, PROT_READ | PROT_WRITE, mapflags, -1, 0);
 
 	if (pointer == (void *) -1) {
 		return 0;
