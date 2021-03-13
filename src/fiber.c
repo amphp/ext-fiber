@@ -48,7 +48,7 @@ zend_llist zend_fiber_observers_list;
 	stack->end = EG(vm_stack_end); \
 	stack_page_size = EG(vm_stack_page_size); \
 	execute_data = EG(current_execute_data); \
-    error_reporting = EG(error_reporting); \
+	error_reporting = EG(error_reporting); \
 	trace_num = EG(jit_trace_num); \
 } while (0)
 
@@ -58,7 +58,7 @@ zend_llist zend_fiber_observers_list;
 	EG(vm_stack_end) = stack->end; \
 	EG(vm_stack_page_size) = stack_page_size; \
 	EG(current_execute_data) = execute_data; \
-    EG(error_reporting) = error_reporting; \
+	EG(error_reporting) = error_reporting; \
 	EG(jit_trace_num) = trace_num; \
 } while (0)
 
@@ -765,11 +765,11 @@ ZEND_METHOD(ReflectionFiber, getFiber)
 
 
 #define REFLECTION_CHECK_VALID_FIBER(fiber) do { \
-        if (fiber == NULL || fiber->status == ZEND_FIBER_STATUS_INIT || fiber->status & ZEND_FIBER_STATUS_FINISHED) { \
-            zend_throw_error(NULL, "Cannot fetch information from a fiber that has not been started or is terminated"); \
-            return; \
-        } \
-    } while (0)
+		if (fiber == NULL || fiber->status == ZEND_FIBER_STATUS_INIT || fiber->status & ZEND_FIBER_STATUS_FINISHED) { \
+			zend_throw_error(NULL, "Cannot fetch information from a fiber that has not been started or is terminated"); \
+			return; \
+		} \
+	} while (0)
 
 
 /* {{{ proto array ReflectionFiber::getTrace(int $options) */
