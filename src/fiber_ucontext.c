@@ -39,9 +39,7 @@ char *zend_fiber_backend_info(void)
 
 zend_fiber_context zend_fiber_create_root_context(void)
 {
-	zend_fiber_context_ucontext *context;
-
-	context = emalloc(sizeof(zend_fiber_context_ucontext));
+	zend_fiber_context_ucontext *context = emalloc(sizeof(zend_fiber_context_ucontext));
 	ZEND_SECURE_ZERO(context, sizeof(zend_fiber_context_ucontext));
 
 	context->initialized = 1;
@@ -52,9 +50,7 @@ zend_fiber_context zend_fiber_create_root_context(void)
 
 zend_fiber_context zend_fiber_create_context(void)
 {
-	zend_fiber_context_ucontext *context;
-
-	context = emalloc(sizeof(zend_fiber_context_ucontext));
+	zend_fiber_context_ucontext *context = emalloc(sizeof(zend_fiber_context_ucontext));
 	ZEND_SECURE_ZERO(context, sizeof(zend_fiber_context_ucontext));
 
 	return (zend_fiber_context) context;
@@ -62,9 +58,7 @@ zend_fiber_context zend_fiber_create_context(void)
 
 zend_bool zend_fiber_create(zend_fiber_context ctx, zend_fiber_func func, size_t stack_size)
 {
-	zend_fiber_context_ucontext *context;
-
-	context = (zend_fiber_context_ucontext *) ctx;
+	zend_fiber_context_ucontext *context = (zend_fiber_context_ucontext *) ctx;
 
 	if (UNEXPECTED(context->initialized == 1)) {
 		return 0;
@@ -92,9 +86,7 @@ zend_bool zend_fiber_create(zend_fiber_context ctx, zend_fiber_func func, size_t
 
 void zend_fiber_destroy(zend_fiber_context ctx)
 {
-	zend_fiber_context_ucontext *context;
-
-	context = (zend_fiber_context_ucontext *) ctx;
+	zend_fiber_context_ucontext *context = (zend_fiber_context_ucontext *) ctx;
 
 	if (context != NULL) {
 		if (!context->root && context->initialized) {

@@ -49,10 +49,8 @@ char *zend_fiber_backend_info(void)
 
 void zend_fiber_asm_start(transfer_t trans)
 {
-	zend_fiber_record_asm *record;
+	zend_fiber_record_asm *record = (zend_fiber_record_asm *) trans.data;
 	zend_fiber_context_asm *context;
-
-	record = (zend_fiber_record_asm *) trans.data;
 
 	trans = jump_fcontext(trans.ctx, 0);
 	context = (zend_fiber_context_asm *) trans.data;
@@ -66,9 +64,7 @@ void zend_fiber_asm_start(transfer_t trans)
 
 zend_fiber_context zend_fiber_create_root_context(void)
 {
-	zend_fiber_context_asm *context;
-
-	context = emalloc(sizeof(zend_fiber_context_asm));
+	zend_fiber_context_asm *context = emalloc(sizeof(zend_fiber_context_asm));
 	ZEND_SECURE_ZERO(context, sizeof(zend_fiber_context_asm));
 
 	context->initialized = 1;
@@ -79,9 +75,7 @@ zend_fiber_context zend_fiber_create_root_context(void)
 
 zend_fiber_context zend_fiber_create_context(void)
 {
-	zend_fiber_context_asm *context;
-
-	context = emalloc(sizeof(zend_fiber_context_asm));
+	zend_fiber_context_asm *context = emalloc(sizeof(zend_fiber_context_asm));
 	ZEND_SECURE_ZERO(context, sizeof(zend_fiber_context_asm));
 
 	return (zend_fiber_context) context;
@@ -91,10 +85,7 @@ zend_bool zend_fiber_create(zend_fiber_context ctx, zend_fiber_func func, size_t
 {
 	static __thread size_t record_size;
 
-	zend_fiber_context_asm *context;
-	zend_fiber_record_asm *record;
-
-	context = (zend_fiber_context_asm *) ctx;
+	zend_fiber_context_asm *context = (zend_fiber_context_asm *) ctx;
 
 	if (UNEXPECTED(context->initialized == 1)) {
 		return 0;
@@ -105,17 +96,22 @@ zend_bool zend_fiber_create(zend_fiber_context ctx, zend_fiber_func func, size_t
 	}
 
 	if (!record_size) {
+		// Ensure 64-bit alignment for stack pointer.
 		record_size = (size_t) ceil((double) sizeof(zend_fiber_record_asm) / 64) * 64;
 	}
 
-	void *sp = (void *) (context->stack.size - record_size + (char *) context->stack.pointer);
-
-	record = (zend_fiber_record_asm *) sp;
+	zend_fiber_record_asm *record = (zend_fiber_record_asm *) (context->stack.size - record_size + (char *) context->stack.pointer);
 	record->func = func;
 
-	sp -= 64;
+	// 64-byte gap between zend_fiber_record_asm structure and top.
+	void *stack_top = (void *) ((uintptr_t) record - (uintptr_t) 64);
+	void *stack_bottom = (void *) ((uintptr_t) stack_top - (uintptr_t) context->stack.pointer);
+	const size_t size = (uintptr_t) stack_top - (uintptr_t) stack_bottom;
 
-	context->ctx = make_fcontext(sp, sp - (void *) context->stack.pointer, &zend_fiber_asm_start);
+	context->ctx = make_fcontext(stack_top, size, &zend_fiber_asm_start);
+
+	ZEND_ASSERT(context->ctx && "Could not create new fiber context");
+
 	context->ctx = jump_fcontext(context->ctx, record).ctx;
 
 	context->initialized = 1;
@@ -125,9 +121,7 @@ zend_bool zend_fiber_create(zend_fiber_context ctx, zend_fiber_func func, size_t
 
 void zend_fiber_destroy(zend_fiber_context ctx)
 {
-	zend_fiber_context_asm *context;
-
-	context = (zend_fiber_context_asm *) ctx;
+	zend_fiber_context_asm *context = (zend_fiber_context_asm *) ctx;
 
 	if (context != NULL) {
 		if (!context->root && context->initialized) {
