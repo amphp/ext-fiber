@@ -1,0 +1,52 @@
+name: Continuous Integration
+
+on:
+  - push
+  - pull_request
+
+jobs:
+  tests:
+    strategy:
+      matrix:
+        include:
+          - operating-system: 'ubuntu-latest'
+            php-version: '8.0'
+            job-description: 'on Ubuntu'
+
+          - operating-system: 'macos-latest'
+            php-version: '8.0'
+            job-description: 'on macOS'
+
+    name: PHP ${{ matrix.php-version }} ${{ matrix.job-description }}
+
+    runs-on: ${{ matrix.operating-system }}
+
+    steps:
+      - name: Set git to use LF
+        run: |
+          git config --global core.autocrlf false
+          git config --global core.eol lf
+
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php-version }}
+
+      - name: Build
+        uses: nick-invision/retry@v2
+        with:
+          timeout_minutes: 5
+          max_attempts: 5
+          retry_wait_seconds: 30
+          command: |
+            phpize
+            ./configure
+            make
+
+      - name: Run tests
+        env:
+          NO_INTERACTION: 1
+        run: make test
