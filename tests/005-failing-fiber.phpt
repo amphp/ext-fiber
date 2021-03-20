@@ -20,6 +20,6 @@ string(4) "test"
 
 Fatal error: Uncaught Exception: test in %s005-failing-fiber.php:%d
 Stack trace:
-#0 [fiber function](0): {closure}()
+#0 [internal function]: {closure}()
 #1 {main}
   thrown in %s005-failing-fiber.php on line %d

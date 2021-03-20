@@ -37,9 +37,6 @@ static zend_object_handlers zend_reflection_fiber_handlers;
 static zend_object *zend_fiber_object_create(zend_class_entry *ce);
 static void zend_fiber_object_destroy(zend_object *object);
 
-static zend_op_array fiber_run_func;
-static zend_op fiber_run_op;
-
 zend_llist zend_fiber_observers_list;
 
 #define ZEND_FIBER_BACKUP_EG(stack, stack_page_size, execute_data, error_reporting, trace_num) do { \
@@ -164,54 +161,9 @@ static zend_always_inline zend_vm_stack zend_fiber_vm_stack_alloc(size_t size)
 	return page;
 }
 
-
-ZEND_NORETURN static void zend_fiber_run(void)
+static void zend_fiber_execute(zend_fiber *fiber)
 {
-	zend_fiber *fiber = FIBER_G(current_fiber);
-	ZEND_ASSERT(fiber != NULL);
-
-	zend_long error_reporting = INI_INT("error_reporting");
-	if (!error_reporting && !INI_STR("error_reporting")) {
-		error_reporting = E_ALL;
-	}
-
-	zend_vm_stack stack = zend_fiber_vm_stack_alloc(ZEND_FIBER_VM_STACK_SIZE);
-	EG(vm_stack) = stack;
-	EG(vm_stack_top) = (zval *) stack->top + ZEND_CALL_FRAME_SLOT;
-	EG(vm_stack_end) = stack->end;
-	EG(vm_stack_page_size) = ZEND_FIBER_VM_STACK_SIZE;
-
-	fiber->execute_data = (zend_execute_data *) stack->top;
-
-	zend_vm_init_call_frame(fiber->execute_data, ZEND_CALL_TOP_FUNCTION, (zend_function *) &fiber_run_func, 0, NULL);
-
-	fiber->execute_data->opline = &fiber_run_op;
-	fiber->execute_data->call = NULL;
-	fiber->execute_data->return_value = NULL;
-	fiber->execute_data->prev_execute_data = NULL;
-
-	EG(current_execute_data) = fiber->execute_data;
-	EG(jit_trace_num) = 0;
-	EG(error_reporting) = error_reporting;
-
-	zend_execute_ex(fiber->execute_data);
-
-	zend_vm_stack_destroy();
-	fiber->execute_data = NULL;
-
-	zend_fiber_suspend_context(fiber->context);
-
-	abort();
-}
-
-
-static int fiber_run_opcode_handler(zend_execute_data *execute_data)
-{
-	zend_fiber *fiber;
 	zval retval;
-
-	fiber = FIBER_G(current_fiber);
-	ZEND_ASSERT(fiber->execute_data == execute_data && "Fiber execute data corrupted");
 
 	fiber->status = ZEND_FIBER_STATUS_RUNNING;
 	fiber->fci.retval = &retval;
@@ -232,8 +184,41 @@ static int fiber_run_opcode_handler(zend_execute_data *execute_data)
 	zval_ptr_dtor(&retval);
 
 	GC_DELREF(&fiber->std);
+}
 
-	return ZEND_USER_OPCODE_RETURN;
+
+ZEND_NORETURN static void zend_fiber_run(void)
+{
+	zend_fiber *fiber = FIBER_G(current_fiber);
+	ZEND_ASSERT(fiber != NULL);
+
+	zend_long error_reporting = INI_INT("error_reporting");
+	if (!error_reporting && !INI_STR("error_reporting")) {
+		error_reporting = E_ALL;
+	}
+
+	zend_vm_stack stack = zend_fiber_vm_stack_alloc(ZEND_FIBER_VM_STACK_SIZE);
+	EG(vm_stack) = stack;
+	EG(vm_stack_top) = (zval *) stack->top + ZEND_CALL_FRAME_SLOT;
+	EG(vm_stack_end) = stack->end;
+	EG(vm_stack_page_size) = ZEND_FIBER_VM_STACK_SIZE;
+
+	fiber->execute_data = (zend_execute_data *) stack->top;
+
+	ZEND_SECURE_ZERO(fiber->execute_data, sizeof(zend_execute_data));
+
+	EG(current_execute_data) = fiber->execute_data;
+	EG(jit_trace_num) = 0;
+	EG(error_reporting) = error_reporting;
+
+	zend_fiber_execute(fiber);
+
+	zend_vm_stack_destroy();
+	fiber->execute_data = NULL;
+
+	zend_fiber_suspend_context(fiber->context);
+
+	abort();
 }
 
 
@@ -982,29 +967,6 @@ static const zend_function_entry reflection_fiber_methods[] = {
 void zend_fiber_ce_register(void)
 {
 	zend_class_entry ce;
-	zend_uchar opcode = ZEND_VM_LAST_OPCODE + 1;
-
-	/* Create a new user opcode to run fiber. */
-	while (1) {
-		if (opcode == 255) {
-			return;
-		} else if (zend_get_user_opcode_handler(opcode) == NULL) {
-			break;
-		}
-		opcode++;
-	}
-
-	zend_set_user_opcode_handler(opcode, fiber_run_opcode_handler);
-
-	ZEND_SECURE_ZERO(&fiber_run_op, sizeof(zend_op));
-	fiber_run_op.opcode = opcode;
-	zend_vm_set_opcode_handler_ex(&fiber_run_op, 0, 0, 0);
-
-	ZEND_SECURE_ZERO(&fiber_run_func, sizeof(fiber_run_func));
-	fiber_run_func.type = ZEND_USER_FUNCTION;
-	fiber_run_func.function_name = zend_string_init("Fiber::run", sizeof("Fiber::run") - 1, 1);
-	fiber_run_func.filename = zend_string_init("[fiber function]", sizeof("[fiber function]") - 1, 1);
-	fiber_run_func.opcodes = &fiber_run_op;
 
 	FIBER_G(catch_handler) = zend_get_user_opcode_handler(ZEND_CATCH);
 	zend_set_user_opcode_handler(ZEND_CATCH, zend_fiber_catch_handler);
@@ -1047,12 +1009,6 @@ void zend_fiber_ce_register(void)
 void zend_fiber_ce_unregister(void)
 {
 	zend_set_user_opcode_handler(ZEND_CATCH, FIBER_G(catch_handler));
-
-	zend_string_free(fiber_run_func.function_name);
-	fiber_run_func.function_name = NULL;
-
-	zend_string_free(fiber_run_func.filename);
-	fiber_run_func.filename = NULL;
 
 	zend_llist_destroy(&zend_fiber_observers_list);
 }

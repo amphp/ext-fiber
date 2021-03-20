@@ -75,11 +75,7 @@ array(2) {
     }
   }
   [1]=>
-  array(4) {
-    ["file"]=>
-    string(16) "[fiber function]"
-    ["line"]=>
-    int(0)
+  array(2) {
     ["function"]=>
     string(9) "{closure}"
     ["args"]=>
