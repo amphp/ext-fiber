@@ -167,22 +167,21 @@ static zend_always_inline zend_vm_stack zend_fiber_vm_stack_alloc(size_t size)
 
 ZEND_NORETURN static void zend_fiber_run(void)
 {
-	zend_fiber *fiber;
-	zend_long error_reporting;
-
-	fiber = FIBER_G(current_fiber);
+	zend_fiber *fiber = FIBER_G(current_fiber);
 	ZEND_ASSERT(fiber != NULL);
 
-	error_reporting = INI_INT("error_reporting");
+	zend_long error_reporting = INI_INT("error_reporting");
 	if (!error_reporting && !INI_STR("error_reporting")) {
 		error_reporting = E_ALL;
 	}
 
-	fiber->execute_data = (zend_execute_data *) fiber->stack->top;
-	EG(vm_stack) = fiber->stack;
-	EG(vm_stack_top) = (zval *) fiber->stack->top + ZEND_CALL_FRAME_SLOT;
-	EG(vm_stack_end) = fiber->stack->end;
+	zend_vm_stack stack = zend_fiber_vm_stack_alloc(ZEND_FIBER_VM_STACK_SIZE);
+	EG(vm_stack) = stack;
+	EG(vm_stack_top) = (zval *) stack->top + ZEND_CALL_FRAME_SLOT;
+	EG(vm_stack_end) = stack->end;
 	EG(vm_stack_page_size) = ZEND_FIBER_VM_STACK_SIZE;
+
+	fiber->execute_data = (zend_execute_data *) stack->top;
 
 	zend_vm_init_call_frame(fiber->execute_data, ZEND_CALL_TOP_FUNCTION, (zend_function *) &fiber_run_func, 0, NULL);
 
@@ -198,7 +197,6 @@ ZEND_NORETURN static void zend_fiber_run(void)
 	zend_execute_ex(fiber->execute_data);
 
 	zend_vm_stack_destroy();
-	fiber->stack = NULL;
 	fiber->execute_data = NULL;
 
 	zend_fiber_suspend_context(fiber->context);
@@ -244,11 +242,6 @@ static void zend_fiber_free(zend_fiber *fiber)
 	if (fiber->status == ZEND_FIBER_STATUS_SUSPENDED) {
 		fiber->status = ZEND_FIBER_STATUS_SHUTDOWN;
 		zend_fiber_switch_to(fiber);
-	}
-
-	if (fiber->stack) {
-		// Fiber stack was unused, so free it manually.
-		efree(fiber->stack);
 	}
 
 	zend_fiber_destroy(fiber->context);
@@ -435,8 +428,6 @@ ZEND_METHOD(Fiber, start)
 		zend_throw_error(zend_ce_fiber_exit, "Failed to create native fiber");
 		return;
 	}
-
-	fiber->stack = zend_fiber_vm_stack_alloc(ZEND_FIBER_VM_STACK_SIZE);
 
 	fiber->status = ZEND_FIBER_STATUS_RUNNING;
 
