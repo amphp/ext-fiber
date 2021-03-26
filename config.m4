@@ -47,13 +47,13 @@ if test "$PHP_FIBER" != "no"; then
     [ppc], [fiber_asm_file_prefix="ppc_sysv"],
     [mips64], [fiber_asm_file_prefix="mips64_n64"],
     [mips], [fiber_asm_file_prefix="mips32_o32"],
-    [fiber_asm_file_prefix="combined_sysv"]
+    [fiber_asm_file_prefix="unknown"]
   )
 
-  if test "$fiber_os" = 'linux'; then
+  if test "$fiber_os" = 'linux' && test "$fiber_asm_file_prefix" != 'unknown'; then
     fiber_asm_file="${fiber_asm_file_prefix}_elf_gas.S"
   elif test "$fiber_os" = 'mac'; then
-    fiber_asm_file="${fiber_asm_file_prefix}_macho_gas.S"
+    fiber_asm_file="combined_sysv_macho_gas.S"
   else
     fiber_use_asm="no"
   fi
