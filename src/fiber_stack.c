@@ -51,7 +51,10 @@ zend_bool zend_fiber_stack_allocate(zend_fiber_stack *stack, unsigned int size)
 	}
 
 #if ZEND_FIBER_GUARD_PAGES
-	mprotect(pointer, ZEND_FIBER_GUARD_PAGES * page_size, PROT_NONE);
+	if (mprotect(pointer, ZEND_FIBER_GUARD_PAGES * page_size, PROT_NONE) == -1) {
+		munmap(pointer, msize);
+		return 0;
+	}
 #endif
 
 	stack->pointer = (void *)((char *) pointer + ZEND_FIBER_GUARD_PAGES * page_size);
