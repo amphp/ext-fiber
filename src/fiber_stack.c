@@ -25,46 +25,50 @@
 
 zend_bool zend_fiber_stack_allocate(zend_fiber_stack *stack, unsigned int size)
 {
-	size_t msize;
+	void *pointer;
 
 	stack->size = ((size_t) size + ZEND_FIBER_PAGESIZE - 1) / ZEND_FIBER_PAGESIZE * ZEND_FIBER_PAGESIZE;
+	size_t msize = stack->size + ZEND_FIBER_GUARD_PAGES * ZEND_FIBER_PAGESIZE;
 
-#ifdef ZEND_FIBER_MMAP
+#ifdef PHP_WIN32
+	pointer = VirtualAlloc(0, msize, MEM_COMMIT, PAGE_READWRITE);
 
-	void *pointer;
+	if (!pointer) {
+		return 0;
+	}
+
+# if ZEND_FIBER_GUARD_PAGES
+	DWORD protect;
+
+	if (!VirtualProtect(pointer, ZEND_FIBER_GUARD_PAGES * ZEND_FIBER_PAGESIZE, PAGE_READWRITE | PAGE_GUARD, &protect)) {
+		VirtualFree(pointer, 0, MEM_RELEASE);
+		return 0;
+	}
+# endif
+#else
 	int mapflags = MAP_PRIVATE | MAP_ANONYMOUS;
-#ifdef __OpenBSD__
+# ifdef __OpenBSD__
 	mapflags |= MAP_STACK;
-#endif
+# endif
 
-	msize = stack->size + ZEND_FIBER_GUARD_PAGES * ZEND_FIBER_PAGESIZE;
 	pointer = mmap(0, msize, PROT_READ | PROT_WRITE, mapflags, -1, 0);
 
 	if (pointer == (void *) -1) {
 		return 0;
 	}
 
-#if ZEND_FIBER_GUARD_PAGES
+# if ZEND_FIBER_GUARD_PAGES
 	if (mprotect(pointer, ZEND_FIBER_GUARD_PAGES * ZEND_FIBER_PAGESIZE, PROT_NONE) == -1) {
 		munmap(pointer, msize);
 		return 0;
 	}
+# endif
 #endif
 
-	stack->pointer = (void *)((char *) pointer + ZEND_FIBER_GUARD_PAGES * ZEND_FIBER_PAGESIZE);
-#else
-	stack->pointer = emalloc_large(stack->size);
-	msize = stack->size;
-#endif
-
-	if (!stack->pointer) {
-		return 0;
-	}
+	stack->pointer = (void *) ((char *) pointer + ZEND_FIBER_GUARD_PAGES * ZEND_FIBER_PAGESIZE);
 
 #ifdef VALGRIND_STACK_REGISTER
-	char * base;
-
-	base = (char *) stack->pointer;
+	char *base = (char *) stack->pointer;
 	stack->valgrind = VALGRIND_STACK_REGISTER(base, base + msize - ZEND_FIBER_GUARD_PAGES * ZEND_FIBER_PAGESIZE);
 #endif
 
@@ -78,17 +82,14 @@ void zend_fiber_stack_free(zend_fiber_stack *stack)
 		VALGRIND_STACK_DEREGISTER(stack->valgrind);
 #endif
 
-#ifdef ZEND_FIBER_MMAP
+		void *address = (void *) ((char *) stack->pointer - ZEND_FIBER_GUARD_PAGES * ZEND_FIBER_PAGESIZE);
 
-		void *address;
-		size_t len;
-
-		address = (void *)((char *) stack->pointer - ZEND_FIBER_GUARD_PAGES * ZEND_FIBER_PAGESIZE);
-		len = stack->size + ZEND_FIBER_GUARD_PAGES * ZEND_FIBER_PAGESIZE;
-
-		munmap(address, len);
+#ifdef PHP_WIN32
+		VirtualFree(address, 0, MEM_RELEASE);
 #else
-		efree(stack->pointer);
+		size_t length = stack->size + ZEND_FIBER_GUARD_PAGES * ZEND_FIBER_PAGESIZE;
+
+		munmap(address, length);
 #endif
 
 		stack->pointer = NULL;
