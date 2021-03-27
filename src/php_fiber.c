@@ -20,7 +20,6 @@
 
 #include "php_fiber.h"
 #include "fiber.h"
-#include "fiber_stack.h"
 
 ZEND_DECLARE_MODULE_GLOBALS(fiber)
 

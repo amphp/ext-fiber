@@ -17,7 +17,7 @@
 
 #include "php.h"
 #include "zend.h"
-#include "fiber_stack.h"
+#include "fiber.h"
 
 #ifdef HAVE_VALGRIND
 #include "valgrind/valgrind.h"

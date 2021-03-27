@@ -39,7 +39,44 @@ void zend_fiber_shutdown(void);
 
 extern PHP_FIBER_API zend_class_entry *zend_ce_fiber;
 
-typedef void* zend_fiber_context;
+typedef void* fcontext_t;
+
+typedef struct _transfer_t {
+	fcontext_t ctx;
+	void *data;
+} transfer_t;
+
+typedef struct _zend_fiber_stack {
+	void *pointer;
+	size_t size;
+
+#ifdef HAVE_VALGRIND
+	int valgrind;
+#endif
+} zend_fiber_stack;
+
+typedef struct _zend_fiber_context {
+	fcontext_t ctx;
+	fcontext_t caller;
+	zend_fiber_stack stack;
+	zend_bool initialized;
+	zend_bool root;
+} zend_fiber_context;
+
+zend_bool zend_fiber_stack_allocate(zend_fiber_stack *stack, unsigned int size);
+void zend_fiber_stack_free(zend_fiber_stack *stack);
+
+#if _POSIX_MAPPED_FILES
+# include <sys/mman.h>
+# include <limits.h>
+# define ZEND_FIBER_PAGESIZE sysconf(_SC_PAGESIZE)
+#else
+# define ZEND_FIBER_PAGESIZE 4096
+#endif
+
+#define ZEND_FIBER_GUARD_PAGES 1
+
+#define ZEND_FIBER_DEFAULT_STACK_SIZE (ZEND_FIBER_PAGESIZE * (((sizeof(void *)) < 8) ? 512 : 2048))
 
 typedef struct _zend_fiber zend_fiber;
 
@@ -58,7 +95,7 @@ struct _zend_fiber {
 	zend_fcall_info_cache fci_cache;
 
 	/* Fiber context of this fiber, will be created during call to start(). */
-	zend_fiber_context context;
+	zend_fiber_context *context;
 
 	/* Current Zend VM execute data being run by the fiber. */
 	zend_execute_data *execute_data;
@@ -103,20 +140,20 @@ typedef void (* zend_fiber_func)(void);
 
 char *zend_fiber_backend_info(void);
 
-zend_fiber_context zend_fiber_create_root_context(void);
-zend_fiber_context zend_fiber_create_context(void);
+zend_fiber_context *zend_fiber_create_root_context(void);
+zend_fiber_context *zend_fiber_create_context(void);
 
-zend_bool zend_fiber_create(zend_fiber_context context, zend_fiber_func func, size_t stack_size);
-void zend_fiber_destroy(zend_fiber_context context);
+zend_bool zend_fiber_create(zend_fiber_context *context, zend_fiber_func func, size_t stack_size);
+void zend_fiber_destroy(zend_fiber_context *context);
 
-zend_bool zend_fiber_switch_context(zend_fiber_context current, zend_fiber_context next);
-zend_bool zend_fiber_suspend_context(zend_fiber_context current);
+zend_bool zend_fiber_switch_context(zend_fiber_context *current, zend_fiber_context *next);
+zend_bool zend_fiber_suspend_context(zend_fiber_context *current);
 
 void zend_fiber_error_observer(int type, const char *filename, uint32_t line, zend_string *message);
 
 END_EXTERN_C()
 
-#define ZEND_FIBER_VM_STACK_SIZE 4096
+#define ZEND_FIBER_VM_STACK_SIZE (1024 * sizeof(zval))
 
 #endif
 
