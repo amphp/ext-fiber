@@ -3,11 +3,13 @@ ARG_ENABLE('fiber', 'fiber support', 'yes');
 if (PHP_FIBER != 'no') {
 	AC_DEFINE('HAVE_FIBER', 1, 'fiber support enabled');
 
-	var FIBER_ASSEMBLER = PATH_PROG('ML64');
-
+	var FIBER_ASSEMBLER = X64 ? PATH_PROG('ML64') : PATH_PROG('ML');
 	DEFINE('FIBER_ASSEMBLER', FIBER_ASSEMBLER);
+
+	var ASM_ARCH = X64 ? 'x86_64' : 'i386';
 	var ASM_DIR = 'boost\\asm';
-	var ASM_FILENAMES = ['jump_x86_64_ms_pe_masm', 'make_x86_64_ms_pe_masm'];
+	var ASM_FILENAMES = ['jump_' + ASM_ARCH + '_ms_pe_masm', 'make_' + ASM_ARCH + '_ms_pe_masm'];
+
 	for (var i = 0; i < ASM_FILENAMES.length; ++i) {
 		var filename = ASM_FILENAMES[i];
 		var src = (configure_module_dirname + '\\' + ASM_DIR + '\\' + filename + '.asm').replace(/\//g, '\\');
