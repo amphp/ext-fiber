@@ -11,21 +11,17 @@ if (PHP_FIBER != 'no') {
 	for (var i = 0; i < ASM_FILENAMES.length; ++i) {
 	    var filename = ASM_FILENAMES[i];
 		var src = (configure_module_dirname + '\\' + ASM_DIR + '\\' + filename + '.asm').replace(/\//g, '\\');
-		var obj = '$(BUILD_DIR)\\' + filename + '.obj';
+		var obj = '$(BUILD_DIR)\\src\\' + filename + '.obj';
 
 		MFO.WriteLine(obj + ': ' + src);
-		// var objdir = obj.replace(/\\[^\\]+$/, "");
-		// MFO.WriteLine('\t@IF NOT EXIST ' + objdir + ' MKDIR ' + objdir);
 		MFO.WriteLine('\t@$(FIBER_ASSEMBLER) /Fo' + obj + ' /c ' + src);
+		MFO.WriteLine('$(BUILD_DIR)\\php_fiber.dll: ' + obj);
 	}
 
 	var FIBER_SOURCES = 'src\\php_fiber.c src\\fiber.c src\\fiber_asm.c src\\fiber_stack.c';
 	EXTENSION('fiber', FIBER_SOURCES, null, '/I. /Iinclude /DZEND_ENABLE_STATIC_TSRMLS_CACHE=1  /DPHP_FIBER_EXPORTS=1');
 
-	var OBJ_FILENAMES = [];
 	for (var i = 0; i < ASM_FILENAMES.length; ++i) {
-		OBJ_FILENAMES.push(ASM_FILENAMES[i] + '.obj');
+		ADD_FLAG('LDFLAGS_FIBER', '$(BUILD_DIR)\\src\\' + ASM_FILENAMES[i] + '.obj ');
 	}
-	
-	ADD_SOURCES(configure_module_dirname + '\\' + ASM_DIR, OBJ_FILENAMES.join(' '), 'fiber');
 }
