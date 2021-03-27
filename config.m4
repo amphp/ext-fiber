@@ -13,16 +13,11 @@ if test "$PHP_FIBER" != "no"; then
     src/fiber_stack.c"
   
   fiber_use_asm="yes"
-  
-  AC_CHECK_HEADER(ucontext.h,
-    [fiber_use_ucontext="yes"],
-    [fiber_use_ucontext="no"]
-  )
 
   AS_CASE([$host_cpu],
     [x86_64*|amd64*], [fiber_cpu="x86_64"],
     [x86*|amd*|i[[3456]]86*|pentium], [fiber_cpu="x86"],
-    [aarch64*], [fiber_cpu="arm64"],
+    [aarch64*|arm64*], [fiber_cpu="arm64"],
     [arm*], [fiber_cpu="arm"],
     [ppc64*], [fiber_cpu="ppc64"],
     [powerpc*], [fiber_cpu="ppc"],
@@ -63,11 +58,8 @@ if test "$PHP_FIBER" != "no"; then
       src/fiber_asm.c \
       boost/asm/make_${fiber_asm_file} \
       boost/asm/jump_${fiber_asm_file}"
-  elif test "$fiber_use_ucontext" = 'yes'; then
-    fiber_source_files="$fiber_source_files \
-      src/fiber_ucontext.c"
   else
-    AC_MSG_ERROR([No fiber context switching available!])
+    AC_MSG_ERROR([Unable to determine platform for fiber switching context!])
   fi
 
   PHP_NEW_EXTENSION(fiber, $fiber_source_files, $ext_shared,, \\$(FIBER_CFLAGS))
