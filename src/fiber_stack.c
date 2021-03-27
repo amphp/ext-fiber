@@ -25,15 +25,9 @@
 
 zend_bool zend_fiber_stack_allocate(zend_fiber_stack *stack, unsigned int size)
 {
-	static __thread size_t page_size;
-
-	if (!page_size) {
-		page_size = ZEND_FIBER_PAGESIZE;
-	}
-
 	size_t msize;
 
-	stack->size = ((size_t) size + page_size - 1) / page_size * page_size;
+	stack->size = ((size_t) size + ZEND_FIBER_PAGESIZE - 1) / ZEND_FIBER_PAGESIZE * ZEND_FIBER_PAGESIZE;
 
 #ifdef ZEND_FIBER_MMAP
 
@@ -43,7 +37,7 @@ zend_bool zend_fiber_stack_allocate(zend_fiber_stack *stack, unsigned int size)
 	mapflags |= MAP_STACK;
 #endif
 
-	msize = stack->size + ZEND_FIBER_GUARD_PAGES * page_size;
+	msize = stack->size + ZEND_FIBER_GUARD_PAGES * ZEND_FIBER_PAGESIZE;
 	pointer = mmap(0, msize, PROT_READ | PROT_WRITE, mapflags, -1, 0);
 
 	if (pointer == (void *) -1) {
@@ -51,13 +45,13 @@ zend_bool zend_fiber_stack_allocate(zend_fiber_stack *stack, unsigned int size)
 	}
 
 #if ZEND_FIBER_GUARD_PAGES
-	if (mprotect(pointer, ZEND_FIBER_GUARD_PAGES * page_size, PROT_NONE) == -1) {
+	if (mprotect(pointer, ZEND_FIBER_GUARD_PAGES * ZEND_FIBER_PAGESIZE, PROT_NONE) == -1) {
 		munmap(pointer, msize);
 		return 0;
 	}
 #endif
 
-	stack->pointer = (void *)((char *) pointer + ZEND_FIBER_GUARD_PAGES * page_size);
+	stack->pointer = (void *)((char *) pointer + ZEND_FIBER_GUARD_PAGES * ZEND_FIBER_PAGESIZE);
 #else
 	stack->pointer = emalloc_large(stack->size);
 	msize = stack->size;
@@ -71,7 +65,7 @@ zend_bool zend_fiber_stack_allocate(zend_fiber_stack *stack, unsigned int size)
 	char * base;
 
 	base = (char *) stack->pointer;
-	stack->valgrind = VALGRIND_STACK_REGISTER(base, base + msize - ZEND_FIBER_GUARD_PAGES * page_size);
+	stack->valgrind = VALGRIND_STACK_REGISTER(base, base + msize - ZEND_FIBER_GUARD_PAGES * ZEND_FIBER_PAGESIZE);
 #endif
 
 	return 1;
@@ -79,12 +73,6 @@ zend_bool zend_fiber_stack_allocate(zend_fiber_stack *stack, unsigned int size)
 
 void zend_fiber_stack_free(zend_fiber_stack *stack)
 {
-	static __thread size_t page_size;
-
-	if (!page_size) {
-		page_size = ZEND_FIBER_PAGESIZE;
-	}
-
 	if (stack->pointer != NULL) {
 #ifdef VALGRIND_STACK_DEREGISTER
 		VALGRIND_STACK_DEREGISTER(stack->valgrind);
@@ -95,8 +83,8 @@ void zend_fiber_stack_free(zend_fiber_stack *stack)
 		void *address;
 		size_t len;
 
-		address = (void *)((char *) stack->pointer - ZEND_FIBER_GUARD_PAGES * page_size);
-		len = stack->size + ZEND_FIBER_GUARD_PAGES * page_size;
+		address = (void *)((char *) stack->pointer - ZEND_FIBER_GUARD_PAGES * ZEND_FIBER_PAGESIZE);
+		len = stack->size + ZEND_FIBER_GUARD_PAGES * ZEND_FIBER_PAGESIZE;
 
 		munmap(address, len);
 #else
