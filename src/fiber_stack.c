@@ -23,6 +23,17 @@
 #include "valgrind/valgrind.h"
 #endif
 
+/*
+ * FreeBSD require a first (i.e. addr) argument of mmap(2) is not NULL
+ * if MAP_STACK is passed.
+ * http://www.FreeBSD.org/cgi/query-pr.cgi?pr=158755
+ */
+#if defined(MAP_STACK) && !defined(__FreeBSD__) && !defined(__FreeBSD_kernel__)
+# define ZEND_FIBER_STACK_FLAGS (MAP_PRIVATE | MAP_ANON | MAP_STACK)
+#else
+# define ZEND_FIBER_STACK_FLAGS (MAP_PRIVATE | MAP_ANON)
+#endif
+
 zend_bool zend_fiber_stack_allocate(zend_fiber_stack *stack, unsigned int size)
 {
 	void *pointer;
@@ -46,19 +57,14 @@ zend_bool zend_fiber_stack_allocate(zend_fiber_stack *stack, unsigned int size)
 	}
 # endif
 #else
-	int mapflags = MAP_PRIVATE | MAP_ANONYMOUS;
-# ifdef __OpenBSD__
-	mapflags |= MAP_STACK;
-# endif
+	pointer = mmap(NULL, msize, PROT_READ | PROT_WRITE, ZEND_FIBER_STACK_FLAGS, -1, 0);
 
-	pointer = mmap(0, msize, PROT_READ | PROT_WRITE, mapflags, -1, 0);
-
-	if (pointer == (void *) -1) {
+	if (pointer == MAP_FAILED) {
 		return 0;
 	}
 
 # if ZEND_FIBER_GUARD_PAGES
-	if (mprotect(pointer, ZEND_FIBER_GUARD_PAGES * ZEND_FIBER_PAGESIZE, PROT_NONE) == -1) {
+	if (mprotect(pointer, ZEND_FIBER_GUARD_PAGES * ZEND_FIBER_PAGESIZE, PROT_NONE) < 0) {
 		munmap(pointer, msize);
 		return 0;
 	}
@@ -82,14 +88,14 @@ void zend_fiber_stack_free(zend_fiber_stack *stack)
 		VALGRIND_STACK_DEREGISTER(stack->valgrind);
 #endif
 
-		void *address = (void *) ((char *) stack->pointer - ZEND_FIBER_GUARD_PAGES * ZEND_FIBER_PAGESIZE);
+		void *pointer = (void *) ((char *) stack->pointer - ZEND_FIBER_GUARD_PAGES * ZEND_FIBER_PAGESIZE);
 
 #ifdef PHP_WIN32
-		VirtualFree(address, 0, MEM_RELEASE);
+		VirtualFree(pointer, 0, MEM_RELEASE);
 #else
 		size_t length = stack->size + ZEND_FIBER_GUARD_PAGES * ZEND_FIBER_PAGESIZE;
 
-		munmap(address, length);
+		munmap(pointer, length);
 #endif
 
 		stack->pointer = NULL;
