@@ -39,6 +39,8 @@ void zend_fiber_shutdown(void);
 
 extern PHP_FIBER_API zend_class_entry *zend_ce_fiber;
 
+typedef void (* zend_fiber_function)(void);
+
 typedef void* fcontext_t;
 
 typedef struct _transfer_t {
@@ -58,6 +60,7 @@ typedef struct _zend_fiber_stack {
 typedef struct _zend_fiber_context {
 	fcontext_t ctx;
 	fcontext_t caller;
+	zend_fiber_function function;
 	zend_fiber_stack stack;
 	zend_bool initialized;
 	zend_bool root;
@@ -136,14 +139,12 @@ static const zend_uchar ZEND_FIBER_STATUS_SHUTDOWN = 0x10;
 
 static const zend_uchar ZEND_FIBER_STATUS_FINISHED = 0x1c;
 
-typedef void (* zend_fiber_func)(void);
-
 char *zend_fiber_backend_info(void);
 
 zend_fiber_context *zend_fiber_create_root_context(void);
 zend_fiber_context *zend_fiber_create_context(void);
 
-zend_bool zend_fiber_create(zend_fiber_context *context, zend_fiber_func func, size_t stack_size);
+zend_bool zend_fiber_create(zend_fiber_context *context, zend_fiber_function function, size_t stack_size);
 void zend_fiber_destroy(zend_fiber_context *context);
 
 zend_bool zend_fiber_switch_context(zend_fiber_context *current, zend_fiber_context *next);
