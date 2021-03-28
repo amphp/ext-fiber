@@ -101,9 +101,6 @@ struct _zend_fiber {
 	/* Current Zend VM execute data being run by the fiber. */
 	zend_execute_data *execute_data;
 
-	/* Max size of the C stack being used by the fiber. */
-	size_t stack_size;
-
 	/* Exception to be thrown from Fiber::suspend(). */
 	zval *error;
 

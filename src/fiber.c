@@ -394,14 +394,13 @@ ZEND_METHOD(Fiber, start)
 	fiber->fci.param_count = param_count;
 
 	fiber->context = zend_fiber_create_context();
-	fiber->stack_size = FIBER_G(stack_size);
 
 	if (fiber->context == NULL) {
 		zend_throw_error(zend_ce_fiber_exit, "Failed to create native fiber context");
 		return;
 	}
 
-	if (!zend_fiber_create(fiber->context, zend_fiber_run, fiber->stack_size)) {
+	if (!zend_fiber_create(fiber->context, zend_fiber_run, FIBER_G(stack_size))) {
 		zend_throw_error(zend_ce_fiber_exit, "Failed to create native fiber");
 		return;
 	}
