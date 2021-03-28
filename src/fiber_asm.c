@@ -49,7 +49,7 @@ zend_fiber_context *zend_fiber_create_context(void)
 
 zend_bool zend_fiber_create(zend_fiber_context *context, zend_fiber_function function, size_t stack_size)
 {
-	if (UNEXPECTED(context->initialized == 1)) {
+	if (UNEXPECTED(context->stack.pointer != NULL)) {
 		return 0;
 	}
 
@@ -61,15 +61,14 @@ zend_bool zend_fiber_create(zend_fiber_context *context, zend_fiber_function fun
 	void *stack = (void *) (((uintptr_t) context->stack.pointer + (uintptr_t) context->stack.size) & (uintptr_t) ~0xf);
 	const size_t size = (uintptr_t) stack - (uintptr_t) context->stack.pointer;
 
+	context->function = function;
+
 	context->ctx = make_fcontext(stack, size, &zend_fiber_initialize);
 
 	if (UNEXPECTED(!context->ctx)) {
 		zend_fiber_stack_free(&context->stack);
 		return 0;
 	}
-
-	context->function = function;
-	context->initialized = 1;
 
 	return 1;
 }
@@ -80,7 +79,7 @@ void zend_fiber_destroy(zend_fiber_context *context)
 		return;
 	}
 
-	if (context->initialized) {
+	if (context->stack.pointer != NULL) {
 		zend_fiber_stack_free(&context->stack);
 	}
 
@@ -93,7 +92,7 @@ zend_bool zend_fiber_switch_context(zend_fiber_context *to)
 		return 0;
 	}
 
-	if (UNEXPECTED(to->initialized == 0)) {
+	if (UNEXPECTED(to->stack.pointer == NULL)) {
 		return 0;
 	}
 
@@ -108,7 +107,7 @@ zend_bool zend_fiber_suspend_context(zend_fiber_context *current)
 		return 0;
 	}
 
-	if (UNEXPECTED(current->initialized == 0)) {
+	if (UNEXPECTED(current->stack.pointer == NULL)) {
 		return 0;
 	}
 

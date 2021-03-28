@@ -62,7 +62,6 @@ typedef struct _zend_fiber_context {
 	fcontext_t caller;
 	zend_fiber_function function;
 	zend_fiber_stack stack;
-	zend_bool initialized;
 } zend_fiber_context;
 
 zend_bool zend_fiber_stack_allocate(zend_fiber_stack *stack, unsigned int size);
