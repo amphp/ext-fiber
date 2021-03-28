@@ -95,7 +95,6 @@ zend_always_inline static void zend_observer_fiber_switch_notify(zend_fiber *fro
 
 static zend_bool zend_fiber_switch_to(zend_fiber *fiber)
 {
-	zend_fiber_context *root;
 	zend_fiber *previous;
 	zend_vm_stack stack;
 	size_t stack_page_size;
@@ -103,13 +102,6 @@ static zend_bool zend_fiber_switch_to(zend_fiber *fiber)
 	int error_reporting;
 	uint32_t jit_trace_num;
 	zend_bool result;
-
-	root = FIBER_G(root_context);
-
-	if (root == NULL) {
-		root = zend_fiber_create_root_context();
-		FIBER_G(root_context) = root;
-	}
 
 	previous = FIBER_G(current_fiber);
 
@@ -119,7 +111,7 @@ static zend_bool zend_fiber_switch_to(zend_fiber *fiber)
 
 	ZEND_FIBER_BACKUP_EG(stack, stack_page_size, execute_data, error_reporting, jit_trace_num);
 
-	result = zend_fiber_switch_context(previous == NULL ? root : previous->context, fiber->context);
+	result = zend_fiber_switch_context(fiber->context);
 
 	FIBER_G(current_fiber) = previous;
 
@@ -1015,7 +1007,6 @@ void zend_fiber_ce_unregister(void)
 
 void zend_fiber_startup(void)
 {
-	FIBER_G(root_context) = NULL;
 	FIBER_G(current_fiber) = NULL;
 	FIBER_G(shutdown) = 0;
 	FIBER_G(id) = 0;
@@ -1023,8 +1014,6 @@ void zend_fiber_startup(void)
 
 void zend_fiber_shutdown(void)
 {
-	zend_fiber_context *root;
-
 	if (!FIBER_G(shutdown)) {
 		zend_fiber_clean_shutdown();
 	}
@@ -1032,10 +1021,4 @@ void zend_fiber_shutdown(void)
 	FIBER_G(shutdown) = 1;
 
 	zend_fiber_shutdown_cleanup();
-
-	root = FIBER_G(root_context);
-
-	if (root != NULL) {
-		zend_fiber_destroy(root);
-	}
 }

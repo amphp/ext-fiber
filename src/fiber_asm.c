@@ -39,17 +39,6 @@ static void zend_fiber_initialize(transfer_t trans)
 	context->function();
 }
 
-zend_fiber_context *zend_fiber_create_root_context(void)
-{
-	zend_fiber_context *context = emalloc(sizeof(zend_fiber_context));
-	ZEND_SECURE_ZERO(context, sizeof(zend_fiber_context));
-
-	context->initialized = 1;
-	context->root = 1;
-
-	return context;
-}
-
 zend_fiber_context *zend_fiber_create_context(void)
 {
 	zend_fiber_context *context = emalloc(sizeof(zend_fiber_context));
@@ -91,23 +80,20 @@ void zend_fiber_destroy(zend_fiber_context *context)
 		return;
 	}
 
-	if (!context->root && context->initialized) {
+	if (context->initialized) {
 		zend_fiber_stack_free(&context->stack);
 	}
 
 	efree(context);
 }
 
-zend_bool zend_fiber_switch_context(zend_fiber_context *current, zend_fiber_context *next)
+zend_bool zend_fiber_switch_context(zend_fiber_context *to)
 {
-	if (UNEXPECTED(current == NULL) || UNEXPECTED(next == NULL)) {
+	if (UNEXPECTED(to == NULL)) {
 		return 0;
 	}
 
-	zend_fiber_context *from = current;
-	zend_fiber_context *to = next;
-
-	if (UNEXPECTED(from->initialized == 0) || UNEXPECTED(to->initialized == 0)) {
+	if (UNEXPECTED(to->initialized == 0)) {
 		return 0;
 	}
 

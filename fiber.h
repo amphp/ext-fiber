@@ -63,7 +63,6 @@ typedef struct _zend_fiber_context {
 	zend_fiber_function function;
 	zend_fiber_stack stack;
 	zend_bool initialized;
-	zend_bool root;
 } zend_fiber_context;
 
 zend_bool zend_fiber_stack_allocate(zend_fiber_stack *stack, unsigned int size);
@@ -147,7 +146,7 @@ zend_fiber_context *zend_fiber_create_context(void);
 zend_bool zend_fiber_create(zend_fiber_context *context, zend_fiber_function function, size_t stack_size);
 void zend_fiber_destroy(zend_fiber_context *context);
 
-zend_bool zend_fiber_switch_context(zend_fiber_context *current, zend_fiber_context *next);
+zend_bool zend_fiber_switch_context(zend_fiber_context *to);
 zend_bool zend_fiber_suspend_context(zend_fiber_context *current);
 
 void zend_fiber_error_observer(int type, const char *filename, uint32_t line, zend_string *message);
