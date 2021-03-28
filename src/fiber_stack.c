@@ -6,8 +6,8 @@
   | modification, are permitted provided that the conditions mentioned |
   | in the accompanying LICENSE file are met.                          |
   +--------------------------------------------------------------------+
-  | Authors: Martin Schröder <m.schroeder2007@gmail.com>               |
-  |          Aaron Piotrowski <aaron@trowski.com>                      |
+  | Authors: Aaron Piotrowski <aaron@trowski.com>                      |
+  |          Martin Schröder <m.schroeder2007@gmail.com>               |
   +--------------------------------------------------------------------+
 */
 
