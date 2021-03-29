@@ -136,11 +136,8 @@ static const zend_uchar ZEND_FIBER_STATUS_FINISHED = 0x1c;
 
 char *zend_fiber_backend_info(void);
 
-zend_fiber_context *zend_fiber_create_root_context(void);
-zend_fiber_context *zend_fiber_create_context(void);
-
-zend_bool zend_fiber_create(zend_fiber_context *context, zend_fiber_function function, size_t stack_size);
-void zend_fiber_destroy(zend_fiber_context *context);
+zend_fiber_context *zend_fiber_create_context(zend_fiber_function function, size_t stack_size);
+void zend_fiber_destroy_context(zend_fiber_context *context);
 
 zend_bool zend_fiber_switch_context(zend_fiber_context *to);
 zend_bool zend_fiber_suspend_context(zend_fiber_context *current);
