@@ -67,7 +67,7 @@ PHP_FIBER_API zend_fiber *zend_get_current_fiber(void)
 }
 
 
-zend_always_inline PHP_FIBER_API zend_bool zend_is_fiber_exit(zend_object *exception)
+zend_always_inline PHP_FIBER_API zend_bool zend_is_fiber_exit(const zend_object *exception)
 {
 	ZEND_ASSERT(exception && "No exception object provided");
 
@@ -643,7 +643,7 @@ ZEND_METHOD(Fiber, getReturn)
 	fiber = (zend_fiber *) Z_OBJ_P(getThis());
 
 	if (fiber->status != ZEND_FIBER_STATUS_RETURNED) {
-		char *message;
+		const char *message;
 
 		if (fiber->status == ZEND_FIBER_STATUS_INIT) {
 			message = "The fiber has not been started";

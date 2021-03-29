@@ -64,9 +64,6 @@ typedef struct _zend_fiber_context {
 	zend_fiber_stack stack;
 } zend_fiber_context;
 
-zend_bool zend_fiber_stack_allocate(zend_fiber_stack *stack, unsigned int size);
-void zend_fiber_stack_free(zend_fiber_stack *stack);
-
 #if _POSIX_MAPPED_FILES
 # include <sys/mman.h>
 # include <limits.h>
@@ -119,7 +116,7 @@ struct _zend_fiber_reflection {
 };
 
 PHP_FIBER_API zend_fiber *zend_get_current_fiber(void);
-PHP_FIBER_API zend_bool zend_is_fiber_exit(zend_object *exception);
+PHP_FIBER_API zend_bool zend_is_fiber_exit(const zend_object *exception);
 
 typedef void (*zend_observer_fiber_switch_handler)(zend_fiber *from, zend_fiber *to);
 
@@ -138,6 +135,9 @@ char *zend_fiber_backend_info(void);
 
 zend_fiber_context *zend_fiber_create_context(zend_fiber_function function, size_t stack_size);
 void zend_fiber_destroy_context(zend_fiber_context *context);
+
+zend_bool zend_fiber_stack_allocate(zend_fiber_stack *stack, size_t size);
+void zend_fiber_stack_free(zend_fiber_stack *stack);
 
 zend_bool zend_fiber_switch_context(zend_fiber_context *to);
 zend_bool zend_fiber_suspend_context(zend_fiber_context *current);

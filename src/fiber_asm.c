@@ -45,7 +45,7 @@ zend_fiber_context *zend_fiber_create_context(zend_fiber_function function, size
 	ZEND_SECURE_ZERO(context, sizeof(zend_fiber_context));
 
 	if (UNEXPECTED(!zend_fiber_stack_allocate(&context->stack, stack_size))) {
-		return 0;
+		return NULL;
 	}
 
 	// Ensure 16-byte alignment for stack pointer.
@@ -102,7 +102,7 @@ zend_bool zend_fiber_suspend_context(zend_fiber_context *current)
 		return 0;
 	}
 
-	current->caller = jump_fcontext(current->caller, 0).ctx;
+	current->caller = jump_fcontext(current->caller, NULL).ctx;
 
 	return 1;
 }
