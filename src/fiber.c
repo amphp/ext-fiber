@@ -93,6 +93,25 @@ zend_always_inline static void zend_observer_fiber_switch_notify(zend_fiber *fro
 }
 
 
+static zend_bool zend_fiber_suspend(zend_fiber *fiber)
+{
+	zend_vm_stack stack;
+	size_t stack_page_size;
+	zend_execute_data *execute_data;
+	int error_reporting;
+	uint32_t jit_trace_num;
+	zend_bool result;
+
+	ZEND_FIBER_BACKUP_EG(stack, stack_page_size, execute_data, error_reporting, jit_trace_num);
+
+	result = zend_fiber_suspend_context(fiber->context);
+
+	ZEND_FIBER_RESTORE_EG(stack, stack_page_size, execute_data, error_reporting, jit_trace_num);
+
+	return result;
+}
+
+
 static zend_bool zend_fiber_switch_to(zend_fiber *fiber)
 {
 	zend_fiber *previous;
@@ -119,24 +138,15 @@ static zend_bool zend_fiber_switch_to(zend_fiber *fiber)
 
 	zend_observer_fiber_switch_notify(fiber, previous);
 
-	return result;
-}
+	if (UNEXPECTED(FIBER_G(error) != NULL && fiber->status != ZEND_FIBER_STATUS_SHUTDOWN)) {
+		if (previous != NULL) {
+			zend_fiber_suspend(previous); // Still in fiber, suspend again until in {main}.
+			abort(); // This fiber should never be resumed.
+		}
 
-
-static zend_bool zend_fiber_suspend(zend_fiber *fiber)
-{
-	zend_vm_stack stack;
-	size_t stack_page_size;
-	zend_execute_data *execute_data;
-	uint32_t jit_trace_num;
-	int error_reporting;
-	zend_bool result;
-
-	ZEND_FIBER_BACKUP_EG(stack, stack_page_size, execute_data, error_reporting, jit_trace_num);
-
-	result = zend_fiber_suspend_context(fiber->context);
-
-	ZEND_FIBER_RESTORE_EG(stack, stack_page_size, execute_data, error_reporting, jit_trace_num);
+		zend_fiber_error *error = FIBER_G(error);
+		zend_error_at_noreturn(error->type, error->filename, error->lineno, "%s", ZSTR_VAL(error->message));
+	}
 
 	return result;
 }
@@ -322,6 +332,24 @@ void zend_fiber_error_observer(int type, const char *filename, uint32_t line, ze
 	if (type & E_DONT_BAIL) {
 		// Uncaught exception, do a clean shutdown now.
 		zend_fiber_clean_shutdown();
+		return;
+	}
+
+	zend_fiber *fiber = FIBER_G(current_fiber);
+
+	if (fiber != NULL) {
+		// In a fiber, we need to switch back to main.
+		zend_fiber_error *error = emalloc(sizeof(zend_fiber_error));
+		error->type = type;
+		error->filename = filename;
+		error->lineno = line;
+		error->message = message;
+
+		FIBER_G(error) = error;
+
+		zend_fiber_suspend(fiber);
+
+		abort(); // This fiber should never be resumed.
 	}
 }
 

@@ -76,9 +76,7 @@ typedef struct _zend_fiber_context {
 
 #define ZEND_FIBER_DEFAULT_STACK_SIZE (ZEND_FIBER_PAGESIZE * (((sizeof(void *)) < 8) ? 512 : 2048))
 
-typedef struct _zend_fiber zend_fiber;
-
-struct _zend_fiber {
+typedef struct _zend_fiber {
 	/* Fiber PHP object handle. */
 	zend_object std;
 
@@ -103,17 +101,22 @@ struct _zend_fiber {
 
 	/* Storage for temporaries and fiber return value. */
 	zval value;
-};
+} zend_fiber;
 
-typedef struct _zend_fiber_reflection zend_fiber_reflection;
-
-struct _zend_fiber_reflection {
+typedef struct _zend_fiber_reflection {
 	/* ReflectionFiber PHP object handle. */
 	zend_object std;
 
 	/* Fiber being reflected. */
 	zend_fiber *fiber;
-};
+} zend_fiber_reflection;
+
+typedef struct _zend_fiber_error {
+	int type;
+	const char *filename;
+	uint32_t lineno;
+	zend_string *message;
+} zend_fiber_error;
 
 PHP_FIBER_API zend_fiber *zend_get_current_fiber(void);
 PHP_FIBER_API zend_bool zend_is_fiber_exit(const zend_object *exception);

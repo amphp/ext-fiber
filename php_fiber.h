@@ -41,6 +41,9 @@ ZEND_BEGIN_MODULE_GLOBALS(fiber)
 	/* Flag if a shutdown function has been invoked. */
 	zend_bool shutdown;
 
+	/* If a fatal error occurs in a fiber, this is used to save the error while switching to {main}. */
+	zend_fiber_error *error;
+
 	/* ZEND_CATCH handler that may be declared by another extension. */
 	user_opcode_handler_t catch_handler;
 
