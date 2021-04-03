@@ -26,4 +26,6 @@ if (PHP_FIBER != 'no') {
 	for (var i = 0; i < ASM_FILENAMES.length; ++i) {
 		ADD_FLAG('LDFLAGS_FIBER', '$(BUILD_DIR)\\src\\' + ASM_FILENAMES[i] + '.obj ');
 	}
+
+	PHP_INSTALL_HEADERS("ext/fiber", "php_fiber.h fiber.h");
 }

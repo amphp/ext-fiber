@@ -67,5 +67,5 @@ if test "$PHP_FIBER" != "no"; then
   PHP_SUBST(FIBER_CFLAGS)
   PHP_ADD_MAKEFILE_FRAGMENT
   
-  PHP_INSTALL_HEADERS([ext/fiber], [php_fiber.h include/*.h])
+  PHP_INSTALL_HEADERS([ext/fiber], [php_fiber.h fiber.h])
 fi
