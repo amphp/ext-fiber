@@ -17,7 +17,6 @@
 #include "zend_vm.h"
 #include "zend_interfaces.h"
 #include "zend_exceptions.h"
-#include "zend_closures.h"
 #include "zend_observer.h"
 #include "zend_builtin_functions.h"
 
@@ -124,11 +123,11 @@ static zend_bool zend_fiber_switch_to(zend_fiber *fiber)
 
 	previous = FIBER_G(current_fiber);
 
-	FIBER_G(current_fiber) = fiber;
-
 	zend_observer_fiber_switch_notify(previous, fiber);
 
 	ZEND_FIBER_BACKUP_EG(stack, stack_page_size, execute_data, error_reporting, jit_trace_num);
+
+	FIBER_G(current_fiber) = fiber;
 
 	result = zend_fiber_switch_context(fiber->context);
 
