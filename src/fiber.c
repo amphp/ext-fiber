@@ -223,19 +223,6 @@ ZEND_NORETURN static void zend_fiber_run(void)
 }
 
 
-static void zend_fiber_free(zend_fiber *fiber)
-{
-	if (fiber->status == ZEND_FIBER_STATUS_SUSPENDED) {
-		fiber->status = ZEND_FIBER_STATUS_SHUTDOWN;
-		zend_fiber_switch_to(fiber);
-	}
-
-	zend_fiber_destroy_context(fiber->context);
-
-	zend_object_std_dtor(&fiber->std);
-}
-
-
 static zend_object *zend_fiber_object_create(zend_class_entry *ce)
 {
 	zend_fiber *fiber;
@@ -260,6 +247,13 @@ static void zend_fiber_object_destroy(zend_object *object)
 {
 	zend_fiber *fiber = (zend_fiber *) object;
 
+	if (fiber->status == ZEND_FIBER_STATUS_SUSPENDED) {
+		fiber->status = ZEND_FIBER_STATUS_SHUTDOWN;
+		zend_fiber_switch_to(fiber);
+	}
+
+	zend_fiber_destroy_context(fiber->context);
+
 	zval_ptr_dtor(&fiber->value);
 
 	zend_hash_index_del(&FIBER_G(fibers), fiber->std.handle);
@@ -269,7 +263,7 @@ static void zend_fiber_object_destroy(zend_object *object)
 		zval_ptr_dtor(&fiber->fci.function_name);
 	}
 
-	zend_fiber_free(fiber);
+	zend_object_std_dtor(&fiber->std);
 }
 
 
