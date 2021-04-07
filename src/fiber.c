@@ -164,10 +164,7 @@ static zend_always_inline zend_vm_stack zend_fiber_vm_stack_alloc(size_t size)
 
 static void zend_fiber_execute(zend_fiber *fiber)
 {
-	zval retval;
-
-	fiber->status = ZEND_FIBER_STATUS_RUNNING;
-	fiber->fci.retval = &retval;
+	fiber->fci.retval = &fiber->value;
 
 	zend_call_function(&fiber->fci, &fiber->fci_cache);
 
@@ -182,9 +179,6 @@ static void zend_fiber_execute(zend_fiber *fiber)
 	} else {
 		fiber->status = ZEND_FIBER_STATUS_RETURNED;
 	}
-
-	ZVAL_COPY(&fiber->value, &retval);
-	zval_ptr_dtor(&retval);
 
 	GC_DELREF(&fiber->std);
 }
@@ -249,21 +243,21 @@ static void zend_fiber_object_destroy(zend_object *object)
 {
 	zend_fiber *fiber = (zend_fiber *) object;
 
-	if (fiber->status == ZEND_FIBER_STATUS_SUSPENDED) {
-		fiber->status = ZEND_FIBER_STATUS_SHUTDOWN;
-		zend_fiber_switch_to(fiber);
+	if (UNEXPECTED(fiber->status == ZEND_FIBER_STATUS_INIT)) {
+		// Fiber was never started, so we need to release the reference to the callback.
+		zval_ptr_dtor(&fiber->fci.function_name);
+	} else {
+		if (fiber->status == ZEND_FIBER_STATUS_SUSPENDED) {
+			fiber->status = ZEND_FIBER_STATUS_SHUTDOWN;
+			zend_fiber_switch_to(fiber);
+		}
+
+		zval_ptr_dtor(&fiber->value);
 	}
-
-	zend_fiber_destroy_context(fiber->context);
-
-	zval_ptr_dtor(&fiber->value);
 
 	zend_hash_index_del(&FIBER_G(fibers), fiber->std.handle);
 
-	if (fiber->status == ZEND_FIBER_STATUS_INIT) {
-		// Fiber was never started, so we need to release the reference to the callback.
-		zval_ptr_dtor(&fiber->fci.function_name);
-	}
+	zend_fiber_destroy_context(fiber->context);
 
 	zend_object_std_dtor(&fiber->std);
 }
