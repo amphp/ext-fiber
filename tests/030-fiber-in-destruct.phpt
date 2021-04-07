@@ -28,7 +28,7 @@ var_dump($fiber->resume());
 var_dump($fiber->resume());
 var_dump($fiber->getReturn());
 
---EXPECTF--
+--EXPECT--
 int(1)
 int(2)
 int(3)

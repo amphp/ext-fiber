@@ -173,7 +173,9 @@ static void zend_fiber_execute(zend_fiber *fiber)
 
 	if (EG(exception)) {
 		if (fiber->status == ZEND_FIBER_STATUS_SHUTDOWN) {
-			zend_clear_exception();
+			if (EXPECTED(zend_is_fiber_exit(EG(exception))) || EG(flags) & EG_FLAGS_IN_SHUTDOWN) {
+				zend_clear_exception();
+			}
 		} else {
 			fiber->status = ZEND_FIBER_STATUS_THREW;
 		}
@@ -282,7 +284,7 @@ static int zend_fiber_catch_handler(zend_execute_data *execute_data)
 }
 
 
-static void zend_fiber_clean_shutdown(void)
+static void zend_fiber_shutdown_cleanup(void)
 {
 	zend_fiber *fiber;
 
@@ -296,36 +298,10 @@ static void zend_fiber_clean_shutdown(void)
 }
 
 
-static void zend_fiber_shutdown_cleanup(void)
-{
-	zend_fiber *fiber;
-
-	ZEND_HASH_REVERSE_FOREACH_PTR(&FIBER_G(fibers), fiber) {
-		if (fiber->status == ZEND_FIBER_STATUS_SUSPENDED) {
-			fiber->status = ZEND_FIBER_STATUS_SHUTDOWN;
-			GC_ADDREF(&fiber->std);
-		}
-	} ZEND_HASH_FOREACH_END();
-}
-
-
 void zend_fiber_error_observer(int type, const char *filename, uint32_t line, zend_string *message)
 {
 	if (!(type & E_FATAL_ERRORS)) {
 		return; // Non-fatal error, nothing to do.
-	}
-
-	if (FIBER_G(shutdown)) {
-		return; // Already shut down, nothing to do.
-	}
-
-	// Fatal error, mark as shutdown.
-	FIBER_G(shutdown) = 1;
-
-	if (type & E_DONT_BAIL) {
-		// Uncaught exception, do a clean shutdown now.
-		zend_fiber_clean_shutdown();
-		return;
 	}
 
 	zend_fiber *fiber = FIBER_G(current_fiber);
@@ -1029,10 +1005,6 @@ void zend_fiber_startup(void)
 
 void zend_fiber_shutdown(void)
 {
-	if (!FIBER_G(shutdown)) {
-		zend_fiber_clean_shutdown();
-	}
-
 	FIBER_G(shutdown) = 1;
 
 	zend_fiber_shutdown_cleanup();

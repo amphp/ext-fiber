@@ -38,7 +38,7 @@ ZEND_BEGIN_MODULE_GLOBALS(fiber)
 	/* Currently executing fibers. */
 	HashTable fibers;
 
-	/* Flag if a shutdown function has been invoked. */
+	/* Flag if request shutdown has destroyed all fibers. */
 	zend_bool shutdown;
 
 	/* If a fatal error occurs in a fiber, this is used to save the error while switching to {main}. */
