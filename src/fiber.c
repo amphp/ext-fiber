@@ -358,7 +358,7 @@ ZEND_METHOD(Fiber, __construct)
 /* }}} */
 
 
-/* {{{ proto void Fiber::start(mixed ...$args) */
+/* {{{ proto mixed Fiber::start(mixed ...$args) */
 ZEND_METHOD(Fiber, start)
 {
 	zend_fiber *fiber;
@@ -488,7 +488,7 @@ ZEND_METHOD(Fiber, suspend)
 /* }}} */
 
 
-/* {{{ proto void Fiber::resume(mixed $value = null) */
+/* {{{ proto mixed Fiber::resume(mixed $value = null) */
 ZEND_METHOD(Fiber, resume)
 {
 	zend_fiber *fiber;
@@ -530,7 +530,7 @@ ZEND_METHOD(Fiber, resume)
 /* }}} */
 
 
-/* {{{ proto void Fiber::throw(Throwable $exception) */
+/* {{{ proto mixed Fiber::throw(Throwable $exception) */
 ZEND_METHOD(Fiber, throw)
 {
 	zend_fiber *fiber;

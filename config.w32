@@ -16,7 +16,7 @@ if (PHP_FIBER != 'no') {
 		var obj = '$(BUILD_DIR)\\src\\' + filename + '.obj';
 
 		MFO.WriteLine(obj + ': ' + src);
-		MFO.WriteLine('\t@$(FIBER_ASSEMBLER) /DBOOST_CONTEXT_EXPORT=EXPORT /Fo' + obj + ' /c ' + src);
+		MFO.WriteLine('\t@$(FIBER_ASSEMBLER) /DBOOST_CONTEXT_EXPORT=EXPORT /nologo /Fo' + obj + ' /c ' + src);
 		MFO.WriteLine('$(BUILD_DIR)\\php_fiber.dll: ' + obj);
 	}
 

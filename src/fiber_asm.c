@@ -23,7 +23,7 @@
 extern fcontext_t make_fcontext(void *sp, size_t size, void (*fn)(transfer_t));
 extern transfer_t jump_fcontext(fcontext_t to, void *vp);
 
-char *zend_fiber_backend_info(void)
+const char *zend_fiber_backend_info(void)
 {
 	return "assembler (boost.context v1.76.0.beta1)";
 }
@@ -70,9 +70,7 @@ void zend_fiber_destroy_context(zend_fiber_context *context)
 		return;
 	}
 
-	if (context->stack.pointer != NULL) {
-		zend_fiber_stack_free(&context->stack);
-	}
+	zend_fiber_stack_free(&context->stack);
 
 	efree(context);
 }
