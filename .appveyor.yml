@@ -17,6 +17,16 @@ environment:
       VC: vs16
       ARCH: x64
       OPCACHE: 1
+    - PHP_VER: 8.0
+      TS: 0
+      VC: vs16
+      ARCH: x86
+      OPCACHE: 0
+    - PHP_VER: 8.0
+      TS: 1
+      VC: vs16
+      ARCH: x86
+      OPCACHE: 1
 cache:
   - C:\build-cache -> .appveyor.yml, .appveyor\install.ps1
 install:
