@@ -15,7 +15,6 @@
 #define FIBER_H
 
 #include "php.h"
-#include "zend_observer.h"
 
 BEGIN_EXTERN_C()
 

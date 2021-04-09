@@ -16,6 +16,7 @@
 #endif
 
 #include "php.h"
+#include "zend_observer.h"
 #include "ext/standard/info.h"
 
 #include "php_fiber.h"

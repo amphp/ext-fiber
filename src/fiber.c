@@ -36,7 +36,7 @@ static zend_object_handlers zend_reflection_fiber_handlers;
 static zend_object *zend_fiber_object_create(zend_class_entry *ce);
 static void zend_fiber_object_destroy(zend_object *object);
 
-zend_llist zend_fiber_observers_list;
+static zend_llist zend_fiber_observers_list;
 
 #define ZEND_FIBER_BACKUP_EG(stack, stack_page_size, execute_data, error_reporting, trace_num) do { \
 	stack = EG(vm_stack); \
