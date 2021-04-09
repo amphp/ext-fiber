@@ -233,7 +233,7 @@ static zend_object *zend_fiber_object_create(zend_class_entry *ce)
 
 	ZVAL_UNDEF(&fiber->value);
 
-	zend_hash_index_add_ptr(&FIBER_G(fibers), fiber->std.handle, fiber);
+	zend_hash_index_add_ptr(&FIBER_G(fibers), fiber->id, fiber);
 
 	return &fiber->std;
 }
@@ -255,7 +255,7 @@ static void zend_fiber_object_destroy(zend_object *object)
 		zval_ptr_dtor(&fiber->value);
 	}
 
-	zend_hash_index_del(&FIBER_G(fibers), fiber->std.handle);
+	zend_hash_index_del(&FIBER_G(fibers), fiber->id);
 
 	zend_fiber_destroy_context(fiber->context);
 
