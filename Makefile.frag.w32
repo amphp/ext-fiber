@@ -1,9 +1,7 @@
-$(BUILD_DIR)\src\jump_$(ASM_ARCH)_ms_pe_masm.obj: boost\asm\jump_$(ASM_ARCH)_ms_pe_masm.asm
-	$(FIBER_ASSEMBLER) /DBOOST_CONTEXT_EXPORT=EXPORT /nologo /Fo $(BUILD_DIR)\src\jump_$(ASM_ARCH)_ms_pe_masm.obj /c $(SRC_DIR)\boost\asm\jump_$(ASM_ARCH)_ms_pe_masm.asm
+$(BUILD_DIR)\src\jump_$(FIBER_ASM_ARCH)_ms_pe_masm.obj: boost\asm\jump_$(FIBER_ASM_ARCH)_ms_pe_masm.asm
+	$(FIBER_ASSEMBLER) /DBOOST_CONTEXT_EXPORT=EXPORT /nologo /Fo $(BUILD_DIR)\src\jump_$(FIBER_ASM_ARCH)_ms_pe_masm.obj /c $(SRC_DIR)\boost\asm\jump_$(FIBER_ASM_ARCH)_ms_pe_masm.asm
 
-$(BUILD_DIR)\php_fiber.dll: $(BUILD_DIR)\src\jump_$(ASM_ARCH)_ms_pe_masm.obj
+$(BUILD_DIR)\src\make_$(FIBER_ASM_ARCH)_ms_pe_masm.obj: boost\asm\make_$(FIBER_ASM_ARCH)_ms_pe_masm.asm
+	$(FIBER_ASSEMBLER) /DBOOST_CONTEXT_EXPORT=EXPORT /nologo /Fo $(BUILD_DIR)\src\make_$(FIBER_ASM_ARCH)_ms_pe_masm.obj /c $(SRC_DIR)\boost\asm\make_$(FIBER_ASM_ARCH)_ms_pe_masm.asm
 
-$(BUILD_DIR)\src\make_$(ASM_ARCH)_ms_pe_masm.obj: boost\asm\make_$(ASM_ARCH)_ms_pe_masm.asm
-	$(FIBER_ASSEMBLER) /DBOOST_CONTEXT_EXPORT=EXPORT /nologo /Fo $(BUILD_DIR)\src\make_$(ASM_ARCH)_ms_pe_masm.obj /c $(SRC_DIR)\boost\asm\make_$(ASM_ARCH)_ms_pe_masm.asm
-
-$(BUILD_DIR)\php_fiber.dll: $(BUILD_DIR)\src\make_$(ASM_ARCH)_ms_pe_masm.obj
+$(BUILD_DIR)\php_fiber.dll: $(BUILD_DIR)\src\jump_$(FIBER_ASM_ARCH)_ms_pe_masm.obj $(BUILD_DIR)\src\make_$(FIBER_ASM_ARCH)_ms_pe_masm.obj

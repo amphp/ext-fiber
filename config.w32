@@ -8,17 +8,14 @@ if (PHP_FIBER != 'no') {
 	var FIBER_ASSEMBLER = X64 ? PATH_PROG('ML64') : PATH_PROG('ML');
 	DEFINE('FIBER_ASSEMBLER', FIBER_ASSEMBLER);
 
-	var ASM_ARCH = X64 ? 'x86_64' : 'i386';
-	DEFINE('ASM_ARCH', ASM_ARCH);
-
-	var ASM_FILENAMES = ['jump_' + ASM_ARCH + '_ms_pe_masm', 'make_' + ASM_ARCH + '_ms_pe_masm'];
+	var FIBER_ASM_ARCH = X64 ? 'x86_64' : 'i386';
+	DEFINE('FIBER_ASM_ARCH', FIBER_ASM_ARCH);
 
 	var FIBER_SOURCES = 'src\\php_fiber.c src\\fiber.c src\\fiber_asm.c src\\fiber_stack.c';
 	EXTENSION('fiber', FIBER_SOURCES, null, '/I. /Iinclude /DZEND_ENABLE_STATIC_TSRMLS_CACHE=1  /DPHP_FIBER_EXPORTS=1');
 
-	for (var i = 0; i < ASM_FILENAMES.length; ++i) {
-		ADD_FLAG('LDFLAGS_FIBER', '$(BUILD_DIR)\\src\\' + ASM_FILENAMES[i] + '.obj ');
-	}
+	ADD_FLAG('LDFLAGS_FIBER', '$(BUILD_DIR)\\src\\jump_' + FIBER_ASM_ARCH + '_ms_pe_masm.obj');
+	ADD_FLAG('LDFLAGS_FIBER', '$(BUILD_DIR)\\src\\make_' + FIBER_ASM_ARCH + '_ms_pe_masm.obj');
 
 	PHP_INSTALL_HEADERS("ext/fiber", "php_fiber.h fiber.h");
 
