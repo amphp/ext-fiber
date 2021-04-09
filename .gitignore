@@ -20,7 +20,9 @@ build
 install-sh
 libtool
 ltmain.sh
-Makefile*
+Makefile
+Makefile.fragments
+Makefile.objects
 modules
 missing
 mkinstalldirs

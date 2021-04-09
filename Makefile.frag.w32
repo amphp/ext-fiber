@@ -1,0 +1,25 @@
+!IF [$(ASM_ARCH) == "x86_64"]
+
+$(BUILD_DIR)\src\jump_x86_64_ms_pe_masm.obj: boost\asm\jump_x86_64_ms_pe_masm.asm
+	$(FIBER_ASSEMBLER) /DBOOST_CONTEXT_EXPORT=EXPORT /nologo /Fo $(BUILD_DIR)\src\jump_x86_64_ms_pe_masm.obj /c $(SRC_DIR)\boost\asm\jump_x86_64_ms_pe_masm.asm
+
+$(BUILD_DIR)\php_fiber.dll: $(BUILD_DIR)\src\jump_x86_64_ms_pe_masm.obj
+
+$(BUILD_DIR)\src\make_x86_64_ms_pe_masm.obj: boost\asm\make_x86_64_ms_pe_masm.asm
+	$(FIBER_ASSEMBLER) /DBOOST_CONTEXT_EXPORT=EXPORT /nologo /Fo $(BUILD_DIR)\src\make_x86_64_ms_pe_masm.obj /c $(SRC_DIR)\boost\asm\make_x86_64_ms_pe_masm.asm
+
+$(BUILD_DIR)\php_fiber.dll: $(BUILD_DIR)\src\make_x86_64_ms_pe_masm.obj
+
+!ELSE
+
+$(BUILD_DIR)\src\jump_i386_ms_pe_masm.obj: boost\asm\jump_i386_ms_pe_masm.asm
+	$(FIBER_ASSEMBLER) /DBOOST_CONTEXT_EXPORT=EXPORT /nologo /Fo $(BUILD_DIR)\src\jump_i386_ms_pe_masm.obj /c $(SRC_DIR)\boost\asm\jump_i386_ms_pe_masm.asm
+
+$(BUILD_DIR)\php_fiber.dll: $(BUILD_DIR)\src\jump_i386_ms_pe_masm.obj
+
+$(BUILD_DIR)\src\make_i386_ms_pe_masm.obj: boost\asm\make_i386_ms_pe_masm.asm
+	$(FIBER_ASSEMBLER) /DBOOST_CONTEXT_EXPORT=EXPORT /nologo /Fo $(BUILD_DIR)\src\make_i386_ms_pe_masm.obj /c $(SRC_DIR)\boost\asm\make_i386_ms_pe_masm.asm
+
+$(BUILD_DIR)\php_fiber.dll: $(BUILD_DIR)\src\make_i386_ms_pe_masm.obj
+
+!ENDIF

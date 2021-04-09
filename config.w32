@@ -3,22 +3,15 @@ ARG_ENABLE('fiber', 'fiber support', 'yes');
 if (PHP_FIBER != 'no') {
 	AC_DEFINE('HAVE_FIBER', 1, 'fiber support enabled');
 
+	DEFINE('SRC_DIR', configure_module_dirname);
+
 	var FIBER_ASSEMBLER = X64 ? PATH_PROG('ML64') : PATH_PROG('ML');
 	DEFINE('FIBER_ASSEMBLER', FIBER_ASSEMBLER);
 
 	var ASM_ARCH = X64 ? 'x86_64' : 'i386';
-	var ASM_DIR = 'boost\\asm';
+	DEFINE('ASM_ARCH', ASM_ARCH);
+
 	var ASM_FILENAMES = ['jump_' + ASM_ARCH + '_ms_pe_masm', 'make_' + ASM_ARCH + '_ms_pe_masm'];
-
-	for (var i = 0; i < ASM_FILENAMES.length; ++i) {
-		var filename = ASM_FILENAMES[i];
-		var src = (configure_module_dirname + '\\' + ASM_DIR + '\\' + filename + '.asm').replace(/\//g, '\\');
-		var obj = '$(BUILD_DIR)\\src\\' + filename + '.obj';
-
-		MFO.WriteLine(obj + ': ' + src);
-		MFO.WriteLine('\t@$(FIBER_ASSEMBLER) /DBOOST_CONTEXT_EXPORT=EXPORT /nologo /Fo' + obj + ' /c ' + src);
-		MFO.WriteLine('$(BUILD_DIR)\\php_fiber.dll: ' + obj);
-	}
 
 	var FIBER_SOURCES = 'src\\php_fiber.c src\\fiber.c src\\fiber_asm.c src\\fiber_stack.c';
 	EXTENSION('fiber', FIBER_SOURCES, null, '/I. /Iinclude /DZEND_ENABLE_STATIC_TSRMLS_CACHE=1  /DPHP_FIBER_EXPORTS=1');
@@ -28,4 +21,6 @@ if (PHP_FIBER != 'no') {
 	}
 
 	PHP_INSTALL_HEADERS("ext/fiber", "php_fiber.h fiber.h");
+
+	ADD_MAKEFILE_FRAGMENT();
 }
