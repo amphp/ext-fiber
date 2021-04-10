@@ -45,6 +45,7 @@ PHP_FIBER_API zend_fiber_context *zend_fiber_create_context(zend_fiber_function 
 	ZEND_SECURE_ZERO(context, sizeof(zend_fiber_context));
 
 	if (UNEXPECTED(!zend_fiber_stack_allocate(&context->stack, stack_size))) {
+		efree(context);
 		return NULL;
 	}
 
@@ -58,6 +59,7 @@ PHP_FIBER_API zend_fiber_context *zend_fiber_create_context(zend_fiber_function 
 
 	if (UNEXPECTED(!context->ctx)) {
 		zend_fiber_stack_free(&context->stack);
+		efree(context);
 		return NULL;
 	}
 
