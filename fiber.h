@@ -63,7 +63,6 @@ typedef struct _zend_fiber_context {
 	fcontext_t caller;
 	zend_fiber_coroutine function;
 	zend_fiber_stack stack;
-	void *data;
 } zend_fiber_context;
 
 #if _POSIX_MAPPED_FILES
@@ -92,8 +91,8 @@ typedef struct _zend_fiber {
 	zend_fcall_info fci;
 	zend_fcall_info_cache fci_cache;
 
-	/* Fiber context of this fiber, will be created during call to start(). */
-	zend_fiber_context *context;
+	/* Context of this fiber, will be initialized during call to Fiber::start(). */
+	zend_fiber_context context;
 
 	/* Current Zend VM execute data being run by the fiber. */
 	zend_execute_data *execute_data;
@@ -138,7 +137,7 @@ static const zend_uchar ZEND_FIBER_STATUS_FINISHED = 0x1c;
 
 const char *zend_fiber_backend_info(void);
 
-PHP_FIBER_API zend_fiber_context *zend_fiber_create_context(zend_fiber_coroutine coroutine, size_t stack_size, void *data);
+PHP_FIBER_API zend_bool zend_fiber_init_context(zend_fiber_context *context, zend_fiber_coroutine coroutine, size_t stack_size);
 PHP_FIBER_API void zend_fiber_destroy_context(zend_fiber_context *context);
 
 zend_bool zend_fiber_stack_allocate(zend_fiber_stack *stack, size_t size);
@@ -148,8 +147,6 @@ PHP_FIBER_API zend_fiber_context *zend_fiber_switch_context(zend_fiber_context *
 PHP_FIBER_API zend_fiber_context *zend_fiber_suspend_context(zend_fiber_context *current);
 
 void zend_fiber_error_observer(int type, const char *filename, uint32_t line, zend_string *message);
-
-#define ZEND_FIBER_CONTEXT_DATA(context) (context->data)
 
 #define ZEND_FIBER_VM_STACK_SIZE (1024 * sizeof(zval))
 

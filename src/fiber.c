@@ -102,7 +102,7 @@ static void zend_fiber_suspend(zend_fiber *fiber)
 
 	ZEND_FIBER_BACKUP_EG(stack, stack_page_size, execute_data, error_reporting, jit_trace_num);
 
-	zend_fiber_suspend_context(fiber->context);
+	zend_fiber_suspend_context(&fiber->context);
 
 	ZEND_FIBER_RESTORE_EG(stack, stack_page_size, execute_data, error_reporting, jit_trace_num);
 }
@@ -125,7 +125,7 @@ static void zend_fiber_switch_to(zend_fiber *fiber)
 
 	FIBER_G(current_fiber) = fiber;
 
-	zend_fiber_switch_context(fiber->context);
+	zend_fiber_switch_context(&fiber->context);
 
 	FIBER_G(current_fiber) = previous;
 
@@ -180,7 +180,7 @@ static void zend_fiber_execute(zend_fiber *fiber)
 
 static void zend_fiber_run(zend_fiber_context *context)
 {
-	zend_fiber *fiber = (zend_fiber *) ZEND_FIBER_CONTEXT_DATA(context);
+	zend_fiber *fiber = FIBER_G(current_fiber);
 	ZEND_ASSERT(fiber != NULL);
 
 	zend_long error_reporting = INI_INT("error_reporting");
@@ -247,7 +247,7 @@ static void zend_fiber_object_destroy(zend_object *object)
 
 	zend_hash_index_del(&FIBER_G(fibers), fiber->id);
 
-	zend_fiber_destroy_context(fiber->context);
+	zend_fiber_destroy_context(&fiber->context);
 
 	zend_object_std_dtor(&fiber->std);
 }
@@ -374,9 +374,7 @@ ZEND_METHOD(Fiber, start)
 	fiber->fci.params = params;
 	fiber->fci.param_count = param_count;
 
-	fiber->context = zend_fiber_create_context(zend_fiber_run, FIBER_G(stack_size), fiber);
-
-	if (fiber->context == NULL) {
+	if (!zend_fiber_init_context(&fiber->context, zend_fiber_run, FIBER_G(stack_size))) {
 		zend_throw_error(zend_ce_fiber_exit, "Failed to create native fiber context");
 		return;
 	}

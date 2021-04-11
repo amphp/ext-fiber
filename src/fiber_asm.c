@@ -43,14 +43,10 @@ ZEND_NORETURN static void zend_fiber_trampoline(transfer_t transfer)
 	abort();
 }
 
-PHP_FIBER_API zend_fiber_context *zend_fiber_create_context(zend_fiber_coroutine coroutine, size_t stack_size, void *data)
+PHP_FIBER_API zend_bool zend_fiber_init_context(zend_fiber_context *context, zend_fiber_coroutine coroutine, size_t stack_size)
 {
-	zend_fiber_context *context = emalloc(sizeof(zend_fiber_context));
-	ZEND_SECURE_ZERO(context, sizeof(zend_fiber_context));
-
 	if (UNEXPECTED(!zend_fiber_stack_allocate(&context->stack, stack_size))) {
-		efree(context);
-		return NULL;
+		return 0;
 	}
 
 	// Stack grows down, calculate the top of the stack. make_fcontext then shifts pointer to lower 16-byte boundary.
@@ -60,14 +56,13 @@ PHP_FIBER_API zend_fiber_context *zend_fiber_create_context(zend_fiber_coroutine
 
 	if (UNEXPECTED(!context->context)) {
 		zend_fiber_stack_free(&context->stack);
-		efree(context);
-		return NULL;
+		return 0;
 	}
 
 	context->function = coroutine;
-	context->data = data;
+	context->caller = NULL;
 
-	return context;
+	return 1;
 }
 
 PHP_FIBER_API void zend_fiber_destroy_context(zend_fiber_context *context)
@@ -77,8 +72,6 @@ PHP_FIBER_API void zend_fiber_destroy_context(zend_fiber_context *context)
 	}
 
 	zend_fiber_stack_free(&context->stack);
-
-	efree(context);
 }
 
 PHP_FIBER_API zend_fiber_context *zend_fiber_switch_context(zend_fiber_context *to)
