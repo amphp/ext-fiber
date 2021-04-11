@@ -49,13 +49,12 @@ PHP_FIBER_API zend_fiber_context *zend_fiber_create_context(zend_fiber_function 
 		return NULL;
 	}
 
-	// Ensure 16-byte alignment for stack pointer.
-	void *stack = (void *) (((uintptr_t) context->stack.pointer + (uintptr_t) context->stack.size) & (uintptr_t) ~0xf);
-	const size_t size = (uintptr_t) stack - (uintptr_t) context->stack.pointer;
+	// Calculate the bottom of the stack. make_fcontext then shifts pointer to lower 16-byte boundary.
+	void *stack = (void *) ((uintptr_t) context->stack.pointer + (uintptr_t) context->stack.size);
 
 	context->function = function;
 
-	context->ctx = make_fcontext(stack, size, &zend_fiber_initialize);
+	context->ctx = make_fcontext(stack, context->stack.size, zend_fiber_initialize);
 
 	if (UNEXPECTED(!context->ctx)) {
 		zend_fiber_stack_free(&context->stack);
