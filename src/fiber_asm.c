@@ -28,18 +28,22 @@ const char *zend_fiber_backend_info(void)
 	return "assembler (boost.context v1.76.0.beta1)";
 }
 
-static void zend_fiber_initialize(transfer_t trans)
+ZEND_NORETURN static void zend_fiber_trampoline(transfer_t transfer)
 {
-	zend_fiber_context *context = (zend_fiber_context *) trans.data;
+	zend_fiber_context *context = transfer.data;
 
-	ZEND_ASSERT(context && "Fiber initialization failure!");
+	context->caller = transfer.context;
 
-	context->caller = trans.ctx;
+	context->function(context);
 
-	context->function();
+	context->context = NULL;
+
+	zend_fiber_suspend_context(context);
+
+	abort();
 }
 
-PHP_FIBER_API zend_fiber_context *zend_fiber_create_context(zend_fiber_function function, size_t stack_size)
+PHP_FIBER_API zend_fiber_context *zend_fiber_create_context(zend_fiber_coroutine coroutine, size_t stack_size, void *data)
 {
 	zend_fiber_context *context = emalloc(sizeof(zend_fiber_context));
 	ZEND_SECURE_ZERO(context, sizeof(zend_fiber_context));
@@ -49,18 +53,19 @@ PHP_FIBER_API zend_fiber_context *zend_fiber_create_context(zend_fiber_function 
 		return NULL;
 	}
 
-	// Calculate the bottom of the stack. make_fcontext then shifts pointer to lower 16-byte boundary.
-	void *stack = (void *) ((uintptr_t) context->stack.pointer + (uintptr_t) context->stack.size);
+	// Stack grows down, calculate the top of the stack. make_fcontext then shifts pointer to lower 16-byte boundary.
+	void *stack = (void *) ((uintptr_t) context->stack.pointer + context->stack.size);
 
-	context->function = function;
+    context->context = make_fcontext(stack, context->stack.size, zend_fiber_trampoline);
 
-	context->ctx = make_fcontext(stack, context->stack.size, zend_fiber_initialize);
-
-	if (UNEXPECTED(!context->ctx)) {
+	if (UNEXPECTED(!context->context)) {
 		zend_fiber_stack_free(&context->stack);
 		efree(context);
 		return NULL;
 	}
+
+	context->function = coroutine;
+	context->data = data;
 
 	return context;
 }
@@ -76,34 +81,26 @@ PHP_FIBER_API void zend_fiber_destroy_context(zend_fiber_context *context)
 	efree(context);
 }
 
-PHP_FIBER_API zend_bool zend_fiber_switch_context(zend_fiber_context *to)
+PHP_FIBER_API zend_fiber_context *zend_fiber_switch_context(zend_fiber_context *to)
 {
-	if (UNEXPECTED(to == NULL)) {
-		return 0;
-	}
+	ZEND_ASSERT(to && to->context && to->stack.pointer && "Invalid fiber context");
 
-	if (UNEXPECTED(to->stack.pointer == NULL)) {
-		return 0;
-	}
+	transfer_t transfer = jump_fcontext(to->context, to);
 
-	to->ctx = jump_fcontext(to->ctx, to).ctx;
+	to->context = transfer.context;
 
-	return 1;
+	return transfer.data;
 }
 
-PHP_FIBER_API zend_bool zend_fiber_suspend_context(zend_fiber_context *current)
+PHP_FIBER_API zend_fiber_context *zend_fiber_suspend_context(zend_fiber_context *current)
 {
-	if (UNEXPECTED(current == NULL)) {
-		return 0;
-	}
+	ZEND_ASSERT(current && current->caller && current->stack.pointer && "Invalid fiber context");
 
-	if (UNEXPECTED(current->stack.pointer == NULL)) {
-		return 0;
-	}
+	transfer_t transfer = jump_fcontext(current->caller, current);
 
-	current->caller = jump_fcontext(current->caller, NULL).ctx;
+	current->caller = transfer.context;
 
-	return 1;
+	return transfer.data;
 }
 
 /*

@@ -92,26 +92,23 @@ zend_always_inline static void zend_observer_fiber_switch_notify(zend_fiber *fro
 }
 
 
-static zend_bool zend_fiber_suspend(zend_fiber *fiber)
+static void zend_fiber_suspend(zend_fiber *fiber)
 {
 	zend_vm_stack stack;
 	size_t stack_page_size;
 	zend_execute_data *execute_data;
 	int error_reporting;
 	uint32_t jit_trace_num;
-	zend_bool result;
 
 	ZEND_FIBER_BACKUP_EG(stack, stack_page_size, execute_data, error_reporting, jit_trace_num);
 
-	result = zend_fiber_suspend_context(fiber->context);
+	zend_fiber_suspend_context(fiber->context);
 
 	ZEND_FIBER_RESTORE_EG(stack, stack_page_size, execute_data, error_reporting, jit_trace_num);
-
-	return result;
 }
 
 
-static zend_bool zend_fiber_switch_to(zend_fiber *fiber)
+static void zend_fiber_switch_to(zend_fiber *fiber)
 {
 	zend_fiber *previous;
 	zend_vm_stack stack;
@@ -119,7 +116,6 @@ static zend_bool zend_fiber_switch_to(zend_fiber *fiber)
 	zend_execute_data *execute_data;
 	int error_reporting;
 	uint32_t jit_trace_num;
-	zend_bool result;
 
 	previous = FIBER_G(current_fiber);
 
@@ -129,7 +125,7 @@ static zend_bool zend_fiber_switch_to(zend_fiber *fiber)
 
 	FIBER_G(current_fiber) = fiber;
 
-	result = zend_fiber_switch_context(fiber->context);
+	zend_fiber_switch_context(fiber->context);
 
 	FIBER_G(current_fiber) = previous;
 
@@ -146,8 +142,6 @@ static zend_bool zend_fiber_switch_to(zend_fiber *fiber)
 		zend_fiber_error *error = FIBER_G(error);
 		zend_error_at_noreturn(error->type, error->filename, error->lineno, "%s", ZSTR_VAL(error->message));
 	}
-
-	return result;
 }
 
 
@@ -156,7 +150,7 @@ static zend_always_inline zend_vm_stack zend_fiber_vm_stack_alloc(size_t size)
 	zend_vm_stack page = emalloc(size);
 
 	page->top = ZEND_VM_STACK_ELEMENTS(page);
-	page->end = (zval *) ((char *) page + size);
+	page->end = (zval *) ((uintptr_t) page + size);
 	page->prev = NULL;
 
 	return page;
@@ -184,9 +178,9 @@ static void zend_fiber_execute(zend_fiber *fiber)
 }
 
 
-ZEND_NORETURN static void zend_fiber_run(void)
+static void zend_fiber_run(zend_fiber_context *context)
 {
-	zend_fiber *fiber = FIBER_G(current_fiber);
+	zend_fiber *fiber = (zend_fiber *) ZEND_FIBER_CONTEXT_DATA(context);
 	ZEND_ASSERT(fiber != NULL);
 
 	zend_long error_reporting = INI_INT("error_reporting");
@@ -196,7 +190,7 @@ ZEND_NORETURN static void zend_fiber_run(void)
 
 	zend_vm_stack stack = zend_fiber_vm_stack_alloc(ZEND_FIBER_VM_STACK_SIZE);
 	EG(vm_stack) = stack;
-	EG(vm_stack_top) = (zval *) stack->top + ZEND_CALL_FRAME_SLOT;
+	EG(vm_stack_top) = stack->top + ZEND_CALL_FRAME_SLOT;
 	EG(vm_stack_end) = stack->end;
 	EG(vm_stack_page_size) = ZEND_FIBER_VM_STACK_SIZE;
 
@@ -212,10 +206,6 @@ ZEND_NORETURN static void zend_fiber_run(void)
 
 	zend_vm_stack_destroy();
 	fiber->execute_data = NULL;
-
-	zend_fiber_suspend_context(fiber->context);
-
-	abort();
 }
 
 
@@ -384,7 +374,7 @@ ZEND_METHOD(Fiber, start)
 	fiber->fci.params = params;
 	fiber->fci.param_count = param_count;
 
-	fiber->context = zend_fiber_create_context(zend_fiber_run, FIBER_G(stack_size));
+	fiber->context = zend_fiber_create_context(zend_fiber_run, FIBER_G(stack_size), fiber);
 
 	if (fiber->context == NULL) {
 		zend_throw_error(zend_ce_fiber_exit, "Failed to create native fiber context");
@@ -395,12 +385,7 @@ ZEND_METHOD(Fiber, start)
 
 	GC_ADDREF(&fiber->std);
 
-	if (!zend_fiber_switch_to(fiber)) {
-		fiber->status = ZEND_FIBER_STATUS_INIT;
-		GC_DELREF(&fiber->std);
-		zend_throw_error(zend_ce_fiber_exit, "Failed switching to fiber");
-		return;
-	}
+	zend_fiber_switch_to(fiber);
 
 	zval_ptr_dtor(&fiber->fci.function_name);
 
@@ -457,11 +442,7 @@ ZEND_METHOD(Fiber, suspend)
 
 	GC_DELREF(&fiber->std);
 
-	if (!zend_fiber_suspend(fiber)) {
-		fiber->status = ZEND_FIBER_STATUS_RUNNING;
-		zend_throw_error(zend_ce_fiber_exit, "Failed suspending fiber");
-		return;
-	}
+	zend_fiber_suspend(fiber);
 
 	if (fiber->status == ZEND_FIBER_STATUS_SHUTDOWN) {
 		// This occurs on exit if the fiber never resumed, it has been GC'ed, so do not add a ref.
@@ -514,11 +495,7 @@ ZEND_METHOD(Fiber, resume)
 
 	fiber->status = ZEND_FIBER_STATUS_RUNNING;
 
-	if (!zend_fiber_switch_to(fiber)) {
-		fiber->status = ZEND_FIBER_STATUS_SUSPENDED;
-		zend_throw_error(zend_ce_fiber_exit, "Failed resuming fiber");
-		return;
-	}
+	zend_fiber_switch_to(fiber);
 
 	if (fiber->status & ZEND_FIBER_STATUS_FINISHED) {
 		RETURN_NULL();
@@ -552,11 +529,7 @@ ZEND_METHOD(Fiber, throw)
 
 	fiber->status = ZEND_FIBER_STATUS_RUNNING;
 
-	if (!zend_fiber_switch_to(fiber)) {
-		fiber->status = ZEND_FIBER_STATUS_SUSPENDED;
-		zend_throw_error(zend_ce_fiber_exit, "Failed resuming fiber");
-		return;
-	}
+	zend_fiber_switch_to(fiber);
 
 	if (fiber->status & ZEND_FIBER_STATUS_FINISHED) {
 		RETURN_NULL();

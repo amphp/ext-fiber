@@ -38,14 +38,16 @@ void zend_fiber_shutdown(void);
 
 extern PHP_FIBER_API zend_class_entry *zend_ce_fiber;
 
-typedef void (*zend_fiber_function)(void);
-
 typedef void *fcontext_t;
 
 typedef struct _transfer_t {
-	fcontext_t ctx;
+	fcontext_t context;
 	void *data;
 } transfer_t;
+
+typedef struct _zend_fiber_context zend_fiber_context;
+
+typedef void (*zend_fiber_coroutine)(zend_fiber_context *context);
 
 typedef struct _zend_fiber_stack {
 	void *pointer;
@@ -57,10 +59,11 @@ typedef struct _zend_fiber_stack {
 } zend_fiber_stack;
 
 typedef struct _zend_fiber_context {
-	fcontext_t ctx;
+	fcontext_t context;
 	fcontext_t caller;
-	zend_fiber_function function;
+	zend_fiber_coroutine function;
 	zend_fiber_stack stack;
+	void *data;
 } zend_fiber_context;
 
 #if _POSIX_MAPPED_FILES
@@ -135,20 +138,22 @@ static const zend_uchar ZEND_FIBER_STATUS_FINISHED = 0x1c;
 
 const char *zend_fiber_backend_info(void);
 
-PHP_FIBER_API zend_fiber_context *zend_fiber_create_context(zend_fiber_function function, size_t stack_size);
+PHP_FIBER_API zend_fiber_context *zend_fiber_create_context(zend_fiber_coroutine coroutine, size_t stack_size, void *data);
 PHP_FIBER_API void zend_fiber_destroy_context(zend_fiber_context *context);
 
 zend_bool zend_fiber_stack_allocate(zend_fiber_stack *stack, size_t size);
 void zend_fiber_stack_free(zend_fiber_stack *stack);
 
-PHP_FIBER_API zend_bool zend_fiber_switch_context(zend_fiber_context *to);
-PHP_FIBER_API zend_bool zend_fiber_suspend_context(zend_fiber_context *current);
+PHP_FIBER_API zend_fiber_context *zend_fiber_switch_context(zend_fiber_context *to);
+PHP_FIBER_API zend_fiber_context *zend_fiber_suspend_context(zend_fiber_context *current);
 
 void zend_fiber_error_observer(int type, const char *filename, uint32_t line, zend_string *message);
 
-END_EXTERN_C()
+#define ZEND_FIBER_CONTEXT_DATA(context) (context->data)
 
 #define ZEND_FIBER_VM_STACK_SIZE (1024 * sizeof(zval))
+
+END_EXTERN_C()
 
 #endif
 
