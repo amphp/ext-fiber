@@ -36,6 +36,8 @@ static PHP_INI_MH(OnUpdateFiberStackSize)
 		FIBER_G(stack_size) = ZEND_FIBER_DEFAULT_STACK_SIZE;
 		return SUCCESS;
 	}
+
+	FIBER_G(stack_size) += ZEND_FIBER_GUARD_PAGES;
 	
 	tmp = ZEND_FIBER_PAGESIZE * FIBER_G(stack_size);
 	
