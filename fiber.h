@@ -136,8 +136,8 @@ PHP_FIBER_API void zend_fiber_destroy_context(zend_fiber_context *context);
 zend_bool zend_fiber_stack_allocate(zend_fiber_stack *stack, size_t size);
 void zend_fiber_stack_free(zend_fiber_stack *stack);
 
-PHP_FIBER_API zend_fiber_context *zend_fiber_switch_context(zend_fiber_context *to);
-PHP_FIBER_API zend_fiber_context *zend_fiber_suspend_context(zend_fiber_context *current);
+PHP_FIBER_API void zend_fiber_switch_context(zend_fiber_context *to);
+PHP_FIBER_API void zend_fiber_suspend_context(zend_fiber_context *current);
 
 void zend_fiber_error_observer(int type, const char *filename, uint32_t line, zend_string *message);
 

@@ -81,26 +81,22 @@ PHP_FIBER_API void zend_fiber_destroy_context(zend_fiber_context *context)
 	zend_fiber_stack_free(&context->stack);
 }
 
-PHP_FIBER_API zend_fiber_context *zend_fiber_switch_context(zend_fiber_context *to)
+PHP_FIBER_API void zend_fiber_switch_context(zend_fiber_context *to)
 {
 	ZEND_ASSERT(to && to->self && to->stack.pointer && "Invalid fiber context");
 
 	transfer_t transfer = jump_fcontext(to->self, to);
 
 	to->self = transfer.context;
-
-	return transfer.data;
 }
 
-PHP_FIBER_API zend_fiber_context *zend_fiber_suspend_context(zend_fiber_context *current)
+PHP_FIBER_API void zend_fiber_suspend_context(zend_fiber_context *current)
 {
 	ZEND_ASSERT(current && current->caller && current->stack.pointer && "Invalid fiber context");
 
-	transfer_t transfer = jump_fcontext(current->caller, current);
+	transfer_t transfer = jump_fcontext(current->caller, NULL);
 
 	current->caller = transfer.context;
-
-	return transfer.data;
 }
 
 /*
