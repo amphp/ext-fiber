@@ -59,7 +59,7 @@ PHP_FIBER_API zend_bool zend_fiber_init_context(zend_fiber_context *context, zen
 	// Stack grows down, calculate the top of the stack. make_fcontext then shifts pointer to lower 16-byte boundary.
 	void *stack = (void *) ((uintptr_t) context->stack.pointer + context->stack.size);
 
-    context->self = make_fcontext(stack, context->stack.size, zend_fiber_trampoline);
+	context->self = make_fcontext(stack, context->stack.size, zend_fiber_trampoline);
 
 	if (UNEXPECTED(!context->self)) {
 		zend_fiber_stack_free(&context->stack);

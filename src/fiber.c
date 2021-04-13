@@ -292,13 +292,14 @@ void zend_fiber_error_observer(int type, const char *filename, uint32_t line, ze
 
 	if (fiber != NULL) {
 		// In a fiber, we need to switch back to main.
-		zend_fiber_error *error = emalloc(sizeof(zend_fiber_error));
-		error->type = type;
-		error->filename = filename;
-		error->lineno = line;
-		error->message = message;
+		zend_fiber_error error;
 
-		FIBER_G(error) = error;
+		error.type = type;
+		error.filename = filename;
+		error.lineno = line;
+		error.message = message;
+
+		FIBER_G(error) = &error;
 
 		zend_fiber_suspend(fiber);
 
