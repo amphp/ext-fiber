@@ -22,6 +22,7 @@
 
 #include "php_fiber.h"
 #include "fiber.h"
+#include "fiber_arginfo.h"
 
 PHP_FIBER_API zend_class_entry *zend_ce_fiber;
 
@@ -826,89 +827,36 @@ ZEND_METHOD(ReflectionFiber, isTerminated)
 /* }}} */
 
 
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_fiber_construct, 0, 0, 1)
-	ZEND_ARG_CALLABLE_INFO(0, callable, 0)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_fiber_start, 0, 0, 0)
-	ZEND_ARG_VARIADIC_INFO(0, arguments)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_fiber_resume, 0, 0, 0)
-	ZEND_ARG_INFO(0, value)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_fiber_throw, 0, 0, 1)
-	ZEND_ARG_OBJ_INFO(0, exception, Throwable, 0)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_fiber_getReturn, 0, 0, 0)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_fiber_status, 0, 0, _IS_BOOL, 0)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_fiber_this, 0, 0, Fiber, 1)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_fiber_suspend, 0, 0, 0)
-	ZEND_ARG_INFO(0, value)
-ZEND_END_ARG_INFO()
-
 static const zend_function_entry fiber_methods[] = {
-	ZEND_ME(Fiber, __construct, arginfo_fiber_construct, ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
-	ZEND_ME(Fiber, start, arginfo_fiber_start, ZEND_ACC_PUBLIC)
-	ZEND_ME(Fiber, resume, arginfo_fiber_resume, ZEND_ACC_PUBLIC)
-	ZEND_ME(Fiber, throw, arginfo_fiber_throw, ZEND_ACC_PUBLIC)
-	ZEND_ME(Fiber, isStarted, arginfo_fiber_status, ZEND_ACC_PUBLIC)
-	ZEND_ME(Fiber, isSuspended, arginfo_fiber_status, ZEND_ACC_PUBLIC)
-	ZEND_ME(Fiber, isRunning, arginfo_fiber_status, ZEND_ACC_PUBLIC)
-	ZEND_ME(Fiber, isTerminated, arginfo_fiber_status, ZEND_ACC_PUBLIC)
-	ZEND_ME(Fiber, getReturn, arginfo_fiber_getReturn, ZEND_ACC_PUBLIC)
-	ZEND_ME(Fiber, this, arginfo_fiber_this, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-	ZEND_ME(Fiber, suspend, arginfo_fiber_suspend, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+	ZEND_ME(Fiber, __construct, arginfo_class_Fiber___construct, ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
+	ZEND_ME(Fiber, start, arginfo_class_Fiber_start, ZEND_ACC_PUBLIC)
+	ZEND_ME(Fiber, resume, arginfo_class_Fiber_resume, ZEND_ACC_PUBLIC)
+	ZEND_ME(Fiber, throw, arginfo_class_Fiber_throw, ZEND_ACC_PUBLIC)
+	ZEND_ME(Fiber, isStarted, arginfo_class_Fiber_isStarted, ZEND_ACC_PUBLIC)
+	ZEND_ME(Fiber, isSuspended, arginfo_class_Fiber_isSuspended, ZEND_ACC_PUBLIC)
+	ZEND_ME(Fiber, isRunning, arginfo_class_Fiber_isRunning, ZEND_ACC_PUBLIC)
+	ZEND_ME(Fiber, isTerminated, arginfo_class_Fiber_isTerminated, ZEND_ACC_PUBLIC)
+	ZEND_ME(Fiber, getReturn, arginfo_class_Fiber_getReturn, ZEND_ACC_PUBLIC)
+	ZEND_ME(Fiber, this, arginfo_class_Fiber_this, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+	ZEND_ME(Fiber, suspend, arginfo_class_Fiber_suspend, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
 	ZEND_FE_END
 };
-
-ZEND_BEGIN_ARG_INFO(arginfo_fiber_error_create, 0)
-ZEND_END_ARG_INFO()
 
 static const zend_function_entry fiber_error_methods[] = {
-	ZEND_ME(FiberError, __construct, arginfo_fiber_error_create, ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
+	ZEND_ME(FiberError, __construct, arginfo_class_FiberError___construct, ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
 	ZEND_FE_END
 };
 
-ZEND_BEGIN_ARG_INFO(arginfo_reflection_fiber_construct, 0)
-	ZEND_ARG_OBJ_INFO(0, fiber, Fiber, 0)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_reflection_fiber_getFiber, 0, 0, Fiber, 0)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_reflection_fiber_getExecutingLine, 0, 0, IS_LONG, 0)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_reflection_fiber_getExecutingFile, 0, 0, IS_STRING, 0)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_reflection_fiber_getTrace, 0, 0, IS_ARRAY, 0)
-	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, options, IS_LONG, 0, "DEBUG_BACKTRACE_PROVIDE_OBJECT")
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_reflection_fiber_status, 0, 0, _IS_BOOL, 0)
-ZEND_END_ARG_INFO()
-
 static const zend_function_entry reflection_fiber_methods[] = {
-	ZEND_ME(ReflectionFiber, __construct, arginfo_reflection_fiber_construct, ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
-	ZEND_ME(ReflectionFiber, getFiber, arginfo_reflection_fiber_getFiber, ZEND_ACC_PUBLIC)
-	ZEND_ME(ReflectionFiber, getTrace, arginfo_reflection_fiber_getTrace, ZEND_ACC_PUBLIC)
-	ZEND_ME(ReflectionFiber, getExecutingLine, arginfo_reflection_fiber_getExecutingLine, ZEND_ACC_PUBLIC)
-	ZEND_ME(ReflectionFiber, getExecutingFile, arginfo_reflection_fiber_getExecutingFile, ZEND_ACC_PUBLIC)
-	ZEND_ME(ReflectionFiber, isStarted, arginfo_reflection_fiber_status, ZEND_ACC_PUBLIC)
-	ZEND_ME(ReflectionFiber, isSuspended, arginfo_reflection_fiber_status, ZEND_ACC_PUBLIC)
-	ZEND_ME(ReflectionFiber, isRunning, arginfo_reflection_fiber_status, ZEND_ACC_PUBLIC)
-	ZEND_ME(ReflectionFiber, isTerminated, arginfo_reflection_fiber_status, ZEND_ACC_PUBLIC)
+	ZEND_ME(ReflectionFiber, __construct, arginfo_class_ReflectionFiber___construct, ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
+	ZEND_ME(ReflectionFiber, getFiber, arginfo_class_ReflectionFiber_getFiber, ZEND_ACC_PUBLIC)
+	ZEND_ME(ReflectionFiber, getTrace, arginfo_class_ReflectionFiber_getTrace, ZEND_ACC_PUBLIC)
+	ZEND_ME(ReflectionFiber, getExecutingLine, arginfo_class_ReflectionFiber_getExecutingLine, ZEND_ACC_PUBLIC)
+	ZEND_ME(ReflectionFiber, getExecutingFile, arginfo_class_ReflectionFiber_getExecutingFile, ZEND_ACC_PUBLIC)
+	ZEND_ME(ReflectionFiber, isStarted, arginfo_class_ReflectionFiber_isStarted, ZEND_ACC_PUBLIC)
+	ZEND_ME(ReflectionFiber, isSuspended, arginfo_class_ReflectionFiber_isSuspended, ZEND_ACC_PUBLIC)
+	ZEND_ME(ReflectionFiber, isRunning, arginfo_class_ReflectionFiber_isRunning, ZEND_ACC_PUBLIC)
+	ZEND_ME(ReflectionFiber, isTerminated, arginfo_class_ReflectionFiber_isTerminated, ZEND_ACC_PUBLIC)
 	ZEND_FE_END
 };
 
