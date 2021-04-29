@@ -12,7 +12,7 @@
 */
 
 #ifdef HAVE_CONFIG_H
-#include "config.h"
+# include "config.h"
 #endif
 
 #include "php.h"
@@ -26,28 +26,11 @@ ZEND_DECLARE_MODULE_GLOBALS(fiber)
 
 static PHP_INI_MH(OnUpdateFiberStackSize)
 {
-	zend_long tmp;
-	
-	if (OnUpdateLongGEZero(entry, new_value, mh_arg1, mh_arg2, mh_arg3, stage) == FAILURE) {
-		return FAILURE;
+	if (new_value) {
+		FIBER_G(stack_size) = zend_atol(ZSTR_VAL(new_value), ZSTR_LEN(new_value));
+	} else {
+		FIBER_G(stack_size) = ZEND_FIBER_DEFAULT_C_STACK_SIZE;
 	}
-	
-	if (FIBER_G(stack_size) == 0) {
-		FIBER_G(stack_size) = ZEND_FIBER_DEFAULT_STACK_SIZE;
-		return SUCCESS;
-	}
-
-	FIBER_G(stack_size) += ZEND_FIBER_GUARD_PAGES;
-	
-	tmp = ZEND_FIBER_PAGESIZE * FIBER_G(stack_size);
-	
-	if (tmp / ZEND_FIBER_PAGESIZE != FIBER_G(stack_size)) {
-		FIBER_G(stack_size) = ZEND_FIBER_DEFAULT_STACK_SIZE;
-		return FAILURE;
-	}
-	
-	FIBER_G(stack_size) = tmp;
-	
 	return SUCCESS;
 }
 
@@ -63,13 +46,11 @@ static PHP_GINIT_FUNCTION(fiber)
 #endif
 
 	ZEND_SECURE_ZERO(fiber_globals, sizeof(zend_fiber_globals));
-
-	zend_hash_init(&fiber_globals->fibers, 0, NULL, NULL, 1);
 }
 
 PHP_MINIT_FUNCTION(fiber)
 {
-	zend_fiber_ce_register();
+	zend_register_fiber_ce();
 
 	zend_observer_error_register(zend_fiber_error_observer);
 
@@ -81,7 +62,7 @@ PHP_MINIT_FUNCTION(fiber)
 
 PHP_MSHUTDOWN_FUNCTION(fiber)
 {
-	zend_fiber_ce_unregister();
+	zend_fiber_shutdown();
 
 	UNREGISTER_INI_ENTRIES();
 
@@ -105,21 +86,18 @@ static PHP_RINIT_FUNCTION(fiber)
 	ZEND_TSRMLS_CACHE_UPDATE();
 #endif
 
-	zend_fiber_startup();
+	zend_fiber_init();
 
 	return SUCCESS;
 }
 
 static PHP_RSHUTDOWN_FUNCTION(fiber)
 {
-	zend_fiber_shutdown();
-
 	return SUCCESS;
 }
 
 static PHP_GSHUTDOWN_FUNCTION(fiber)
 {
-	zend_hash_destroy(&fiber_globals->fibers);
 }
 
 zend_module_entry fiber_module_entry = {

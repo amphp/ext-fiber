@@ -1,5 +1,8 @@
 <?php
 
+/** @generate-class-entries */
+
+/** @strict-properties */
 final class Fiber
 {
     public function __construct(callable $callback) {}
@@ -37,13 +40,7 @@ final class ReflectionFiber
 
     public function getTrace(int $options = DEBUG_BACKTRACE_PROVIDE_OBJECT): array {}
 
-    public function isStarted(): bool {}
-
-    public function isSuspended(): bool {}
-
-    public function isRunning(): bool {}
-
-    public function isTerminated(): bool {}
+    public function getCallable(): callable;
 }
 
 final class FiberError extends Error

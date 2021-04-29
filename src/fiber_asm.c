@@ -12,11 +12,8 @@
 */
 
 #ifdef HAVE_CONFIG_H
-#include "config.h"
+# include "config.h"
 #endif
-
-#include "php.h"
-#include "zend.h"
 
 #include "fiber.h"
 
@@ -32,10 +29,10 @@ extern transfer_t jump_fcontext(fcontext_t to, void *vp);
 
 const char *zend_fiber_backend_info(void)
 {
-	return "assembler (boost.context v1.76.0.beta1)";
+	return "assembler (boost.context v1.76.0)";
 }
 
-ZEND_NORETURN static void zend_fiber_trampoline(transfer_t transfer)
+static ZEND_NORETURN void zend_fiber_trampoline(transfer_t transfer)
 {
 	zend_fiber_context *context = transfer.data;
 
@@ -74,10 +71,6 @@ PHP_FIBER_API zend_bool zend_fiber_init_context(zend_fiber_context *context, zen
 
 PHP_FIBER_API void zend_fiber_destroy_context(zend_fiber_context *context)
 {
-	if (context == NULL) {
-		return;
-	}
-
 	zend_fiber_stack_free(&context->stack);
 }
 

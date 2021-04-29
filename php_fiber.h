@@ -29,17 +29,8 @@ ZEND_BEGIN_MODULE_GLOBALS(fiber)
 	/* Active fiber, NULL when in main thread. */
 	zend_fiber *current_fiber;
 
-	/* Next fiber ID. */
-	zend_long id;
-
 	/* Default fiber C stack size. */
 	zend_long stack_size;
-
-	/* Currently executing fibers. */
-	HashTable fibers;
-
-	/* Flag if request shutdown has destroyed all fibers. */
-	zend_bool shutdown;
 
 	/* If a fatal error occurs in a fiber, this is used to save the error while switching to {main}. */
 	zend_fiber_error *error;

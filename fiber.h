@@ -18,10 +18,9 @@
 
 BEGIN_EXTERN_C()
 
-void zend_fiber_ce_register(void);
-void zend_fiber_ce_unregister(void);
+void zend_register_fiber_ce(void);
 
-void zend_fiber_startup(void);
+void zend_fiber_init(void);
 void zend_fiber_shutdown(void);
 
 #ifdef PHP_WIN32
@@ -58,24 +57,11 @@ typedef struct _zend_fiber_context {
 	zend_fiber_stack stack;
 } zend_fiber_context;
 
-#if _POSIX_MAPPED_FILES
-# include <sys/mman.h>
-# include <limits.h>
-# define ZEND_FIBER_PAGESIZE sysconf(_SC_PAGESIZE)
-#else
-# define ZEND_FIBER_PAGESIZE 4096
-#endif
-
-#define ZEND_FIBER_GUARD_PAGES 1
-
 #define ZEND_FIBER_DEFAULT_STACK_SIZE (ZEND_FIBER_PAGESIZE * (((sizeof(void *)) < 8) ? 512 : 2048))
 
 typedef struct _zend_fiber {
 	/* Fiber PHP object handle. */
 	zend_object std;
-
-	/* Unique ID assigned to this fiber. */
-	zend_long id;
 
 	/* Status of the fiber, one of the ZEND_FIBER_STATUS_* constants. */
 	zend_uchar status;
@@ -91,7 +77,7 @@ typedef struct _zend_fiber {
 	zend_execute_data *execute_data;
 
 	/* Exception to be thrown from Fiber::suspend(). */
-	zval *error;
+	zval *exception;
 
 	/* Storage for temporaries and fiber return value. */
 	zval value;
@@ -140,6 +126,10 @@ PHP_FIBER_API void zend_fiber_switch_context(zend_fiber_context *to);
 PHP_FIBER_API void zend_fiber_suspend_context(zend_fiber_context *current);
 
 void zend_fiber_error_observer(int type, const char *filename, uint32_t line, zend_string *message);
+
+#define ZEND_FIBER_GUARD_PAGES 1
+
+#define ZEND_FIBER_DEFAULT_C_STACK_SIZE (4096 * (((sizeof(void *)) < 8) ? 256 : 512))
 
 #define ZEND_FIBER_VM_STACK_SIZE (1024 * sizeof(zval))
 

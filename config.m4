@@ -35,11 +35,12 @@ if test "$PHP_FIBER" != "no"; then
 
   AS_CASE([$fiber_cpu],
     [x86_64], [fiber_asm_file_prefix="x86_64_sysv"],
-    [x86], [fiber_asm_file_prefix="x86_sysv"],
+    [x86], [fiber_asm_file_prefix="i386_sysv"],
     [arm64], [fiber_asm_file_prefix="arm64_aapcs"],
     [arm], [fiber_asm_file_prefix="arm_aapcs"],
     [ppc64], [fiber_asm_file_prefix="ppc64_sysv"],
     [ppc], [fiber_asm_file_prefix="ppc_sysv"],
+    [s390x], [fiber_asm_file_prefix="x390x_sysv"],
     [mips64], [fiber_asm_file_prefix="mips64_n64"],
     [mips], [fiber_asm_file_prefix="mips32_o32"],
     [fiber_asm_file_prefix="unknown"]
@@ -63,7 +64,6 @@ if test "$PHP_FIBER" != "no"; then
   fi
 
   PHP_NEW_EXTENSION(fiber, $fiber_source_files, $ext_shared,, \\$(FIBER_CFLAGS))
-  PHP_ADD_INCLUDE([$ext_builddir/include])
   PHP_SUBST(FIBER_CFLAGS)
   PHP_ADD_MAKEFILE_FRAGMENT
   
