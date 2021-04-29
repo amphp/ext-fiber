@@ -27,6 +27,8 @@
 # include <limits.h>
 #endif
 
+#define ZEND_FIBER_DEFAULT_PAGE_SIZE 4096
+
 /*
  * FreeBSD require a first (i.e. addr) argument of mmap(2) is not NULL
  * if MAP_STACK is passed.
