@@ -35,7 +35,7 @@ static PHP_INI_MH(OnUpdateFiberStackSize)
 }
 
 PHP_INI_BEGIN()
-	STD_PHP_INI_ENTRY("fiber.stack_size", "0", PHP_INI_ALL, OnUpdateFiberStackSize, stack_size, zend_fiber_globals, fiber_globals)
+	STD_PHP_INI_ENTRY("fiber.stack_size", NULL, PHP_INI_ALL, OnUpdateFiberStackSize, stack_size, zend_fiber_globals, fiber_globals)
 PHP_INI_END()
 
 
