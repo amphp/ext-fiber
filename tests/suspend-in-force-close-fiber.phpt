@@ -1,5 +1,5 @@
 --TEST--
-Suspend in force closed fiber
+Suspend in force-closed fiber
 --SKIPIF--
 <?php include __DIR__ . '/include/skip-if.php';
 --FILE--
@@ -18,10 +18,14 @@ $fiber->start();
 unset($fiber);
 
 ?>
---XFAIL--
-String leak
 --EXPECTF--
-Fatal error: Uncaught FiberError: Cannot suspend in a force closed fiber in %ssuspend-in-force-close-fiber.php:%d
+Fatal error: Uncaught FiberExit: Fiber destroyed in %ssuspend-in-force-close-fiber.php:%d
+Stack trace:
+#0 %ssuspend-in-force-close-fiber.php(%d): Fiber::suspend()
+#1 [internal function]: {closure}()
+#2 {main}
+
+Next FiberError: Cannot suspend in a force-closed fiber in %ssuspend-in-force-close-fiber.php:%d
 Stack trace:
 #0 %ssuspend-in-force-close-fiber.php(%d): Fiber::suspend()
 #1 [internal function]: {closure}()
