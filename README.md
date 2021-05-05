@@ -153,11 +153,15 @@ final class ReflectionFiber
 
     /**
      * @return string Current file of fiber execution.
+     *
+     * @throws Error If the fiber has not been started or has terminated.
      */
     public function getExecutingFile(): string {}
 
     /**
      * @return int Current line of fiber execution.
+     *
+     * @throws Error If the fiber has not been started or has terminated.
      */
     public function getExecutingLine(): int {}
 
@@ -166,29 +170,17 @@ final class ReflectionFiber
      *
      * @return array Fiber backtrace, similar to {@see debug_backtrace()}
      *               and {@see ReflectionGenerator::getTrace()}.
+     *
+     * @throws Error If the fiber has not been started or has terminated.
      */
     public function getTrace(int $options = DEBUG_BACKTRACE_PROVIDE_OBJECT): array {}
 
     /**
-     * @return bool True if the fiber has been started.
+     * @return callable Callable used to create the fiber.
+     *
+     * @throws Error If the fiber has been terminated.
      */
-    public function isStarted(): bool {}
-
-    /**
-     * @return bool True if the fiber is currently suspended.
-     */
-    public function isSuspended(): bool {}
-
-    /**
-     * @return bool True if the fiber is currently running.
-     */
-    public function isRunning(): bool {}
-
-    /**
-     * @return bool True if the fiber has completed execution (either returning or
-     *              throwing an exception), false otherwise.
-     */
-    public function isTerminated(): bool {}
+    public function getCallable(): callable {}
 }
 ```
 
