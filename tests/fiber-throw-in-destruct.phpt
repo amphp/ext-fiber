@@ -1,7 +1,7 @@
 --TEST--
 Fiber throwing from destructor
---SKIPIF--
-<?php include __DIR__ . '/include/skip-if.php';
+--EXTENSIONS--
+fiber
 --FILE--
 <?php
 

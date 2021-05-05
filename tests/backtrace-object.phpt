@@ -1,7 +1,7 @@
 --TEST--
 Backtrace in with object as fiber callback
---SKIPIF--
-<?php include __DIR__ . '/include/skip-if.php';
+--EXTENSIONS--
+fiber
 --FILE--
 <?php
 

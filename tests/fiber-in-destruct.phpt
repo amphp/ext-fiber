@@ -1,7 +1,7 @@
 --TEST--
 Pause fiber in destruct
---SKIPIF--
-<?php include __DIR__ . '/include/skip-if.php';
+--EXTENSIONS--
+fiber
 --FILE--
 <?php
 

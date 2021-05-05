@@ -1,7 +1,7 @@
 --TEST--
 FiberError cannot be constructed in user code
---SKIPIF--
-<?php include __DIR__ . '/include/skip-if.php';
+--EXTENSIONS--
+fiber
 --FILE--
 <?php
 

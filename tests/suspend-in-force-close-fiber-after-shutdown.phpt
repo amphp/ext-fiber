@@ -1,7 +1,7 @@
 --TEST--
 Suspend in force-closed fiber after shutdown
---SKIPIF--
-<?php include __DIR__ . '/include/skip-if.php';
+--EXTENSIONS--
+fiber
 --FILE--
 <?php
 

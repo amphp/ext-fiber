@@ -1,7 +1,7 @@
 --TEST--
 Silence operator does not leak into fiber
---SKIPIF--
-<?php include __DIR__ . '/include/skip-if.php';
+--EXTENSIONS--
+fiber
 --FILE--
 <?php
 

@@ -1,7 +1,7 @@
 --TEST--
 Reference to invocable class retained while running
---SKIPIF--
-<?php include __DIR__ . '/include/skip-if.php';
+--EXTENSIONS--
+fiber
 --FILE--
 <?php
 

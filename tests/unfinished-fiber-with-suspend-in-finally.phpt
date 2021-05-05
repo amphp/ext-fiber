@@ -1,7 +1,7 @@
 --TEST--
 Test unfinished fiber with suspend in finally
---SKIPIF--
-<?php include __DIR__ . '/include/skip-if.php';
+--EXTENSIONS--
+fiber
 --FILE--
 <?php
 
