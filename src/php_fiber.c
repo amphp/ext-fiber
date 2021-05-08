@@ -16,7 +16,6 @@
 #endif
 
 #include "php.h"
-#include "zend_observer.h"
 #include "ext/standard/info.h"
 
 #include "php_fiber.h"
@@ -51,8 +50,6 @@ static PHP_GINIT_FUNCTION(fiber)
 PHP_MINIT_FUNCTION(fiber)
 {
 	zend_register_fiber_ce();
-
-	zend_observer_error_register(zend_fiber_error_observer);
 
 	REGISTER_INI_ENTRIES();
 

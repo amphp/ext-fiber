@@ -14,7 +14,9 @@
 #ifndef FIBER_H
 #define FIBER_H
 
-#include "php.h"
+#include "zend.h"
+#include "zend_globals.h"
+#include "zend_API.h"
 
 BEGIN_EXTERN_C()
 
@@ -114,8 +116,9 @@ static const zend_uchar ZEND_FIBER_STATUS_RUNNING = 0x2;
 static const zend_uchar ZEND_FIBER_STATUS_RETURNED = 0x4;
 static const zend_uchar ZEND_FIBER_STATUS_THREW = 0x8;
 static const zend_uchar ZEND_FIBER_STATUS_SHUTDOWN = 0x10;
+static const zend_uchar ZEND_FIBER_STATUS_BAILOUT = 0x20;
 
-static const zend_uchar ZEND_FIBER_STATUS_FINISHED = 0x1c;
+static const zend_uchar ZEND_FIBER_STATUS_FINISHED = 0x2c;
 
 const char *zend_fiber_backend_info(void);
 
@@ -127,8 +130,6 @@ void zend_fiber_stack_free(zend_fiber_stack *stack);
 
 PHP_FIBER_API void zend_fiber_switch_context(zend_fiber_context *to);
 PHP_FIBER_API void zend_fiber_suspend_context(zend_fiber_context *current);
-
-void zend_fiber_error_observer(int type, const char *filename, uint32_t line, zend_string *message);
 
 #define ZEND_FIBER_GUARD_PAGES 1
 
