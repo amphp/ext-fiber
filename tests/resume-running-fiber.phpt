@@ -6,7 +6,7 @@ fiber
 <?php
 
 $fiber = new Fiber(function (): void {
-    $self = Fiber::this();
+    $self = Fiber::getCurrent();
     $self->resume();
 });
 

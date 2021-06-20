@@ -4,7 +4,7 @@ Fiber implementation for PHP using native C fibers.
 
 ### Requirements
 
-- PHP 8+
+- PHP 8.0 *only* (PHP 8.1+ includes Fibers, so this extension is unnecessary)
 
 ## Installation
 
@@ -100,7 +100,7 @@ final class Fiber
     /**
      * @return self|null Returns the currently executing fiber instance or NULL if in {main}.
      */
-    public static function this(): ?self {}
+    public static function getCurrent(): ?self {}
 
     /**
      * Suspend execution of the fiber. The fiber may be resumed with {@see Fiber::resume()} or {@see Fiber::throw()}.
@@ -129,7 +129,7 @@ A suspended fiber may be resumed in one of two ways:
 
 `Fiber->getReturn()` returns the value returned from a terminated fiber (`NULL` is returned if the fiber did not return a value). This function will throw an instance of `FiberError` if the fiber has not completed execution or threw an exception.
 
-`Fiber::this()` returns the currently executing `Fiber` instance or `NULL` if called from `{main}`. This allows a fiber to store a reference to itself elsewhere, such as within an event loop callback or an array of awaiting fibers.
+`Fiber::getCurrent()` returns the currently executing `Fiber` instance or `NULL` if called from `{main}`. This allows a fiber to store a reference to itself elsewhere, such as within an event loop callback or an array of awaiting fibers.
 
 ---
 
@@ -192,6 +192,6 @@ Fibers that are not finished (do not complete execution) are destroyed similarly
 
 Each fiber is allocated a separate C stack and VM stack on the heap. The C stack is allocated using `mmap` if available, meaning physical memory is used only on demand (if it needs to be allocated to a stack value) on most platforms. Each fiber stack is allocated a maximum of 8M of memory by default, settable with an ini setting `fiber.stack_size`. Note that this memory is used for the C stack and is not related to the memory available to PHP code. VM stacks for each fiber are allocated in a similar way to generators and use a similar amount of memory and CPU. VM stacks are able to grow dynamically, so only a single VM page (4K) is initially allocated.
 
-## RFC
+## PHP 8.1+
 
-This extension is currently being proposed for inclusion in PHP core in the [Fiber RFC](https://wiki.php.net/rfc/fibers).
+This extension *only* works with PHP 8.0. The [Fiber RFC](https://wiki.php.net/rfc/fibers) was accepted and will be a part of PHP 8.1, so this extension is not necessary and incompatible with PHP 8.1 and above.

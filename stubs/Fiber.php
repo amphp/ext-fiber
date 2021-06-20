@@ -75,7 +75,7 @@ final class Fiber
     /**
      * @return self|null Returns the currently executing fiber instance or NULL if in {main}.
      */
-    public static function this(): ?self {}
+    public static function getCurrent(): ?self {}
 
     /**
      * Suspend execution of the fiber. The fiber may be resumed with {@see Fiber::resume()} or {@see Fiber::throw()}.

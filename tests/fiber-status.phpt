@@ -6,7 +6,7 @@ fiber
 <?php
 
 $fiber = new Fiber(function (): void {
-    $fiber = Fiber::this();
+    $fiber = Fiber::getCurrent();
     echo "\nWithin Fiber:\n";
     var_dump($fiber->isStarted());
     var_dump($fiber->isRunning());

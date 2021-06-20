@@ -1,14 +1,14 @@
 --TEST--
-Fiber::this()
+Fiber::getCurrent()
 --EXTENSIONS--
 fiber
 --FILE--
 <?php
 
-var_dump(Fiber::this());
+var_dump(Fiber::getCurrent());
 
 $fiber = new Fiber(function (): void {
-    var_dump(Fiber::this());
+    var_dump(Fiber::getCurrent());
 });
 
 $fiber->start();

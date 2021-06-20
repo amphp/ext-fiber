@@ -23,7 +23,7 @@ final class Fiber
 
     public function getReturn(): mixed {}
 
-    public static function this(): ?Fiber {}
+    public static function getCurrent(): ?Fiber {}
 
     public static function suspend(mixed $value = null): mixed { }
 }
@@ -40,7 +40,7 @@ final class ReflectionFiber
 
     public function getTrace(int $options = DEBUG_BACKTRACE_PROVIDE_OBJECT): array {}
 
-    public function getCallable(): callable;
+    public function getCallable(): callable {}
 }
 
 final class FiberError extends Error

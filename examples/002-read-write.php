@@ -63,7 +63,7 @@ $loop = new EventLoop;
 $fiber = new Fiber(function () use ($loop, $read): void {
     echo "Waiting for data...\n";
 
-    $fiber = Fiber::this();
+    $fiber = Fiber::getCurrent();
     $loop->read($read, fn() => $fiber->resume());
     Fiber::suspend();
 
@@ -73,7 +73,7 @@ $fiber = new Fiber(function () use ($loop, $read): void {
 });
 
 // Start the fiber, which will suspend while waiting for a read event.
-$fiber->start();
+$loop->defer(fn() => $fiber->start());
 
 // Defer writing data to an event loop callback.
 $loop->defer(fn() => fwrite($write, "Hello, world!"));

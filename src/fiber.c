@@ -552,7 +552,7 @@ ZEND_METHOD(Fiber, getReturn)
 	RETURN_COPY(&fiber->value);
 }
 
-ZEND_METHOD(Fiber, this)
+ZEND_METHOD(Fiber, getCurrent)
 {
 	zend_fiber *fiber;
 
