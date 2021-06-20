@@ -44,7 +44,7 @@ static PHP_GINIT_FUNCTION(fiber)
 	ZEND_TSRMLS_CACHE_UPDATE();
 #endif
 
-	ZEND_SECURE_ZERO(fiber_globals, sizeof(zend_fiber_globals));
+	memset(fiber_globals, 0, sizeof(zend_fiber_globals));
 }
 
 PHP_MINIT_FUNCTION(fiber)
