@@ -14,7 +14,12 @@
 #ifndef PHP_FIBER_H
 #define PHP_FIBER_H
 
+#include "php.h"
 #include "fiber.h"
+
+#if PHP_VERSION_ID >= 80100 || PHP_VERSION_ID < 80000
+# error "ext-fiber is only compatible with PHP 8.0.x"
+#endif
 
 extern zend_module_entry fiber_module_entry;
 #define phpext_fiber_ptr &fiber_module_entry
