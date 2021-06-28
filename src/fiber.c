@@ -187,7 +187,9 @@ static void ZEND_STACK_ALIGNED zend_fiber_execute(zend_fiber_context *context)
 
 		zend_call_function(&fiber->fci, &fiber->fci_cache);
 
+		// Cleanup callback and unset field to prevent GC / duplicate dtor issues.
 		zval_ptr_dtor(&fiber->fci.function_name);
+		ZVAL_UNDEF(&fiber->fci.function_name);
 
 		if (EG(exception)) {
 			if (fiber->status == ZEND_FIBER_STATUS_SHUTDOWN) {
@@ -211,9 +213,7 @@ static void ZEND_STACK_ALIGNED zend_fiber_execute(zend_fiber_context *context)
 
 static zend_object *zend_fiber_object_create(zend_class_entry *ce)
 {
-	zend_fiber *fiber;
-
-	fiber = emalloc(sizeof(zend_fiber));
+	zend_fiber *fiber = emalloc(sizeof(zend_fiber));
 	memset(fiber, 0, sizeof(zend_fiber));
 
 	zend_object_std_init(&fiber->std, ce);
@@ -257,16 +257,25 @@ static void zend_fiber_object_free(zend_object *object)
 {
 	zend_fiber *fiber = (zend_fiber *) object;
 
-	if (fiber->status == ZEND_FIBER_STATUS_INIT) {
-		// Fiber was never started, so we need to release the reference to the callback.
-		zval_ptr_dtor(&fiber->fci.function_name);
-	}
-
+	zval_ptr_dtor(&fiber->fci.function_name);
 	zval_ptr_dtor(&fiber->value);
 
 	zend_fiber_destroy_context(&fiber->context);
 
 	zend_object_std_dtor(&fiber->std);
+}
+
+static HashTable *zend_fiber_object_gc(zend_object *object, zval **table, int *num)
+{
+	zend_fiber *fiber = (zend_fiber *) object;
+	zend_get_gc_buffer *buf = zend_get_gc_buffer_create();
+
+	zend_get_gc_buffer_add_zval(buf, &fiber->fci.function_name);
+	zend_get_gc_buffer_add_zval(buf, &fiber->value);
+
+	zend_get_gc_buffer_use(buf, table, num);
+
+	return NULL;
 }
 
 static int zend_fiber_catch_handler(zend_execute_data *execute_data)
@@ -322,22 +331,15 @@ ZEND_METHOD(Fiber, __construct)
 ZEND_METHOD(Fiber, start)
 {
 	zend_fiber *fiber = (zend_fiber *) Z_OBJ_P(getThis());
-	zval *params;
-	uint32_t param_count;
-	zend_array *named_params;
 
 	ZEND_PARSE_PARAMETERS_START(0, -1)
-		Z_PARAM_VARIADIC_WITH_NAMED(params, param_count, named_params);
+		Z_PARAM_VARIADIC_WITH_NAMED(fiber->fci.params, fiber->fci.param_count, fiber->fci.named_params);
 	ZEND_PARSE_PARAMETERS_END();
 
 	if (fiber->status != ZEND_FIBER_STATUS_INIT) {
 		zend_throw_error(zend_ce_fiber_error, "Cannot start a fiber that has already been started");
 		RETURN_THROWS();
 	}
-
-	fiber->fci.params = params;
-	fiber->fci.param_count = param_count;
-	fiber->fci.named_params = named_params;
 
 	if (!zend_fiber_init_context(&fiber->context, zend_fiber_execute, FIBER_G(stack_size))) {
 		zend_throw_exception(NULL, "Failed to create native fiber context", 0);
@@ -722,6 +724,7 @@ void zend_register_fiber_ce(void)
 	zend_fiber_handlers = std_object_handlers;
 	zend_fiber_handlers.dtor_obj = zend_fiber_object_destroy;
 	zend_fiber_handlers.free_obj = zend_fiber_object_free;
+	zend_fiber_handlers.get_gc = zend_fiber_object_gc;
 	zend_fiber_handlers.clone_obj = NULL;
 
 	zend_ce_fiber_error = register_class_FiberError(zend_ce_error);
