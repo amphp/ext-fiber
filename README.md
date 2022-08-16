@@ -2,6 +2,8 @@
 
 Fiber implementation for PHP using native C fibers.
 
+> Please upgrade to PHP 8.1 instead of using this extension. There are subtle differences, which can't be fixed in the extension.
+
 ### Requirements
 
 - PHP 8.0 *only* (PHP 8.1+ includes Fibers, so this extension is unnecessary)
